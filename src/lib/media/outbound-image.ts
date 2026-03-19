@@ -393,9 +393,15 @@ export async function normalizeToBase64ForGeneration(input: string): Promise<str
   }
 
   const fetchUrl = await toFetchableAbsoluteUrl(normalizedUrl)
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?/i.test(fetchUrl)
   let response: Response
   try {
-    response = await fetch(fetchUrl)
+    if (isLocal) {
+      const { fetchDirect } = await import('../../../lib/prompts/proxy')
+      response = await fetchDirect(fetchUrl)
+    } else {
+      response = await fetch(fetchUrl)
+    }
   } catch {
     throw new OutboundImageNormalizeError({
       code: 'OUTBOUND_IMAGE_FETCH_EXCEPTION',

@@ -1080,10 +1080,13 @@ function resolveStoredLlmProtocols(
       }
     }
 
-    throw new ApiError('INVALID_PARAMS', {
-      code: 'MODEL_LLM_PROTOCOL_REQUIRED',
-      field: `models[${index}].llmProtocol`,
-    })
+    // New OpenAI-compatible LLM models may not have protocol detected yet (e.g. probe rate-limited).
+    // Default to chat-completions for maximum compatibility; users can reprobe later.
+    return {
+      ...model,
+      llmProtocol: 'chat-completions',
+      llmProtocolCheckedAt: checkedAtFallback,
+    }
   })
 }
 

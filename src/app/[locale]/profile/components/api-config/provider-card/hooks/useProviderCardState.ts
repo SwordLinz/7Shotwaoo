@@ -616,8 +616,10 @@ export function useProviderCardState({
             modelId: editModel.modelId,
           })
         } catch (error) {
+          // Probe failures (rate limit / transient provider issues) should not block saving models.
+          // Backend will fall back to a default protocol when llmProtocol is absent.
           alert(resolveProbeFailureMessage(error))
-          return
+          protocolUpdates = null
         }
       }
 
@@ -670,8 +672,9 @@ export function useProviderCardState({
             modelId: finalModelId,
           })
         } catch (error) {
+          // Probe failures should not block adding the model; user can still use it and we fallback server-side.
           alert(resolveProbeFailureMessage(error))
-          return
+          protocolFields = null
         }
       }
 

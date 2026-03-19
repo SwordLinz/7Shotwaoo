@@ -2,6 +2,10 @@ import OpenAI, { toFile } from 'openai'
 import { getProviderConfig } from '@/lib/api-config'
 import { getImageBase64Cached } from '@/lib/image-cache'
 import type { OpenAICompatClientConfig } from '../types'
+// Use relative import here because the worker runtime (tsx watch) may not resolve TS path aliases.
+import { setProxy } from '../../../../lib/prompts/proxy'
+
+const OPENAI_COMPAT_TIMEOUT_MS = 120_000
 
 function toAbsoluteUrlIfNeeded(value: string): string {
   if (!value.startsWith('/')) return value
@@ -32,6 +36,8 @@ export function readStringOption(value: unknown, optionName: string): string | u
 }
 
 export async function resolveOpenAICompatClientConfig(userId: string, providerId: string): Promise<OpenAICompatClientConfig> {
+  // Ensure outbound requests (server/worker) can use proxy settings when needed.
+  await setProxy()
   const config = await getProviderConfig(userId, providerId)
   if (!config.baseUrl) {
     throw new Error(`PROVIDER_BASE_URL_MISSING: ${config.id}`)
@@ -47,6 +53,7 @@ export function createOpenAICompatClient(config: OpenAICompatClientConfig): Open
   return new OpenAI({
     apiKey: config.apiKey,
     baseURL: config.baseUrl,
+    timeout: OPENAI_COMPAT_TIMEOUT_MS,
   })
 }
 

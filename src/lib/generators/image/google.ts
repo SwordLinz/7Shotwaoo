@@ -33,6 +33,45 @@ function getErrorMessage(error: unknown): string {
     return '未知错误'
 }
 
+function normalizeAspectRatio(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined
+    const normalized = value.trim().replace('：', ':').replace('/', ':')
+    if (!normalized) return undefined
+    const allowed = new Set(['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'])
+    if (allowed.has(normalized)) return normalized
+    return undefined
+}
+
+function normalizeGoogleImageSize(value: unknown): '1K' | '2K' | '4K' | undefined {
+    if (typeof value !== 'string') return undefined
+    const raw = value.trim()
+    if (!raw) return undefined
+    const normalized = raw.toUpperCase().replace(/\s+/g, '')
+    if (normalized === '1K' || normalized === '2K' || normalized === '4K') return normalized
+    // UI 常见 0.5K → Google 仅支持 1K/2K/4K，映射为 1K
+    if (normalized === '0.5K') return '1K'
+
+    // Common UI inputs → Google ImageConfig.imageSize enum
+    const lower = raw.toLowerCase().replace(/\s+/g, '')
+    if (lower.includes('4k') || lower.includes('4096')) return '4K'
+    if (lower.includes('2k') || lower.includes('2048') || lower.includes('1440p')) return '2K'
+    if (lower.includes('0.5k') || lower.includes('1k') || lower.includes('1024') || lower.includes('1080p') || lower.includes('720p')) return '1K'
+
+    const match = lower.match(/(\d{3,4})x(\d{3,4})/)
+    if (match) {
+        const w = Number(match[1])
+        const h = Number(match[2])
+        const max = Math.max(w, h)
+        if (Number.isFinite(max)) {
+            if (max >= 3000) return '4K'
+            if (max >= 1500) return '2K'
+            return '1K'
+        }
+    }
+
+    return undefined
+}
+
 export class GoogleGeminiImageGenerator extends BaseImageGenerator {
     private modelId: string
 
@@ -55,6 +94,8 @@ export class GoogleGeminiImageGenerator extends BaseImageGenerator {
             modelId?: string
             modelKey?: string
         }
+        const normalizedAspectRatio = normalizeAspectRatio(aspectRatio)
+        const normalizedImageSize = normalizeGoogleImageSize(resolution)
 
         const allowedOptionKeys = new Set([
             'provider',
@@ -133,11 +174,11 @@ export class GoogleGeminiImageGenerator extends BaseImageGenerator {
             config: {
                 responseModalities: ['TEXT', 'IMAGE'],
                 safetySettings,
-                ...(aspectRatio || resolution
+                ...(normalizedAspectRatio || normalizedImageSize
                     ? {
                         imageConfig: {
-                            ...(aspectRatio ? { aspectRatio } : {}),
-                            ...(resolution ? { imageSize: resolution } : {}),
+                            ...(normalizedAspectRatio ? { aspectRatio: normalizedAspectRatio } : {}),
+                            ...(normalizedImageSize ? { imageSize: normalizedImageSize } : {}),
                         },
                     }
                     : {})
@@ -193,6 +234,7 @@ export class GoogleImagenGenerator extends BaseImageGenerator {
         const {
             aspectRatio,
         } = options
+        const normalizedAspectRatio = normalizeAspectRatio(aspectRatio)
 
         await setProxy()
         const ai = new GoogleGenAI({ apiKey })
@@ -204,7 +246,7 @@ export class GoogleImagenGenerator extends BaseImageGenerator {
                 prompt,
                 config: {
                     numberOfImages: 1,
-                    ...(aspectRatio ? { aspectRatio } : {}),
+                    ...(normalizedAspectRatio ? { aspectRatio: normalizedAspectRatio } : {}),
                 }
             })
 

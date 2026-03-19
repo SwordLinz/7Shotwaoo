@@ -255,6 +255,7 @@ async function runCompatibleGetProbe(params: {
 
 async function runCompatibleLlmFallback(baseUrl: string, apiKey: string, llmModel: string): Promise<TestStep> {
   try {
+    await setProxy()
     const client = new OpenAI({
       apiKey,
       baseURL: baseUrl,
@@ -284,6 +285,8 @@ async function runCompatibleLlmFallback(baseUrl: string, apiKey: string, llmMode
 }
 
 async function testCompatibleProvider(baseUrl: string, apiKey: string, llmModel?: string): Promise<TestProviderResult> {
+  // Compatible providers often rely on outbound internet access; ensure proxy is configured when needed.
+  await setProxy()
   const modelProbe = await runCompatibleGetProbe({
     stepName: 'models',
     urls: buildCompatibleProbeUrls(baseUrl, ['/models']),

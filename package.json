@@ -75,7 +75,7 @@
     "test:unit:all": "cross-env BILLING_TEST_BOOTSTRAP=0 vitest run tests/unit",
     "test:integration:api": "cross-env BILLING_TEST_BOOTSTRAP=1 vitest run tests/integration/api",
     "test:integration:chain": "cross-env BILLING_TEST_BOOTSTRAP=1 vitest run tests/integration/chain",
-    "test:behavior:unit": "cross-env BILLING_TEST_BOOTSTRAP=0 vitest run tests/unit/helpers tests/unit/worker tests/unit/optimistic tests/unit/guards",
+    "test:behavior:unit": "cross-env BILLING_TEST_BOOTSTRAP=0 vitest run tests/unit/helpers tests/unit/worker tests/unit/optimistic",
     "test:behavior:api": "cross-env BILLING_TEST_BOOTSTRAP=0 vitest run tests/integration/api/contract",
     "test:behavior:chain": "cross-env BILLING_TEST_BOOTSTRAP=0 vitest run tests/integration/chain",
     "test:behavior:guards": "npm run check:api-handler && npm run check:image-reference-normalization && npm run check:task-submit-compensation && npm run check:test-coverage-guards && npm run check:requirements-matrix",

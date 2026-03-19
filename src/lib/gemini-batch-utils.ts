@@ -26,6 +26,41 @@ function getErrorMessage(error: unknown): string {
   return String(error)
 }
 
+/** Google ImageConfig 仅支持以下比例，否则会报 invalid argument */
+function normalizeAspectRatio(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim().replace('：', ':').replace('/', ':')
+  if (!normalized) return undefined
+  const allowed = new Set(['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'])
+  return allowed.has(normalized) ? normalized : undefined
+}
+
+/** Google ImageConfig.imageSize 仅支持 1K / 2K / 4K；0.5K 等需映射 */
+function normalizeGoogleImageSize(value: unknown): '1K' | '2K' | '4K' | undefined {
+  if (typeof value !== 'string') return undefined
+  const raw = value.trim()
+  if (!raw) return undefined
+  const normalized = raw.toUpperCase().replace(/\s+/g, '')
+  if (normalized === '1K' || normalized === '2K' || normalized === '4K') return normalized
+  if (normalized === '0.5K') return '1K'
+  const lower = raw.toLowerCase().replace(/\s+/g, '')
+  if (lower.includes('4k') || lower.includes('4096')) return '4K'
+  if (lower.includes('2k') || lower.includes('2048') || lower.includes('1440p')) return '2K'
+  if (lower.includes('0.5k') || lower.includes('1k') || lower.includes('1024') || lower.includes('1080p') || lower.includes('720p')) return '1K'
+  const match = lower.match(/(\d{3,4})x(\d{3,4})/)
+  if (match) {
+    const w = Number(match[1])
+    const h = Number(match[2])
+    const max = Math.max(w, h)
+    if (Number.isFinite(max)) {
+      if (max >= 3000) return '4K'
+      if (max >= 1500) return '2K'
+      return '1K'
+    }
+  }
+  return undefined
+}
+
 interface GeminiBatchClient {
   batches: {
     create(args: {
@@ -114,14 +149,12 @@ export async function submitGeminiBatch(
     contentParts.push({ text: prompt })
 
     // 构建内嵌请求（Inline Requests）
-    // 🔥 添加 imageConfig 以控制输出图片的比例和尺寸
+    // Google 仅支持固定 aspectRatio / imageSize 枚举，未归一化会报 invalid argument
     const imageConfig: UnknownRecord = {}
-    if (options?.aspectRatio) {
-      imageConfig.aspectRatio = options.aspectRatio
-    }
-    if (options?.resolution) {
-      imageConfig.imageSize = options.resolution  // 'HD', '4K' 等
-    }
+    const aspectRatio = normalizeAspectRatio(options?.aspectRatio)
+    const imageSize = normalizeGoogleImageSize(options?.resolution)
+    if (aspectRatio) imageConfig.aspectRatio = aspectRatio
+    if (imageSize) imageConfig.imageSize = imageSize
 
     const inlinedRequests = [
       {
