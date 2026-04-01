@@ -29,7 +29,7 @@ const CONFIG = {
     useSSL: process.env.MINIO_USE_SSL === 'true',
     accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
     secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
-    bucket: process.env.MINIO_BUCKET || 'waoowaoo',
+    bucket: process.env.MINIO_BUCKET || 'wacoo',
     region: process.env.MINIO_REGION || 'us-east-1',
     forcePathStyle: process.env.MINIO_FORCE_PATH_STYLE !== 'false',
   },
@@ -325,7 +325,7 @@ async function main() {
   // 7. 后续步骤提示
   console.log()
   console.log('📋 后续步骤:')
-  console.log('  1. 验证 MinIO 中的文件: mc ls local/waoowaoo')
+  console.log('  1. 验证 MinIO 中的文件: mc ls local/wacoo')
   console.log('  2. 更新 .env: STORAGE_TYPE=minio')
   console.log('  3. 重启应用: docker compose restart app')
   console.log('  4. 测试图片/视频访问是否正常')

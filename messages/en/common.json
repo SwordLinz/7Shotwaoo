@@ -1,5 +1,5 @@
 {
-    "appName": "waoowaoo",
+    "appName": "wacoo",
     "betaVersion": "Beta v{version}",
     "updateNotice": {
         "title": "New version available",
@@ -65,6 +65,7 @@
     "referenceImage": "Reference image",
     "previewLarge": "Preview large",
     "viewOriginal": "View original",
+    "imagePreviewAspectRatio": "Aspect ratio",
     "schemeN": "Scheme {n}",
     "insufficientBalance": "Insufficient Balance",
     "insufficientBalanceDetail": "Insufficient account balance, please recharge to continue",

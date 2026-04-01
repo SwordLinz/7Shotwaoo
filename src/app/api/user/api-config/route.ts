@@ -61,6 +61,7 @@ interface StoredProvider {
   name: string
   baseUrl?: string
   apiKey?: string
+  apiAppId?: string
   hidden?: boolean
   apiMode?: ApiModeType
   gatewayRoute?: GatewayRouteType
@@ -190,6 +191,7 @@ const OPTIONAL_PRICING_PROVIDER_KEYS = new Set([
   'gemini-compatible',
   'bailian',
   'siliconflow',
+  'runninghub',
 ])
 const OFFICIAL_ONLY_PROVIDER_KEYS = new Set(['bailian', 'siliconflow'])
 const RETIRED_PROVIDER_KEYS = new Set(['qwen'])
@@ -916,6 +918,7 @@ function normalizeProvidersInput(rawProviders: unknown): StoredProvider[] {
       name,
       baseUrl,
       apiKey: typeof item.apiKey === 'string' ? item.apiKey.trim() : undefined,
+      apiAppId: typeof item.apiAppId === 'string' ? item.apiAppId.trim() : undefined,
       hidden: hiddenRaw === true,
       apiMode: apiModeRaw,
       gatewayRoute,
@@ -1476,6 +1479,7 @@ function parseStoredProviders(rawProviders: string | null | undefined): StoredPr
       name,
       baseUrl,
       apiKey: typeof raw.apiKey === 'string' ? raw.apiKey.trim() : undefined,
+      apiAppId: typeof raw.apiAppId === 'string' ? raw.apiAppId.trim() : undefined,
       hidden: hiddenRaw === true,
       apiMode,
       gatewayRoute,
@@ -1682,6 +1686,7 @@ export const GET = apiHandler(async () => {
   const providers = parseStoredProviders(pref?.customProviders).map((provider) => ({
     ...provider,
     apiKey: provider.apiKey ? decryptApiKey(provider.apiKey) : '',
+    apiAppId: provider.apiAppId ? decryptApiKey(provider.apiAppId) : '',
   }))
 
   const billingMode = await getBillingMode()
@@ -1829,6 +1834,14 @@ export const PUT = apiHandler(async (request: NextRequest) => {
       } else {
         finalApiKey = encryptApiKey(provider.apiKey)
       }
+      let finalApiAppId: string | undefined
+      if (provider.apiAppId === undefined) {
+        finalApiAppId = existing?.apiAppId
+      } else if (provider.apiAppId === '') {
+        finalApiAppId = undefined
+      } else {
+        finalApiAppId = encryptApiKey(provider.apiAppId)
+      }
       const finalHidden = provider.hidden === undefined
         ? existing?.hidden === true
         : provider.hidden === true
@@ -1841,6 +1854,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
         apiMode: provider.apiMode,
         gatewayRoute: provider.gatewayRoute,
         apiKey: finalApiKey,
+        apiAppId: finalApiAppId,
       }
     })
     updateData.customProviders = JSON.stringify(providersToSave)

@@ -195,6 +195,7 @@
     "fps": "Frame rate",
     "resolution": "Resolution",
     "aspectRatio": "Aspect ratio",
+    "modelId": "Model ID",
     "reasoningEffort": "Reasoning effort",
     "voice": "Voice",
     "rate": "Rate",

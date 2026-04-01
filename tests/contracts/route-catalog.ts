@@ -54,6 +54,8 @@ const ROUTE_FILES = [
   'src/app/api/asset-hub/voices/upload/route.ts',
   'src/app/api/auth/[...nextauth]/route.ts',
   'src/app/api/auth/register/route.ts',
+  'src/app/api/automation/jobs/route.ts',
+  'src/app/api/automation/jobs/[jobId]/route.ts',
   'src/app/api/cos/image/route.ts',
   'src/app/api/files/[...path]/route.ts',
   'src/app/api/storage/sign/route.ts',

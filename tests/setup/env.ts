@@ -43,7 +43,7 @@ export function loadTestEnv() {
 
   setIfMissing('NODE_ENV', 'test')
   setIfMissing('BILLING_MODE', 'OFF')
-  setIfMissing('DATABASE_URL', 'mysql://root:root@127.0.0.1:3307/waoowaoo_test')
+  setIfMissing('DATABASE_URL', 'mysql://root:root@127.0.0.1:3307/wacoo_test')
   setIfMissing('REDIS_HOST', '127.0.0.1')
   setIfMissing('REDIS_PORT', '6380')
 }

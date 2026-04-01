@@ -53,6 +53,8 @@ interface CustomProvider {
   name: string
   baseUrl?: string
   apiKey?: string
+  /** 悠船等机构标识 (x-youchuan-app)，与 apiKey（授权码）配对存储 */
+  apiAppId?: string
   apiMode?: 'gemini-sdk' | 'openai-official'
   gatewayRoute?: GatewayRouteType
 }
@@ -63,6 +65,10 @@ function normalizeProviderBaseUrl(providerId: string, rawBaseUrl?: string): stri
   const providerKey = getProviderKey(providerId)
   if (providerKey === 'minimax') {
     return 'https://api.minimaxi.com/v1'
+  }
+  if (providerKey === 'runninghub') {
+    const baseUrl = readTrimmedString(rawBaseUrl)
+    return baseUrl || 'https://www.runninghub.cn/openapi/v2'
   }
 
   const baseUrl = readTrimmedString(rawBaseUrl)
@@ -182,6 +188,7 @@ function parseCustomProviders(rawProviders: string | null | undefined): CustomPr
       name,
       baseUrl: readTrimmedString(raw.baseUrl) || undefined,
       apiKey: readTrimmedString(raw.apiKey) || undefined,
+      apiAppId: readTrimmedString(raw.apiAppId) || undefined,
       apiMode,
       gatewayRoute,
     })
@@ -410,6 +417,8 @@ export interface ProviderConfig {
   id: string
   name: string
   apiKey: string
+  /** 悠船机构标识等第二凭证（明文，已由存储层解密） */
+  apiAppId?: string
   baseUrl?: string
   apiMode?: 'gemini-sdk' | 'openai-official'
   gatewayRoute?: GatewayRouteType
@@ -423,10 +432,25 @@ export async function getProviderConfig(userId: string, providerId: string): Pro
     throw new Error(`PROVIDER_API_KEY_MISSING: ${provider.id}`)
   }
 
+  const apiKey = decryptApiKey(provider.apiKey).trim()
+  if (!apiKey) {
+    throw new Error(`PROVIDER_API_KEY_EMPTY: ${provider.id}`)
+  }
+
+  const providerKey = getProviderKey(provider.id).toLowerCase()
+  let apiAppId: string | undefined
+  if (provider.apiAppId) {
+    apiAppId = decryptApiKey(provider.apiAppId).trim() || undefined
+  }
+  if (providerKey === 'youchuan' && !apiAppId) {
+    throw new Error(`PROVIDER_YOUCHUAN_APP_ID_MISSING: ${provider.id}`)
+  }
+
   return {
     id: provider.id,
     name: provider.name,
-    apiKey: decryptApiKey(provider.apiKey),
+    apiKey,
+    ...(apiAppId ? { apiAppId } : {}),
     baseUrl: normalizeProviderBaseUrl(provider.id, provider.baseUrl),
     apiMode: provider.apiMode,
     gatewayRoute: provider.gatewayRoute,

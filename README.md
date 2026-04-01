@@ -1,21 +1,21 @@
 <p align="center">
-  <a href="https://www.waoowaoo.com/">
-    <img src="images/cta-banner.png" alt="🚀 探索 AI 影视的下一代创作流 | 立即加入 waoowaoo 在线网页版内测候补" width="800">
+  <a href="https://github.com/saturndec/wacoo">
+    <img src="images/cta-banner.png" alt="🚀 探索 AI 影视的下一代创作流 | Wacoo" width="800">
   </a>
 </p>
 
 <p align="center">
-  <img src="public/banner.png" alt="waoowaoo" width="600">
+  <img src="public/banner.png" alt="Wacoo" width="600">
 </p>
 
-<h1 align="center">waoowaoo AI 影视 Studio</h1>
+<h1 align="center">Wacoo AI 影视 Studio</h1>
 
 <p align="center">
   一款基于 AI 技术的短剧/漫画视频制作工具，支持从小说文本自动生成分镜、角色、场景，并制作成完整视频。
 </p>
 
 <p align="center">
-  <a href="README_en.md">English</a> · <a href="https://www.waoowaoo.com/">加入内测候补</a> · <a href="https://github.com/saturndec/waoowaoo/issues">反馈问题</a>
+  <a href="README_en.md">English</a> · <a href="https://github.com/saturndec/wacoo">GitHub</a> · <a href="https://github.com/saturndec/wacoo/issues">反馈问题</a>
 </p>
 
 > [!IMPORTANT]
@@ -39,48 +39,39 @@
 
 **前提条件**：安装 [Docker Desktop](https://docs.docker.com/get-docker/)
 
-### 方式一：拉取预构建镜像（最简单）
+### 方式一：克隆仓库 + Docker 构建（推荐）
 
-无需克隆仓库，下载即用：
+应用镜像在本地从源码构建（`docker-compose.yml` 中 `image: wacoo:local`）：
 
 ```bash
-# 下载 docker-compose.yml
-curl -O https://raw.githubusercontent.com/saturndec/waoowaoo/main/docker-compose.yml
-
-# 启动所有服务
-docker compose up -d
+git clone https://github.com/saturndec/wacoo.git
+cd wacoo
+docker compose up -d --build
 ```
 
 > ⚠️ 当前为测试版，版本间数据库不兼容。升级请先清除旧数据：
 
 ```bash
 docker compose down -v
-docker rmi ghcr.io/saturndec/waoowaoo:latest
-curl -O https://raw.githubusercontent.com/saturndec/waoowaoo/main/docker-compose.yml
-docker compose up -d
+docker rmi wacoo:local
+git pull
+docker compose up -d --build
 ```
 
 > 启动后请**清空浏览器缓存**并重新登录，避免旧版本缓存导致异常。
 
-### 方式二：克隆仓库 + Docker 构建（完全控制）
-
-```bash
-git clone https://github.com/saturndec/waoowaoo.git
-cd waoowaoo
-docker compose up -d
-```
-
 更新版本：
+
 ```bash
 git pull
 docker compose down && docker compose up -d --build
 ```
 
-### 方式三：本地开发模式（开发者）
+### 方式二：本地开发模式（开发者）
 
 ```bash
-git clone https://github.com/saturndec/waoowaoo.git
-cd waoowaoo
+git clone https://github.com/saturndec/wacoo.git
+cd wacoo
 npm install
 
 # 只启动基础设施
@@ -95,7 +86,7 @@ npm run dev
 
 ---
 
-访问 [http://localhost:13000](http://localhost:13000)（方式一、二）或 [http://localhost:3000](http://localhost:3000)（方式三）开始使用！
+访问 [http://localhost:13000](http://localhost:13000)（方式一）或 [http://localhost:3000](http://localhost:3000)（方式二）开始使用！
 
 > 首次启动会自动完成数据库初始化，无需任何额外配置。
 
@@ -139,14 +130,14 @@ npm run dev
 
 本项目由核心团队独立维护。欢迎你通过以下方式参与：
 
-- 🐛 提交 [Issue](https://github.com/saturndec/waoowaoo/issues) 反馈 Bug
-- 💡 提交 [Issue](https://github.com/saturndec/waoowaoo/issues) 提出功能建议
+- 🐛 提交 [Issue](https://github.com/saturndec/wacoo/issues) 反馈 Bug
+- 💡 提交 [Issue](https://github.com/saturndec/wacoo/issues) 提出功能建议
 - 🔧 提交 Pull Request 供参考 — 我们会认真审阅每一个 PR 的思路，但最终由团队自行实现修复，不会直接合并外部 PR
 
 ---
 
-**Made with ❤️ by waoowaoo team**
+**Made with ❤️ by Wacoo team**
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=saturndec/waoowaoo&type=date&legend=top-left)](https://www.star-history.com/#saturndec/waoowaoo&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=saturndec/wacoo&type=date&legend=top-left)](https://www.star-history.com/#saturndec/wacoo&type=date&legend=top-left)

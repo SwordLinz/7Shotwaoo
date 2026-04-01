@@ -116,6 +116,11 @@
   "audioAndLipsync": "Audio & Lip Sync",
   "configureApiKey": "Configure API Key",
   "enterApiKey": "Enter API Key",
+  "youchuanAppIdLabel": "App ID",
+  "youchuanSecretLabel": "Secret",
+  "youchuanEnterAppId": "Institution App ID (x-youchuan-app)",
+  "youchuanEnterSecret": "Institution secret (x-youchuan-secret)",
+  "youchuanCredentialsIncomplete": "Enter both App ID and secret before saving or testing",
   "testConnection": "Test Connection",
   "testing": "Testing...",
   "testPassed": "Connection test passed",
@@ -177,7 +182,9 @@
       "openai_compatible_step1": "Enter any OpenAI-compatible service Base URL and API key",
       "gemini_compatible_step1": "Enter any Gemini-compatible service Base URL and API key",
       "bailian_step1": "Go to Alibaba Cloud Bailian console and get an API Key",
-      "siliconflow_step1": "Go to SiliconFlow console and create an API Key"
+      "siliconflow_step1": "Go to SiliconFlow console and create an API Key",
+      "kling_step1": "Go to Kling developer portal, create Access/Secret keys, and generate an API Token",
+      "kling_step2": "Check Kling OpenAPI docs and use Authorization: Bearer <API Token>"
     }
   },
   "assistantOpen": "AI Assistant",

@@ -9,7 +9,7 @@ import {
 import { APP_VERSION, GITHUB_REPOSITORY } from '@/lib/app-meta'
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000
-const MUTED_UPDATE_VERSION_KEY = 'waoowaoo:update:muted-version'
+const MUTED_UPDATE_VERSION_KEY = 'wacoo:update:muted-version'
 
 export interface ReleaseUpdateInfo {
   latestVersion: string

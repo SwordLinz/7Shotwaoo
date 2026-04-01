@@ -37,7 +37,7 @@ describe('storage bootstrap', () => {
     vi.clearAllMocks()
     process.env.MINIO_ENDPOINT = 'http://127.0.0.1:9000'
     process.env.MINIO_REGION = 'us-east-1'
-    process.env.MINIO_BUCKET = 'waoowaoo'
+    process.env.MINIO_BUCKET = 'wacoo'
     process.env.MINIO_ACCESS_KEY = 'minioadmin'
     process.env.MINIO_SECRET_KEY = 'minioadmin'
     process.env.MINIO_FORCE_PATH_STYLE = 'true'
@@ -62,7 +62,7 @@ describe('storage bootstrap', () => {
         secretAccessKey: 'minioadmin',
       },
     })
-    expect(headBucketCommandMock).toHaveBeenCalledWith({ Bucket: 'waoowaoo' })
+    expect(headBucketCommandMock).toHaveBeenCalledWith({ Bucket: 'wacoo' })
     expect(createBucketCommandMock).not.toHaveBeenCalled()
   })
 
@@ -76,11 +76,11 @@ describe('storage bootstrap', () => {
 
     await expect(ensureStorageReady({ storageType: 'minio' })).resolves.toBe('created')
 
-    expect(headBucketCommandMock).toHaveBeenCalledWith({ Bucket: 'waoowaoo' })
-    expect(createBucketCommandMock).toHaveBeenCalledWith({ Bucket: 'waoowaoo' })
+    expect(headBucketCommandMock).toHaveBeenCalledWith({ Bucket: 'wacoo' })
+    expect(createBucketCommandMock).toHaveBeenCalledWith({ Bucket: 'wacoo' })
     expect(sendMock).toHaveBeenNthCalledWith(2, {
       type: 'CreateBucketCommand',
-      input: { Bucket: 'waoowaoo' },
+      input: { Bucket: 'wacoo' },
     })
   })
 

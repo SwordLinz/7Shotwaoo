@@ -6,12 +6,19 @@ import { resolveOriginalImageUrl, toDisplayImageUrl } from '@/lib/media/image-ur
 import { MediaImageWithLoading } from '@/components/media/MediaImageWithLoading'
 import { AppIcon } from '@/components/ui/icons'
 
+export interface ImagePreviewInfoChip {
+  label: string
+  value: string
+}
+
 interface ImagePreviewModalProps {
   imageUrl: string | null
   onClose: () => void
+  /** 与「查看原图」同排的生成参数展示（如项目宽高比、画质），可选 */
+  infoChips?: ImagePreviewInfoChip[]
 }
 
-export default function ImagePreviewModal({ imageUrl, onClose }: ImagePreviewModalProps) {
+export default function ImagePreviewModal({ imageUrl, onClose, infoChips }: ImagePreviewModalProps) {
   const t = useTranslations('common')
 
   useEffect(() => {
@@ -61,6 +68,23 @@ export default function ImagePreviewModal({ imageUrl, onClose }: ImagePreviewMod
           >
             {t('viewOriginal')}
           </a>
+        )}
+
+        {infoChips && infoChips.length > 0 && (
+          <div
+            className="absolute top-6 left-6 z-10 flex flex-wrap items-center gap-2 max-w-[min(100%,42rem)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {infoChips.map((chip) => (
+              <span
+                key={`${chip.label}:${chip.value}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--glass-overlay)] px-3 py-1.5 text-xs text-white/95"
+              >
+                <span className="text-white/75">{chip.label}</span>
+                <span className="font-medium tabular-nums">{chip.value}</span>
+              </span>
+            ))}
+          </div>
         )}
 
         {/* 图片 */}

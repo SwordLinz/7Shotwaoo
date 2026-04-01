@@ -5,6 +5,7 @@ import { CharacterPickerModal, LocationPickerModal } from '../PanelEditForm'
 import ImageEditModal from './ImageEditModal'
 import AIDataModal from './AIDataModal'
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal'
+import { useTranslations } from 'next-intl'
 import StoryboardStageShell from './StoryboardStageShell'
 import StoryboardToolbar from './StoryboardToolbar'
 import StoryboardCanvas from './StoryboardCanvas'
@@ -32,6 +33,7 @@ export default function StoryboardStage({
   onNext,
   isTransitioning = false,
 }: StoryboardStageProps) {
+  const tCommon = useTranslations('common')
   const controller = useStoryboardStageController({
     projectId,
     episodeId,
@@ -247,7 +249,13 @@ export default function StoryboardStage({
         )}
 
         {modalRuntime.previewImage && (
-          <ImagePreviewModal imageUrl={modalRuntime.previewImage} onClose={modalRuntime.closePreviewImage} />
+          <ImagePreviewModal
+            imageUrl={modalRuntime.previewImage}
+            onClose={modalRuntime.closePreviewImage}
+            infoChips={[
+              { label: tCommon('imagePreviewAspectRatio'), value: videoRatio },
+            ]}
+          />
         )}
 
         {modalRuntime.hasCharacterPicker && (

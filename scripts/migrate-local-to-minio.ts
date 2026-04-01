@@ -14,7 +14,7 @@ import { createReadStream } from 'fs'
 // ==================== 配置 ====================
 const LOCAL_DIR = process.env.LOCAL_UPLOAD_DIR || './data/uploads'
 const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || 'http://127.0.0.1:19000'
-const MINIO_BUCKET = process.env.MINIO_BUCKET || 'waoowaoo'
+const MINIO_BUCKET = process.env.MINIO_BUCKET || 'wacoo'
 const MINIO_REGION = process.env.MINIO_REGION || 'us-east-1'
 const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || 'minioadmin'
 const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || 'minioadmin'

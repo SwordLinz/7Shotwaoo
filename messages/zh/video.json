@@ -195,6 +195,7 @@
     "fps": "帧率",
     "resolution": "分辨率",
     "aspectRatio": "画幅比例",
+    "modelId": "模型 ID",
     "reasoningEffort": "推理强度",
     "voice": "音色",
     "rate": "语速",

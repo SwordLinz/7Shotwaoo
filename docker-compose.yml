@@ -1,12 +1,14 @@
+name: wacoo
+
 services:
   # ==================== MySQL ====================
   mysql:
     image: mysql:8.0
-    container_name: waoowaoo-mysql
+    container_name: wacoo-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: waoowaoo123
-      MYSQL_DATABASE: waoowaoo
+      MYSQL_ROOT_PASSWORD: wacoo123
+      MYSQL_DATABASE: wacoo
       MYSQL_ROOT_HOST: "%"
     ports:
       - "13306:3306"
@@ -16,7 +18,7 @@ services:
       - "--default-authentication-plugin=mysql_native_password"
       - "--sql_mode=STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION"
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pwaoowaoo123"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pwacoo123"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -25,7 +27,7 @@ services:
   # ==================== Redis ====================
   redis:
     image: redis:7-alpine
-    container_name: waoowaoo-redis
+    container_name: wacoo-redis
     restart: unless-stopped
     ports:
       - "16379:6379"
@@ -42,7 +44,7 @@ services:
   # ==================== MinIO ====================
   minio:
     image: minio/minio:RELEASE.2025-02-28T09-55-16Z
-    container_name: waoowaoo-minio
+    container_name: wacoo-minio
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -62,12 +64,13 @@ services:
 
   # ==================== App (Next.js + Workers) ====================
   app:
-    image: ghcr.io/saturndec/waoowaoo:latest
-    container_name: waoowaoo-app
+    build: .
+    image: wacoo:local
+    container_name: wacoo-app
     restart: unless-stopped
     environment:
       # 数据库（指向容器内部 MySQL，用服务名 mysql 而非 localhost）
-      DATABASE_URL: "mysql://root:waoowaoo123@mysql:3306/waoowaoo"
+      DATABASE_URL: "mysql://root:wacoo123@mysql:3306/wacoo"
       # Redis（指向容器内部 Redis，用服务名 redis）
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -78,16 +81,17 @@ services:
       STORAGE_TYPE: minio
       MINIO_ENDPOINT: "http://minio:9000"
       MINIO_REGION: "us-east-1"
-      MINIO_BUCKET: "waoowaoo"
+      MINIO_BUCKET: "wacoo"
       MINIO_ACCESS_KEY: "minioadmin"
       MINIO_SECRET_KEY: "minioadmin"
       MINIO_FORCE_PATH_STYLE: "true"
       # 认证
       NEXTAUTH_URL: "http://localhost:3000"
-      NEXTAUTH_SECRET: "waoowaoo-default-secret-2026"
+      NEXTAUTH_SECRET: "wacoo-default-secret-2026"
       # 内部密钥
-      CRON_SECRET: "waoowaoo-docker-cron-secret"
-      INTERNAL_TASK_TOKEN: "waoowaoo-docker-task-token"
+      CRON_SECRET: "wacoo-docker-cron-secret"
+      INTERNAL_TASK_TOKEN: "wacoo-docker-task-token"
+      # 须与 seed.sql 中加密数据一致（PBKDF2 盐值见 crypto-utils.ts）
       API_ENCRYPTION_KEY: "waoowaoo-opensource-fixed-key-2026"
       # Worker 配置
       WATCHDOG_INTERVAL_MS: "30000"
@@ -108,7 +112,7 @@ services:
       LOG_FORMAT: "json"
       LOG_DEBUG_ENABLED: "false"
       LOG_AUDIT_ENABLED: "true"
-      LOG_SERVICE: "waoowaoo"
+      LOG_SERVICE: "wacoo"
       LOG_REDACT_KEYS: "password,token,apiKey,apikey,authorization,cookie,secret,access_token,refresh_token"
       # 计费
       BILLING_MODE: "OFF"
@@ -132,7 +136,7 @@ services:
         npx prisma db push --skip-generate &&
         (sleep 5 && echo '' &&
         echo '╔══════════════════════════════════════════════════╗' &&
-        echo '║            waoowaoo is ready!                    ║' &&
+        echo '║            Wacoo is ready!                       ║' &&
         echo '║                                                  ║' &&
         echo '║  HTTP:  http://localhost:13000                    ║' &&
         echo '║                                                  ║' &&

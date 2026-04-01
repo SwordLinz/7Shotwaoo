@@ -27,6 +27,7 @@ const AUTH_CALL_PATTERNS = [
   /\brequireUserAuth\s*\(/,
   /\brequireProjectAuth\s*\(/,
   /\brequireProjectAuthLight\s*\(/,
+  /\brequireAutomationAuth\s*\(/,
 ]
 
 function fail(title, details = []) {

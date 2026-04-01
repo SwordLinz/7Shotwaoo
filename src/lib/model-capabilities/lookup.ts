@@ -305,6 +305,28 @@ export function resolveGenerationOptionsForModel(input: {
     }
   }
 
+  // 视频模型：对 catalog 声明的各 *Options 字段，若用户未在 defaults/overrides/runtime 中填写，
+  // 则按预检缺失项依次填入各自允许列表的首项，与面板侧 normalizeVideoGenerationSelections 的默认策略对齐。
+  if (input.modelType === 'video') {
+    const videoOptionFields = getCapabilityOptionFields(input.modelType, input.capabilities)
+    for (const [field, allowed] of Object.entries(videoOptionFields)) {
+      if (!Array.isArray(allowed) || allowed.length === 0) continue
+      if (Object.prototype.hasOwnProperty.call(normalizedSelection, field)) continue
+      const missingFieldIssue = precheckIssues.find(
+        (issue) =>
+          issue.code === 'CAPABILITY_REQUIRED'
+          && issue.field === `capabilities.${input.modelKey}.${field}`,
+      )
+      const first = allowed[0]
+      if (missingFieldIssue && first !== undefined && allowed.includes(first)) {
+        normalizedSelection = {
+          ...normalizedSelection,
+          [field]: first,
+        }
+      }
+    }
+  }
+
   // 使用补全后的 selection 再做一次严格校验，确保不会产生非法值
   const issues = validateCapabilitySelectionForModel({
     modelKey: input.modelKey,

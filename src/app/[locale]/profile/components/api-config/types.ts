@@ -18,10 +18,23 @@ export interface Provider {
     name: string
     baseUrl?: string
     apiKey?: string
+    /** 悠船等机构标识 (x-youchuan-app)，与 apiKey（授权码）配对 */
+    apiAppId?: string
     hasApiKey?: boolean
     hidden?: boolean
     apiMode?: 'gemini-sdk' | 'openai-official'
     gatewayRoute?: 'official' | 'openai-compat'
+}
+
+/** 是否已填写该厂商连接所需的全部凭证（悠船需 App ID + 授权码） */
+export function isProviderCredentialComplete(provider: Pick<Provider, 'id' | 'apiKey' | 'apiAppId'>): boolean {
+    const key = getProviderKey(provider.id).toLowerCase()
+    const secret = (provider.apiKey || '').trim()
+    const appId = (provider.apiAppId || '').trim()
+    if (key === 'youchuan') {
+        return !!(secret && appId)
+    }
+    return !!secret
 }
 
 export interface LlmCustomPricing {
@@ -132,6 +145,7 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'imagen-4.0-generate-001', name: 'Imagen 4', type: 'image', provider: 'google' },
     { modelId: 'imagen-4.0-ultra-generate-001', name: 'Imagen 4 Ultra', type: 'image', provider: 'google' },
     { modelId: 'imagen-4.0-fast-generate-001', name: 'Imagen 4 Fast', type: 'image', provider: 'google' },
+    { modelId: 'tob-diffusion', name: 'Youchuan Text-to-Image', type: 'image', provider: 'youchuan' },
     // 视频模型
     { modelId: 'doubao-seedance-1-0-pro-fast-251015', name: 'Seedance 1.0 Pro Fast', type: 'video', provider: 'ark' },
     { modelId: 'doubao-seedance-1-0-lite-i2v-250428', name: 'Seedance 1.0 Lite', type: 'video', provider: 'ark' },
@@ -157,6 +171,9 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video', name: 'Kling 2.5 Turbo Pro', type: 'video', provider: 'fal' },
     { modelId: 'fal-ai/kling-video/v3/standard/image-to-video', name: 'Kling 3 Standard', type: 'video', provider: 'fal' },
     { modelId: 'fal-ai/kling-video/v3/pro/image-to-video', name: 'Kling 3 Pro', type: 'video', provider: 'fal' },
+    { modelId: 'image2video', name: 'Kling 图生视频（官方 API）', type: 'video', provider: 'kling' },
+    { modelId: 'sparkvideo-2.0-i2v', name: 'RunningHub 超能视频 2.0（图生视频）', type: 'video', provider: 'runninghub' },
+    { modelId: 'chaoneng-realpeople-i2v', name: 'RunningHub 超能视频（真人视频）', type: 'video', provider: 'runninghub' },
 
     // 音频模型
     { modelId: 'fal-ai/index-tts-2/text-to-speech', name: 'IndexTTS 2', type: 'audio', provider: 'fal' },
@@ -205,6 +222,10 @@ export const PRESET_PROVIDERS: Omit<Provider, 'apiKey' | 'hasApiKey'>[] = [
     { id: 'minimax', name: 'MiniMax Hailuo', baseUrl: 'https://api.minimaxi.com/v1' },
     { id: 'vidu', name: 'Vidu' },
     { id: 'fal', name: 'FAL' },
+    // KlingAI (可灵) 官方 OpenAPI（北京）
+    { id: 'kling', name: 'Kling AI', baseUrl: 'https://api-beijing.klingai.com' },
+    { id: 'runninghub', name: 'RunningHub', baseUrl: 'https://www.runninghub.cn/openapi/v2' },
+    { id: 'youchuan', name: 'Youchuan AI' },
 ]
 
 const ZH_PROVIDER_NAME_MAP: Record<string, string> = {
@@ -213,6 +234,9 @@ const ZH_PROVIDER_NAME_MAP: Record<string, string> = {
     vidu: '生数科技 Vidu',
     bailian: '阿里云百炼',
     siliconflow: '硅基流动',
+    kling: '可灵 Kling',
+    runninghub: 'RunningHub',
+    youchuan: '悠船 AI',
 }
 
 function isZhLocale(locale?: string): boolean {
@@ -388,6 +412,19 @@ export const PROVIDER_TUTORIALS: ProviderTutorial[] = [
                 text: 'siliconflow_step1',
                 url: 'https://cloud.siliconflow.cn/account/ak'
             }
+        ]
+    },
+    {
+        providerId: 'kling',
+        steps: [
+            {
+                text: 'kling_step1',
+                url: 'https://app.klingai.com/cn/dev'
+            },
+            {
+                text: 'kling_step2',
+                url: 'https://app.klingai.com/cn/dev/document-api'
+            },
         ]
     },
 ]

@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { createScopedLogger } from '@/lib/logging/core'
-import { resolveModelSelection } from '../api-config'
+import { getProviderKey, resolveModelSelection } from '../api-config'
+import { composeModelKey, normalizeOpenRouterUpstreamModelId } from '@/lib/model-config-contract'
 import { recordTextUsage as recordBillingTextUsage } from '@/lib/billing/runtime-usage'
 
 export const llmLogger = createScopedLogger({
@@ -149,10 +150,15 @@ export async function resolveLlmRuntimeModel(
   model: string,
 ): Promise<ResolvedLlmRuntimeModel> {
   const selection = await resolveModelSelection(userId, model, 'llm')
+  const providerKey = getProviderKey(selection.provider).toLowerCase()
+  const modelId =
+    providerKey === 'openrouter'
+      ? normalizeOpenRouterUpstreamModelId(selection.modelId)
+      : selection.modelId
   return {
     provider: selection.provider,
-    modelId: selection.modelId,
-    modelKey: selection.modelKey,
+    modelId,
+    modelKey: composeModelKey(selection.provider, modelId),
     llmProtocol: selection.llmProtocol,
   }
 }

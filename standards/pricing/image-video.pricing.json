@@ -6019,5 +6019,14 @@
       "mode": "flat",
       "flatAmount": 0.5
     }
+  },
+  {
+    "apiType": "image",
+    "provider": "youchuan",
+    "modelId": "tob-diffusion",
+    "pricing": {
+      "mode": "flat",
+      "flatAmount": 0
+    }
   }
 ]

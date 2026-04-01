@@ -50,4 +50,26 @@ describe('async poll externalId contract', () => {
     expect(parsed.type).toBe('IMAGE')
     expect(parsed.requestId).toBe('task_456')
   })
+
+  it('parses and formats YOUCHUAN image externalId', () => {
+    const externalId = formatExternalId('YOUCHUAN', 'IMAGE', '68be9b50553a97d658968285')
+    expect(externalId).toBe('YOUCHUAN:IMAGE:68be9b50553a97d658968285')
+
+    const parsed = parseExternalId(externalId)
+    expect(parsed.provider).toBe('YOUCHUAN')
+    expect(parsed.type).toBe('IMAGE')
+    expect(parsed.requestId).toBe('68be9b50553a97d658968285')
+  })
+
+  it('parses and formats RUNNINGHUB video externalId', () => {
+    const token = Buffer.from('runninghub', 'utf8').toString('base64url')
+    const externalId = formatExternalId('RUNNINGHUB', 'VIDEO', '2013508786110730241', undefined, token)
+    expect(externalId).toBe(`RUNNINGHUB:VIDEO:${token}:2013508786110730241`)
+
+    const parsed = parseExternalId(externalId)
+    expect(parsed.provider).toBe('RUNNINGHUB')
+    expect(parsed.type).toBe('VIDEO')
+    expect(parsed.providerToken).toBe(token)
+    expect(parsed.requestId).toBe('2013508786110730241')
+  })
 })

@@ -11,7 +11,8 @@ import crypto from 'crypto'
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 16
 const KEY_LENGTH = 32
-const SALT = 'waoowaoo-api-key-salt-v1' // 固定盐值
+// 与 seed.sql 中密文一致；勿改，否则无法解密已有 API Key
+const SALT = 'waoowaoo-api-key-salt-v1'
 
 type ApiKeyObject = Record<string, unknown>
 

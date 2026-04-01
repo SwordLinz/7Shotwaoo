@@ -366,7 +366,7 @@ describe('worker script-to-storyboard behavior', () => {
         stage: 'script_to_storyboard_step',
         stepId: 'voice_analyze',
         stepAttempt: 2,
-        message: '台词分析失败，准备重试 (2/2)',
+        message: '台词分析失败，准备重试 (2/5)',
       }),
     )
   })

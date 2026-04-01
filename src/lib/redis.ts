@@ -7,7 +7,7 @@ type RedisSingleton = {
 }
 
 const globalForRedis = globalThis as typeof globalThis & {
-  __waoowaooRedis?: RedisSingleton
+  __wacooRedis?: RedisSingleton
 }
 
 const REDIS_HOST = process.env.REDIS_HOST || '127.0.0.1'
@@ -57,9 +57,9 @@ function createQueueRedis() {
   return client
 }
 
-const singleton = globalForRedis.__waoowaooRedis || {}
-if (!globalForRedis.__waoowaooRedis) {
-  globalForRedis.__waoowaooRedis = singleton
+const singleton = globalForRedis.__wacooRedis || {}
+if (!globalForRedis.__wacooRedis) {
+  globalForRedis.__wacooRedis = singleton
 }
 
 export const redis = singleton.app || (singleton.app = createAppRedis())

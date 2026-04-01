@@ -37,6 +37,9 @@ export interface ImageCapabilities {
 export interface VideoCapabilities {
   generationModeOptions?: string[]
   generateAudioOptions?: boolean[]
+  /** API/engine model id (e.g. Kling `kling-v1-6`), distinct from workspace `provider::modelId` key */
+  modelIdOptions?: string[]
+  modeOptions?: string[]
   durationOptions?: number[]
   fpsOptions?: number[]
   resolutionOptions?: string[]
@@ -91,6 +94,8 @@ const IMAGE_ALLOWED_FIELDS = new Set<keyof ImageCapabilities>([
 const VIDEO_ALLOWED_FIELDS = new Set<keyof VideoCapabilities>([
   'generationModeOptions',
   'generateAudioOptions',
+  'modelIdOptions',
+  'modeOptions',
   'durationOptions',
   'fpsOptions',
   'resolutionOptions',
@@ -323,6 +328,24 @@ function validateVideoCapabilities(issues: CapabilityValidationIssue[], raw: unk
     })
   }
 
+  const modelIdOptions = raw.modelIdOptions
+  if (modelIdOptions !== undefined && !isStringArray(modelIdOptions)) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.video.modelIdOptions',
+      message: 'modelIdOptions must be a non-empty string array',
+    })
+  }
+
+  const modeOptions = raw.modeOptions
+  if (modeOptions !== undefined && !isStringArray(modeOptions)) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.video.modeOptions',
+      message: 'modeOptions must be a non-empty string array',
+    })
+  }
+
   const fpsOptions = raw.fpsOptions
   if (fpsOptions !== undefined && !isNumberArray(fpsOptions)) {
     issues.push({
@@ -360,6 +383,8 @@ function validateVideoCapabilities(issues: CapabilityValidationIssue[], raw: unk
   validateFieldI18nMap(issues, 'video', raw.fieldI18n, {
     generationMode: isStringArray(generationModeOptions) ? generationModeOptions : undefined,
     generateAudio: isBooleanArray(generateAudioOptions) ? generateAudioOptions : undefined,
+    modelId: isStringArray(modelIdOptions) ? modelIdOptions : undefined,
+    mode: isStringArray(modeOptions) ? modeOptions : undefined,
     duration: isNumberArray(durationOptions) ? durationOptions : undefined,
     fps: isNumberArray(fpsOptions) ? fpsOptions : undefined,
     resolution: isStringArray(resolutionOptions) ? resolutionOptions : undefined,
@@ -427,6 +452,18 @@ export function validateOptionValueAgainstAllowed(
 ): CapabilityValidationIssue[] {
   const issue = validateOptionFieldValue(fieldPath, value, allowedValues)
   return issue ? [issue] : []
+}
+
+/** OpenRouter rejects some slugs; map known bad aliases to canonical IDs (case-insensitive). */
+const OPENROUTER_MODEL_ID_ALIASES = new Map<string, string>([
+  ['xiaomi/xiaomi-mimo-v2-pro', 'xiaomi/mimo-v2-pro'],
+])
+
+export function normalizeOpenRouterUpstreamModelId(modelId: string): string {
+  const trimmed = modelId.trim()
+  if (!trimmed) return trimmed
+  const canonical = OPENROUTER_MODEL_ID_ALIASES.get(trimmed.toLowerCase())
+  return canonical ?? trimmed
 }
 
 export function composeModelKey(provider: string, modelId: string): string {

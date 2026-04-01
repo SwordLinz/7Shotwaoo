@@ -1,16 +1,16 @@
 -- ============================================================================
--- waoowaoo 设置中心 API 配置 Seed Data
+-- Wacoo 设置中心 API 配置 Seed Data
 -- ============================================================================
 -- 使用说明：
 --   1. 确保 API_ENCRYPTION_KEY 环境变量设置为: waoowaoo-opensource-fixed-key-2026
---      （与 docker-compose.yml 和 .env.example 中的默认值一致）
+--      （与 docker-compose.yml 中默认值一致；须与 crypto-utils 盐值一并使用，勿单独改动）
 --   2. 此种子数据会为指定用户创建/更新完整的 API 配置，包括：
 --      - 所有 Provider（含加密的 API Key）
 --      - 所有 Model（53个模型，覆盖 LLM/Image/Video/Audio/LipSync）
 --      - 默认模型选择
 --      - Capability 默认参数
 --   3. 执行方式：
---      mysql -h 127.0.0.1 -P 13306 -u root -pwaoowaoo123 waoowaoo < prisma/seed.sql
+--      mysql -h 127.0.0.1 -P 13306 -u root -pwacoo123 wacoo < prisma/seed.sql
 --
 -- ⚠️  重要提醒：
 --   - API Key 使用 AES-256-GCM 加密，密钥从 API_ENCRYPTION_KEY 派生

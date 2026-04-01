@@ -106,7 +106,7 @@ describe('api contract - infra routes (behavior)', () => {
     expect(res.status).toBe(200)
     expect(text).toContain('worker log line 1')
     expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8')
-    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename="waoowaoo-logs-/)
+    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename="wacoo-logs-/)
   })
 
   it('GET /api/cos/image redirects to signed storage route with normalized query', async () => {

@@ -43,9 +43,18 @@ export async function GET(
   const fetchUrl = toFetchableUrl(getSignedUrl(media.storageKey))
   const range = request.headers.get('range')
 
-  const upstream = await fetch(fetchUrl, {
-    headers: range ? { Range: range } : undefined,
-  })
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?/i.test(fetchUrl)
+  let upstream: Response
+  if (isLocal) {
+    const { fetchDirect } = await import('../../../../lib/prompts/proxy')
+    upstream = await fetchDirect(fetchUrl, {
+      headers: range ? { Range: range } : undefined,
+    })
+  } else {
+    upstream = await fetch(fetchUrl, {
+      headers: range ? { Range: range } : undefined,
+    })
+  }
 
   if (!upstream.ok) {
     const status = upstream.status === 404 ? 404 : 502

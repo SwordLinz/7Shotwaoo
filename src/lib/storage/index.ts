@@ -95,7 +95,15 @@ export async function downloadAndUploadImage(
   const sharp = (await import('sharp')).default
 
   return await withRetry(async () => {
-    const response = await fetch(toFetchableUrl(imageUrl))
+    const url = toFetchableUrl(imageUrl)
+    const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?/i.test(url)
+    let response: Response
+    if (isLocal) {
+      const { fetchDirect } = await import('../../../lib/prompts/proxy')
+      response = await fetchDirect(url)
+    } else {
+      response = await fetch(url)
+    }
     if (!response.ok) {
       throw new Error(`Failed to download image: ${response.status} ${response.statusText}`)
     }
@@ -122,12 +130,21 @@ export async function downloadAndUploadVideo(
   requestHeaders?: Record<string, string>,
 ): Promise<string> {
   return await withRetry(async () => {
-    const response = await fetch(toFetchableUrl(videoUrl), {
+    const url = toFetchableUrl(videoUrl)
+    const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?/i.test(url)
+    const fetchOpts = {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; VideoDownloader/1.0)',
         ...(requestHeaders || {}),
       },
-    })
+    }
+    let response: Response
+    if (isLocal) {
+      const { fetchDirect } = await import('../../../lib/prompts/proxy')
+      response = await fetchDirect(url, fetchOpts)
+    } else {
+      response = await fetch(url, fetchOpts)
+    }
 
     if (!response.ok) {
       throw new Error(`Failed to download video: ${response.status} ${response.statusText}`)

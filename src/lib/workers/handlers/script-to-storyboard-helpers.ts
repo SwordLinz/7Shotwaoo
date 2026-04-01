@@ -51,9 +51,6 @@ function parsePanelCharacters(raw: string | null): string[] {
 
 export function parseVoiceLinesJson(responseText: string): JsonRecord[] {
   const rows = safeParseJsonArray(responseText)
-  if (rows.length === 0) {
-    throw new Error('voice_analyze: invalid payload')
-  }
   return rows as JsonRecord[]
 }
 

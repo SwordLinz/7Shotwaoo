@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { setProxy } from '../../../lib/prompts/proxy'
+import { probeYouchuanCredentials } from '@/lib/generators/youchuan'
 
 export type TestStepName = 'models' | 'textGen' | 'imageGen' | 'credits' | 'audioGen'
 export type TestStepStatus = 'pass' | 'fail' | 'skip'
@@ -20,12 +21,15 @@ export interface TestProviderResult {
 type PresetProviderType = 'ark' | 'google' | 'openrouter' | 'minimax' | 'fal' | 'vidu'
   | 'bailian'
   | 'siliconflow'
+  | 'kling'
+  | 'youchuan'
 type CompatibleProviderType = 'openai-compatible' | 'gemini-compatible'
 
 type TestProviderPayload = {
   apiType: CompatibleProviderType | PresetProviderType
   baseUrl?: string
   apiKey: string
+  apiAppId?: string
   llmModel?: string
 }
 
@@ -683,6 +687,78 @@ async function testViduProvider(apiKey: string): Promise<TestProviderResult> {
 }
 
 // ---------------------------------------------------------------------------
+// KlingAI (可灵) 官方 OpenAPI（zero-inference auth probe）
+// ---------------------------------------------------------------------------
+
+function normalizeBaseUrl(baseUrl: string | undefined): string {
+  const raw = (baseUrl || '').trim()
+  if (!raw) return ''
+  return raw
+    .replace(/\/+$/, '')
+    .replace(/\/kling$/i, '')
+    .replace(/\/+$/, '')
+}
+
+async function testKlingProvider(apiKey: string, baseUrl?: string): Promise<TestProviderResult> {
+  const steps: TestStep[] = []
+  const resolvedBaseUrl = normalizeBaseUrl(baseUrl) || 'https://api-beijing.klingai.com'
+  const taskIdProbe = '00000000000000000000000000000000'
+  // 官方网关为 /v1/videos/...；/kling/v1/... 多为聚合层，直连官方会 404
+  const url = `${resolvedBaseUrl}/v1/videos/image2video/${encodeURIComponent(taskIdProbe)}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: AbortSignal.timeout(15_000),
+    })
+
+    // Expected outcomes:
+    // - 401/403: auth fail
+    // - 404: auth ok but task doesn't exist (ideal zero-cost probe)
+    // - 200: also ok (some gateways may return task payload)
+    if (response.status === 401 || response.status === 403) {
+      const text = await response.text().catch(() => '')
+      steps.push({
+        name: 'models',
+        status: 'fail',
+        message: `Authentication failed (${response.status})`,
+        detail: text.slice(0, 500) || undefined,
+      })
+      return { success: false, steps }
+    }
+
+    if (response.status === 404 || response.ok) {
+      steps.push({
+        name: 'models',
+        status: 'pass',
+        message: response.status === 404 ? 'Token valid (probe task not found)' : 'Token valid',
+        detail: `GET ${url.replace(/^https?:\/\/[^/]+/i, '')} → ${response.status}`,
+      })
+      return { success: true, steps }
+    }
+
+    const text = await response.text().catch(() => '')
+    steps.push({
+      name: 'models',
+      status: 'fail',
+      message: `Provider error (${response.status})`,
+      detail: text.slice(0, 500) || undefined,
+    })
+    return { success: false, steps }
+  } catch (error) {
+    steps.push({
+      name: 'models',
+      status: 'fail',
+      message: toNetworkErrorMessage(error),
+    })
+    return { success: false, steps }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // SiliconFlow (zero-inference probes)
 // ---------------------------------------------------------------------------
 
@@ -832,11 +908,42 @@ async function testBailianProvider(apiKey: string): Promise<TestProviderResult> 
 }
 
 // ---------------------------------------------------------------------------
+// Youchuan (subscribe probe)
+// ---------------------------------------------------------------------------
+
+async function testYouchuanProvider(apiKey: string, apiAppId?: string): Promise<TestProviderResult> {
+  const steps: TestStep[] = []
+  const appId = typeof apiAppId === 'string' ? apiAppId.trim() : ''
+  if (!appId) {
+    steps.push({
+      name: 'models',
+      status: 'fail',
+      message: 'Missing App ID (x-youchuan-app)',
+    })
+    return { success: false, steps }
+  }
+
+  const probe = await probeYouchuanCredentials(appId, apiKey.trim())
+  steps.push({
+    name: 'models',
+    status: probe.ok ? 'pass' : 'fail',
+    message: probe.message,
+    detail: probe.detail,
+  })
+  steps.push({
+    name: 'credits',
+    status: 'skip',
+    message: 'Use Youchuan console for balance',
+  })
+  return { success: probe.ok, steps }
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 export async function testProviderConnection(payload: TestProviderPayload): Promise<TestProviderResult> {
-  const { apiType, baseUrl, apiKey, llmModel } = payload
+  const { apiType, baseUrl, apiKey, apiAppId, llmModel } = payload
 
   if (!apiKey) {
     return {
@@ -874,6 +981,10 @@ export async function testProviderConnection(payload: TestProviderPayload): Prom
       return testBailianProvider(apiKey)
     case 'siliconflow':
       return testSiliconFlowProvider(apiKey)
+    case 'kling':
+      return testKlingProvider(apiKey, baseUrl)
+    case 'youchuan':
+      return testYouchuanProvider(apiKey, apiAppId)
     default:
       return {
         success: false,

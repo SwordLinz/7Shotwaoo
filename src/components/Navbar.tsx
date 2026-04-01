@@ -43,7 +43,7 @@ export default function Navbar() {
             <div className="flex items-center gap-2">
               <Link href={{ pathname: session ? '/workspace' : '/' }} className="group">
                 <Image
-                  src="/logo-small.png?v=1"
+                  src="/logo-small.png?v=3"
                   alt={tc('appName')}
                   width={80}
                   height={80}

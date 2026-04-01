@@ -11,7 +11,7 @@ describe('storage factory', () => {
   it('creates minio provider when STORAGE_TYPE=minio', () => {
     process.env.MINIO_ENDPOINT = 'http://127.0.0.1:9000'
     process.env.MINIO_REGION = 'us-east-1'
-    process.env.MINIO_BUCKET = 'waoowaoo'
+    process.env.MINIO_BUCKET = 'wacoo'
     process.env.MINIO_ACCESS_KEY = 'minioadmin'
     process.env.MINIO_SECRET_KEY = 'minioadmin'
     process.env.MINIO_FORCE_PATH_STYLE = 'true'

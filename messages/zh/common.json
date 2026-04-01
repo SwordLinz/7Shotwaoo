@@ -1,5 +1,5 @@
 {
-    "appName": "waoowaoo",
+    "appName": "wacoo",
     "betaVersion": "Beta v{version}",
     "updateNotice": {
         "title": "发现新版本",
@@ -65,6 +65,7 @@
     "referenceImage": "参考图",
     "previewLarge": "预览大图",
     "viewOriginal": "查看原图",
+    "imagePreviewAspectRatio": "宽高比",
     "schemeN": "方案 {n}",
     "insufficientBalance": "余额不足",
     "insufficientBalanceDetail": "账户余额不足，请充值后继续使用",

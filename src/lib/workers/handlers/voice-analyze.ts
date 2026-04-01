@@ -15,7 +15,7 @@ import {
 import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 
-const MAX_VOICE_ANALYZE_ATTEMPTS = 2
+const MAX_VOICE_ANALYZE_ATTEMPTS = 5
 
 export async function handleVoiceAnalyzeTask(job: Job<TaskJobData>) {
   const payload = (job.data.payload || {}) as Record<string, unknown>

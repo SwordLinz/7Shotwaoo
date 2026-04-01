@@ -20,7 +20,7 @@ type ApiHandler<TParams extends RouteParams = RouteParams> = (
   ctx: { params: Promise<TParams> }
 ) => Promise<Response | NextResponse>
 
-const REQUEST_ID_SYMBOL = Symbol.for('waoowaoo.request_id')
+const REQUEST_ID_SYMBOL = Symbol.for('wacoo.request_id')
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const GENERATION_OPERATION_PATTERNS = [
   /\/generate(?:-|\/|$)/,

@@ -1,10 +1,10 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: waoowaoo-test-mysql
+    container_name: wacoo-test-mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: waoowaoo_test
+      MYSQL_DATABASE: wacoo_test
       MYSQL_ROOT_HOST: "%"
     ports:
       - "3307:3306"
@@ -20,7 +20,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: waoowaoo-test-redis
+    container_name: wacoo-test-redis
     ports:
       - "6380:6379"
     command: ["redis-server", "--appendonly", "no"]

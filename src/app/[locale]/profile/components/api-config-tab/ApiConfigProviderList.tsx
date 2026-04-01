@@ -40,7 +40,7 @@ interface ApiConfigProviderListProps {
   getModelsForProvider: (providerId: string) => CustomModel[]
   onAddGeminiProvider: () => void
   onToggleModel: (modelKey: string, providerId: string) => void
-  onUpdateApiKey: (providerId: string, apiKey: string) => void
+  onUpdateApiKey: (providerId: string, apiKey: string, apiAppId?: string) => void
   onUpdateBaseUrl: (providerId: string, baseUrl: string) => void
   onReorderProviders: (activeProviderId: string, overProviderId: string) => void
   onDeleteModel: (modelKey: string, providerId: string) => void

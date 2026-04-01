@@ -65,6 +65,7 @@ const MODEL_TYPES: readonly ProviderCardModelType[] = ['llm', 'image', 'video', 
 export function getAddableModelTypesForProvider(providerId: string): ProviderCardModelType[] {
   const providerKey = getProviderKey(providerId)
   if (providerKey === 'openai-compatible') return ['llm', 'image', 'video']
+  if (providerKey === 'youchuan') return ['image']
   return ['llm', 'image', 'video', 'audio']
 }
 

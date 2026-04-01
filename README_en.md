@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="public/banner.png" alt="waoowaoo" width="600">
+  <img src="public/banner.png" alt="Wacoo" width="600">
 </p>
 
-<h1 align="center">waoowaoo AI Video Studio</h1>
+<h1 align="center">Wacoo AI Video Studio</h1>
 
 <p align="center">
   An AI-powered tool for creating short drama / comic videos — automatically generates storyboards, characters, and scenes from novel text, then assembles them into complete videos.
 </p>
 
 <p align="center">
-  <a href="README.md">中文文档</a> · <a href="https://www.waoowaoo.com/">Join Waitlist</a> · <a href="https://github.com/saturndec/waoowaoo/issues">Report Bug</a>
+  <a href="README.md">中文文档</a> · <a href="https://github.com/saturndec/wacoo">GitHub</a> · <a href="https://github.com/saturndec/wacoo/issues">Report Bug</a>
 </p>
 
 > [!IMPORTANT]
@@ -31,48 +31,39 @@
 
 **Prerequisites**: Install [Docker Desktop](https://docs.docker.com/get-docker/)
 
-### Method 1: Pull Pre-built Image (Easiest)
+### Method 1: Clone & Docker Build (Recommended)
 
-No need to clone the repository. Just download and run:
+The app image is built locally from source (`image: wacoo:local` in `docker-compose.yml`):
 
 ```bash
-# Download docker-compose.yml
-curl -O https://raw.githubusercontent.com/saturndec/waoowaoo/main/docker-compose.yml
-
-# Start all services
-docker compose up -d
+git clone https://github.com/saturndec/wacoo.git
+cd wacoo
+docker compose up -d --build
 ```
 
 > ⚠️ This is a beta version. Database is not compatible between versions. To upgrade, clear old data first:
 
 ```bash
 docker compose down -v
-docker rmi ghcr.io/saturndec/waoowaoo:latest
-curl -O https://raw.githubusercontent.com/saturndec/waoowaoo/main/docker-compose.yml
-docker compose up -d
+docker rmi wacoo:local
+git pull
+docker compose up -d --build
 ```
 
 > After starting, please **clear your browser cache** and log in again to avoid issues caused by stale cache.
 
-### Method 2: Clone & Docker Build (Full Control)
-
-```bash
-git clone https://github.com/saturndec/waoowaoo.git
-cd waoowaoo
-docker compose up -d
-```
-
 To update:
+
 ```bash
 git pull
 docker compose down && docker compose up -d --build
 ```
 
-### Method 3: Local Development (For Developers)
+### Method 2: Local Development (For Developers)
 
 ```bash
-git clone https://github.com/saturndec/waoowaoo.git
-cd waoowaoo
+git clone https://github.com/saturndec/wacoo.git
+cd wacoo
 npm install
 
 # Start infrastructure only
@@ -87,7 +78,7 @@ npm run dev
 
 ---
 
-Visit [http://localhost:13000](http://localhost:13000) (Method 1 & 2) or [http://localhost:3000](http://localhost:3000) (Method 3) to get started!
+Visit [http://localhost:13000](http://localhost:13000) (Method 1) or [http://localhost:3000](http://localhost:3000) (Method 2) to get started!
 
 > The database is initialized automatically on first launch — no extra configuration needed.
 
@@ -131,14 +122,14 @@ After launching, go to **Settings** to configure your AI service API keys. A bui
 
 This project is maintained by the core team. You're welcome to contribute by:
 
-- 🐛 Filing [Issues](https://github.com/saturndec/waoowaoo/issues) — report bugs
-- 💡 Filing [Issues](https://github.com/saturndec/waoowaoo/issues) — propose features
+- 🐛 Filing [Issues](https://github.com/saturndec/wacoo/issues) — report bugs
+- 💡 Filing [Issues](https://github.com/saturndec/wacoo/issues) — propose features
 - 🔧 Submitting Pull Requests as references — we review every PR carefully for ideas, but the team implements fixes internally rather than merging external PRs directly
 
 ---
 
-**Made with ❤️ by waoowaoo team**
+**Made with ❤️ by Wacoo team**
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=saturndec/waoowaoo&type=date&legend=top-left)](https://www.star-history.com/#saturndec/waoowaoo&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=saturndec/wacoo&type=date&legend=top-left)](https://www.star-history.com/#saturndec/wacoo&type=date&legend=top-left)

@@ -116,6 +116,11 @@
   "audioAndLipsync": "语音与唇形同步",
   "configureApiKey": "配置 API Key",
   "enterApiKey": "请输入 API Key",
+  "youchuanAppIdLabel": "机构标识",
+  "youchuanSecretLabel": "授权码",
+  "youchuanEnterAppId": "悠船控制台中的 App ID (x-youchuan-app)",
+  "youchuanEnterSecret": "机构授权码 (x-youchuan-secret)",
+  "youchuanCredentialsIncomplete": "请同时填写机构标识与授权码后再保存或测试",
   "testConnection": "测试连接",
   "testing": "正在测试...",
   "testPassed": "连接测试通过",
@@ -177,7 +182,9 @@
       "openai_compatible_step1": "填写任意 OpenAI 协议兼容服务的 Base URL 与 API Key",
       "gemini_compatible_step1": "填写任意 Gemini 协议兼容服务的 Base URL 与 API Key",
       "bailian_step1": "进入阿里云百炼平台，获取 API Key",
-      "siliconflow_step1": "进入硅基流动控制台，创建 API Key"
+      "siliconflow_step1": "进入硅基流动控制台，创建 API Key",
+      "kling_step1": "进入可灵开发者平台，创建 Access Key 与 Secret Key，并生成 API Token",
+      "kling_step2": "参考可灵 OpenAPI 文档，确认请求头使用 Authorization = \"Bearer <API Token>\""
     }
   },
   "assistantOpen": "AI配置助手",

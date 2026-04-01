@@ -20,6 +20,8 @@ import { GoogleVeoVideoGenerator } from './video/google'
 import { OpenAICompatibleVideoGenerator } from './video'
 import { MinimaxVideoGenerator } from './minimax'
 import { ViduVideoGenerator } from './vidu'
+import { KlingVideoGenerator } from './kling'
+import { RunningHubVideoGenerator } from './runninghub'
 import { getProviderKey } from '@/lib/api-config'
 import {
     BailianAudioGenerator,
@@ -29,6 +31,7 @@ import {
     SiliconFlowImageGenerator,
     SiliconFlowVideoGenerator,
 } from './official'
+import { YouchuanImageGenerator } from './youchuan'
 
 /**
  * 根据 provider 创建图片生成器
@@ -67,6 +70,8 @@ export function createImageGenerator(provider: string, modelId?: string): ImageG
             return new BailianImageGenerator()
         case 'siliconflow':
             return new SiliconFlowImageGenerator()
+        case 'youchuan':
+            return new YouchuanImageGenerator()
         default:
             throw new Error(`Unknown image generator provider: ${provider}`)
     }
@@ -90,6 +95,10 @@ export function createVideoGenerator(provider: string): VideoGenerator {
             return new MinimaxVideoGenerator()
         case 'vidu':
             return new ViduVideoGenerator()
+        case 'kling':
+            return new KlingVideoGenerator()
+        case 'runninghub':
+            return new RunningHubVideoGenerator()
         case 'openai-compatible':
             return new OpenAICompatibleVideoGenerator(provider)
         case 'bailian':

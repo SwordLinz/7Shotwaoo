@@ -1047,5 +1047,45 @@
         "supportGenerateAudio": false
       }
     }
+  },
+  {
+    "modelType": "video",
+    "provider": "kling",
+    "modelId": "image2video",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal"
+        ],
+        "modelIdOptions": [
+          "kling-v1-6",
+          "kling-v2-master",
+          "kling-v2-1-master"
+        ],
+        "modeOptions": [
+          "std",
+          "pro"
+        ],
+        "durationOptions": [
+          5,
+          10
+        ],
+        "firstlastframe": false,
+        "supportGenerateAudio": false
+      }
+    }
+  },
+  {
+    "modelType": "image",
+    "provider": "youchuan",
+    "modelId": "tob-diffusion",
+    "capabilities": {
+      "image": {
+        "resolutionOptions": [
+          "1",
+          "2"
+        ]
+      }
+    }
   }
 ]

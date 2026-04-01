@@ -97,7 +97,7 @@ async function testImageUrlFlow() {
   console.log('\n7️⃣ 测试 extractStorageKey（从各种 URL 提取 key）:')
   const testUrls = [
     storedKey,
-    `http://127.0.0.1:19000/waoowaoo/${storedKey}`,
+    `http://127.0.0.1:19000/wacoo/${storedKey}`,
     directSignedUrl,
   ]
   for (const url of testUrls) {

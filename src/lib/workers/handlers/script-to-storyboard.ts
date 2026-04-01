@@ -38,7 +38,7 @@ import {
 } from './script-to-storyboard-atomic-retry'
 
 type AnyObj = Record<string, unknown>
-const MAX_VOICE_ANALYZE_ATTEMPTS = 2
+const MAX_VOICE_ANALYZE_ATTEMPTS = 5
 
 function isReasoningEffort(value: unknown): value is 'minimal' | 'low' | 'medium' | 'high' {
   return value === 'minimal' || value === 'low' || value === 'medium' || value === 'high'

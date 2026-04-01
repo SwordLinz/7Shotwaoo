@@ -10,6 +10,7 @@ import { Link } from '@/i18n/navigation'
 
 export default function Home() {
   const t = useTranslations('landing')
+  const tc = useTranslations('common')
   const { data: session, status } = useSession()
   const router = useRouter()
 
@@ -26,8 +27,8 @@ export default function Home() {
       <div className="glass-page min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Image
-            src="/logo-small.png?v=1"
-            alt="waoowaoo"
+            src="/logo-small.png?v=3"
+            alt={tc('appName')}
             width={80}
             height={80}
             className="animate-pulse"
