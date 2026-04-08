@@ -37,7 +37,7 @@ export interface ImageCapabilities {
 export interface VideoCapabilities {
   generationModeOptions?: string[]
   generateAudioOptions?: boolean[]
-  /** API/engine model id (e.g. Kling `kling-v1-6`), distinct from workspace `provider::modelId` key */
+  /** API/engine model id (e.g. Kling `kling-video-o1`), distinct from workspace `provider::modelId` key */
   modelIdOptions?: string[]
   modeOptions?: string[]
   durationOptions?: number[]

@@ -142,29 +142,56 @@
       "saveSuccess": "Saved successfully",
       "saveFailed": "Save failed",
       "exportStarted": "Export has started. Please wait...",
-      "exportFailed": "Export failed"
+      "exportSuccess": "Project file exported successfully",
+      "exportFailed": "Export failed",
+      "audioLoadFailed": "Failed to load audio file"
     },
     "toolbar": {
       "back": "← Back",
       "saveDirty": "Save *",
       "saved": "Saved",
-      "export": "Export Video"
+      "export": "Export Video",
+      "exportProject": "Export Project",
+      "exporting": "Exporting...",
+      "uploadBgm": "Upload BGM",
+      "removeBgm": "Remove BGM"
+    },
+    "export": {
+      "videoGroup": "Export Video",
+      "mergedVideo": "Merged Video",
+      "mergedVideoHint": "Combine all clips into a single video file",
+      "merging": "Merging clips...",
+      "allClips": "All Clips (ZIP)",
+      "allClipsHint": "Download each clip separately + FFmpeg merge script",
+      "videoDownloading": "Downloading clips...",
+      "projectGroup": "Export Project",
+      "fcpxml": "Premiere Pro / DaVinci Resolve",
+      "fcpxmlHint": "FCP XML format (.xml)",
+      "jianying": "JianYing / CapCut Desktop",
+      "jianyingHint": "Draft project (.zip)"
     },
     "left": {
       "title": "Media Library",
-      "description": "Clips imported from the video stage will appear here"
+      "description": "Generated clips will appear here automatically"
+    },
+    "media": {
+      "clipCount": "clips"
     },
     "right": {
       "title": "Properties",
       "clipLabel": "Clip:",
       "clipFallback": "Clip {index}",
       "durationLabel": "Duration:",
+      "voiceLabel": "Voice / Dubbing",
+      "voiceAttached": "Audio attached",
+      "uploadVoice": "Upload Audio File",
       "transitionLabel": "Transition to Next Clip",
       "deleteConfirm": "Delete this clip?",
       "deleteClip": "Delete Clip",
       "selectClipHint": "Select a clip to view properties"
     },
     "preview": {
+      "title": "Preview",
       "emptyStartEditing": "Add media to start editing"
     },
     "timeline": {
@@ -183,6 +210,14 @@
         "fade": "Fade",
         "slide": "Slide"
       }
+    },
+    "bgm": {
+      "title": "BGM Properties",
+      "volume": "Volume",
+      "speed": "Playback Speed",
+      "fadeIn": "Fade In",
+      "fadeOut": "Fade Out",
+      "delete": "Remove BGM"
     }
   },
   "errors": {

@@ -19,6 +19,7 @@ import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core
 import { queryFalStatus } from './async-submit'
 import { queryGeminiBatchStatus, querySeedanceVideoStatus, queryGoogleVideoStatus } from './async-task-utils'
 import { getProviderConfig, getUserModels } from './api-config'
+import { buildKlingBearerToken, normalizeKlingBaseUrl, KLING_VIDEO_IMAGE2VIDEO_PATH } from './generators/kling'
 import { fetchYouchuanJobStatus } from './generators/youchuan'
 import { buildRenderedTemplateRequest, buildTemplateVariables, normalizeResponseJson, readJsonPath } from './openai-compat-template-runtime'
 import { composeModelKey } from './model-config-contract'
@@ -152,12 +153,13 @@ export function parseExternalId(externalId: string): {
         const parts = externalId.split(':')
         const type = parts[1]
         const requestId = parts.slice(2).join(':')
-        if ((type !== 'VIDEO' && type !== 'IMAGE') || !requestId) {
+        if ((type !== 'VIDEO' && type !== 'IMAGE' && type !== 'OMNI') || !requestId) {
             throw new Error(`无效 KLING externalId: "${externalId}"，应为 KLING:TYPE:taskId`)
         }
         return {
             provider: 'KLING',
-            type: type as 'VIDEO' | 'IMAGE',
+            type: (type === 'OMNI' ? 'VIDEO' : type) as 'VIDEO' | 'IMAGE',
+            endpoint: type === 'OMNI' ? 'omni-video' : undefined,
             requestId,
         }
     }
@@ -289,7 +291,7 @@ export async function pollAsyncTask(
         case 'VIDU':
             return await pollViduTask(parsed.requestId, userId)
         case 'KLING':
-            return await pollKlingTask(parsed.requestId, userId)
+            return await pollKlingTask(parsed.requestId, userId, parsed.endpoint)
         case 'OPENAI':
             return await pollOpenAIVideoTask(parsed.requestId, userId, parsed.providerToken)
         case 'OCOMPAT':
@@ -903,8 +905,6 @@ async function pollViduTask(
     }
 }
 
-const KLING_VIDEO_IMAGE2VIDEO_PATH = '/v1/videos/image2video'
-
 function unwrapKlingTaskPayload(data: Record<string, unknown>): Record<string, unknown> {
     const inner = data.data
     if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
@@ -937,21 +937,22 @@ function readKlingPollVideoUrl(root: Record<string, unknown>): string {
  */
 async function pollKlingTask(
     taskId: string,
-    userId: string
+    userId: string,
+    endpointHint?: string,
 ): Promise<PollResult> {
     const logPrefix = '[Kling Query]'
     try {
         const config = await getProviderConfig(userId, 'kling')
-        const baseUrl = (config.baseUrl || 'https://api-beijing.klingai.com')
-          .trim()
-          .replace(/\/+$/, '')
-          .replace(/\/kling$/i, '')
-          .replace(/\/+$/, '')
-        const url = `${baseUrl}${KLING_VIDEO_IMAGE2VIDEO_PATH}/${encodeURIComponent(taskId)}`
+        const baseUrl = normalizeKlingBaseUrl(config.baseUrl)
+        const bearerToken = buildKlingBearerToken(config.apiKey, config.apiAppId)
+        const apiPath = endpointHint === 'omni-video'
+            ? '/v1/videos/omni-video'
+            : KLING_VIDEO_IMAGE2VIDEO_PATH
+        const url = `${baseUrl}${apiPath}/${encodeURIComponent(taskId)}`
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                Authorization: `Bearer ${config.apiKey}`,
+                Authorization: `Bearer ${bearerToken}`,
             },
         })
         const raw = await response.text().catch(() => '')

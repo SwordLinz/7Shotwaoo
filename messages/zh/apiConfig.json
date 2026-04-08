@@ -120,6 +120,10 @@
   "youchuanSecretLabel": "授权码",
   "youchuanEnterAppId": "悠船控制台中的 App ID (x-youchuan-app)",
   "youchuanEnterSecret": "机构授权码 (x-youchuan-secret)",
+  "klingAccessKeyLabel": "Access Key",
+  "klingSecretKeyLabel": "Secret Key",
+  "klingEnterAccessKey": "可灵开发者平台的 Access Key",
+  "klingEnterSecretKey": "可灵开发者平台的 Secret Key",
   "youchuanCredentialsIncomplete": "请同时填写机构标识与授权码后再保存或测试",
   "testConnection": "测试连接",
   "testing": "正在测试...",
@@ -183,8 +187,8 @@
       "gemini_compatible_step1": "填写任意 Gemini 协议兼容服务的 Base URL 与 API Key",
       "bailian_step1": "进入阿里云百炼平台，获取 API Key",
       "siliconflow_step1": "进入硅基流动控制台，创建 API Key",
-      "kling_step1": "进入可灵开发者平台，创建 Access Key 与 Secret Key，并生成 API Token",
-      "kling_step2": "参考可灵 OpenAPI 文档，确认请求头使用 Authorization = \"Bearer <API Token>\""
+      "kling_step1": "进入可灵开发者平台，创建 Access Key 与 Secret Key",
+      "kling_step2": "将 Access Key 和 Secret Key 填入下方对应输入框"
     }
   },
   "assistantOpen": "AI配置助手",

@@ -38,6 +38,7 @@ const TASK_TYPE_LABELS: Record<string, string> = {
   [TASK_TYPE.ASSET_HUB_AI_MODIFY_CHARACTER]: 'progress.taskType.assetHubAiModifyCharacter',
   [TASK_TYPE.ASSET_HUB_AI_MODIFY_LOCATION]: 'progress.taskType.assetHubAiModifyLocation',
   [TASK_TYPE.ASSET_HUB_REFERENCE_TO_CHARACTER]: 'progress.taskType.assetHubReferenceToCharacter',
+  [TASK_TYPE.SMART_REF_VIDEO]: 'progress.taskType.smartRefVideo',
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -70,6 +71,13 @@ const STAGE_LABELS: Record<string, string> = {
   llm_proxy_submit: 'progress.stage.llmProxySubmit',
   llm_proxy_execute: 'progress.stage.llmProxyExecute',
   llm_proxy_persist: 'progress.stage.llmProxyPersist',
+  smart_ref_panel_split: 'progress.stage.smartRefPanelSplit',
+  smart_ref_persist: 'progress.stage.smartRefPersist',
+  smart_ref_done: 'progress.stage.smartRefDone',
+  smart_ref_voice: 'progress.stage.smartRefVoice',
+  smart_ref_prepare: 'progress.stage.smartRefPrepare',
+  smart_ref_submit: 'progress.stage.smartRefSubmit',
+  smart_ref_polling: 'progress.stage.smartRefPolling',
 }
 
 function asString(value: unknown): string | null {

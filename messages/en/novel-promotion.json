@@ -4,7 +4,8 @@
     "script": "Script",
     "storyboard": "Storyboard",
     "video": "Video",
-    "editor": "AI Editor",
+    "smartRefVideo": "Smart Ref Video",
+    "editor": "Editor",
     "editorComingSoon": "Coming soon, follow us for updates"
   },
   "buttons": {
@@ -151,6 +152,24 @@
     "storyToScriptFailed": "Story to script failed",
     "scriptToStoryboardFailed": "Script to storyboard failed",
     "taskStreamTimeout": "Task timed out. The task may still be running in the background — please check its status or retry"
+  },
+  "smartRefStage": {
+    "title": "Smart Reference Video",
+    "description": "Character refs + Scene refs + Storyboard text → Generate video directly",
+    "noPanels": "No panels found. Please complete the Script stage first.",
+    "generateAll": "Generate All Videos",
+    "generating": "Generating...",
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "panelLabel": "Shot {number}",
+    "videoPromptLabel": "Video Prompt",
+    "durationLabel": "Duration",
+    "durationUnit": "sec",
+    "charactersLabel": "Characters",
+    "locationLabel": "Location",
+    "videoReady": "Video ready",
+    "pendingCount": "{count} videos pending",
+    "completedCount": "{count} / {total} completed"
   },
   "rebuildConfirm": {
     "storyToScript": {

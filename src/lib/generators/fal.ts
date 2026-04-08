@@ -1,4 +1,5 @@
 import { createScopedLogger, logError as _ulogError } from '@/lib/logging/core'
+import { sanitizeVideoRatioForApis } from '@/lib/media/safe-aspect-ratio'
 /**
  * FAL 生成器（统一图像 + 视频）
  * 
@@ -9,10 +10,7 @@ import { createScopedLogger, logError as _ulogError } from '@/lib/logging/core'
  * 视频模型：
  * - Wan 2.6 (fal-wan25) - wan/v2.6/image-to-video
  * - Veo 3.1 (fal-veo31) - fal-ai/veo3.1/fast/image-to-video
- * - Sora 2 (fal-sora2) - fal-ai/sora-2/image-to-video  
- * - Kling 2.5 Turbo Pro - fal-ai/kling-video/v2.5-turbo/pro/image-to-video
- * - Kling 3 Standard - fal-ai/kling-video/v3/standard/image-to-video
- * - Kling 3 Pro - fal-ai/kling-video/v3/pro/image-to-video
+ * - Sora 2 (fal-sora2) - fal-ai/sora-2/image-to-video
  */
 
 import {
@@ -43,9 +41,6 @@ const FAL_VIDEO_ENDPOINTS: Record<string, string> = {
     'fal-wan25': 'wan/v2.6/image-to-video',
     'fal-veo31': 'fal-ai/veo3.1/fast/image-to-video',
     'fal-sora2': 'fal-ai/sora-2/image-to-video',
-    'fal-ai/kling-video/v2.5-turbo/pro/image-to-video': 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video',
-    'fal-ai/kling-video/v3/standard/image-to-video': 'fal-ai/kling-video/v3/standard/image-to-video',
-    'fal-ai/kling-video/v3/pro/image-to-video': 'fal-ai/kling-video/v3/pro/image-to-video',
 }
 
 // ============================================================
@@ -58,7 +53,7 @@ export class FalImageGenerator extends BaseImageGenerator {
 
         const { apiKey } = await getProviderConfig(userId, 'fal')
         const {
-            aspectRatio,
+            aspectRatio: rawAspectRatio,
             resolution,
             outputFormat = 'png',
             modelId: optModelId = 'banana'
@@ -70,6 +65,8 @@ export class FalImageGenerator extends BaseImageGenerator {
             modelId?: string
             modelKey?: string
         }
+
+        const aspectRatio = rawAspectRatio ? sanitizeVideoRatioForApis(rawAspectRatio) : undefined
 
         const allowedOptionKeys = new Set([
             'provider',
@@ -200,7 +197,7 @@ export class FalVideoGenerator extends BaseVideoGenerator {
         const {
             duration,
             resolution,
-            aspectRatio,
+            aspectRatio: rawVideoAspect,
             modelId = 'fal-wan25'
         } = options as {
             duration?: number
@@ -210,6 +207,7 @@ export class FalVideoGenerator extends BaseVideoGenerator {
             provider?: string
             modelKey?: string
         }
+        const aspectRatio = rawVideoAspect ? sanitizeVideoRatioForApis(rawVideoAspect) : undefined
 
         const allowedOptionKeys = new Set([
             'provider',
@@ -262,25 +260,6 @@ export class FalVideoGenerator extends BaseVideoGenerator {
                     ...(aspectRatio ? { aspect_ratio: aspectRatio } : {}),
                     ...(typeof duration === 'number' ? { duration } : {}),
                     delete_video: false
-                }
-                break
-            case 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video':
-                input = {
-                    image_url: imageUrl,
-                    prompt,
-                    ...(typeof duration === 'number' ? { duration: String(duration) } : {}),
-                    negative_prompt: 'blur, distort, and low quality',
-                    cfg_scale: 0.5
-                }
-                break
-            case 'fal-ai/kling-video/v3/standard/image-to-video':
-            case 'fal-ai/kling-video/v3/pro/image-to-video':
-                input = {
-                    start_image_url: imageUrl,
-                    prompt,
-                    ...(aspectRatio ? { aspect_ratio: aspectRatio } : {}),
-                    ...(typeof duration === 'number' ? { duration: String(duration) } : {}),
-                    generate_audio: false,
                 }
                 break
             default:

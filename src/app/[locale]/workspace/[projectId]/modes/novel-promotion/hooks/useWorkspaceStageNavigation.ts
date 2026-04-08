@@ -1,6 +1,6 @@
 'use client'
 
-import type { NovelPromotionPanel } from '@/types/project'
+import type { NovelPromotionPanel, WorkflowMode } from '@/types/project'
 
 interface EpisodeLike {
   novelText?: string | null
@@ -25,6 +25,7 @@ interface UseWorkspaceStageNavigationParams {
   episode?: EpisodeLike | null
   projectCharacterCount: number
   episodeStoryboards: StoryboardLike[]
+  workflowMode: WorkflowMode
   t: (key: string) => string
 }
 
@@ -33,8 +34,11 @@ export function useWorkspaceStageNavigation({
   episode,
   projectCharacterCount,
   episodeStoryboards,
+  workflowMode,
   t,
 }: UseWorkspaceStageNavigationParams): CapsuleNavItem[] {
+  const isSmartRef = workflowMode === 'smart-reference'
+
   const getStageStatus = (stageId: string): 'empty' | 'active' | 'processing' | 'ready' => {
     if (isAnyOperationRunning) return 'processing'
 
@@ -47,6 +51,10 @@ export function useWorkspaceStageNavigation({
         return episodeStoryboards.some((sb) => sb.panels?.length) ? 'ready' : 'empty'
       case 'videos':
       case 'editor':
+        if (isSmartRef) {
+          return episodeStoryboards.some((sb) => sb.panels?.some((panel) => panel.videoUrl)) ? 'ready'
+            : projectCharacterCount > 0 ? 'active' : 'empty'
+        }
         return episodeStoryboards.some((sb) => sb.panels?.some((panel) => panel.videoUrl)) ? 'ready' : 'empty'
       case 'voice':
         return (episode?.voiceLines?.length || 0) > 0 ? 'ready' : 'empty'
@@ -55,18 +63,20 @@ export function useWorkspaceStageNavigation({
     }
   }
 
+  if (isSmartRef) {
+    return [
+      { id: 'config', icon: 'S', label: t('stages.story'), status: getStageStatus('config') },
+      { id: 'script', icon: 'A', label: t('stages.script'), status: getStageStatus('assets') },
+      { id: 'videos', icon: 'V', label: t('stages.smartRefVideo'), status: getStageStatus('videos') },
+      { id: 'editor', icon: 'E', label: t('stages.editor'), status: getStageStatus('editor') },
+    ]
+  }
+
   return [
     { id: 'config', icon: 'S', label: t('stages.story'), status: getStageStatus('config') },
     { id: 'script', icon: 'A', label: t('stages.script'), status: getStageStatus('assets') },
     { id: 'storyboard', icon: 'B', label: t('stages.storyboard'), status: getStageStatus('storyboard') },
     { id: 'videos', icon: 'V', label: t('stages.video'), status: getStageStatus('videos') },
-    {
-      id: 'editor',
-      icon: 'E',
-      label: t('stages.editor'),
-      status: 'empty',
-      disabled: true,
-      disabledLabel: t('stages.editorComingSoon'),
-    },
+    { id: 'editor', icon: 'E', label: t('stages.editor'), status: getStageStatus('editor') },
   ]
 }

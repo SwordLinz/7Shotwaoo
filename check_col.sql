@@ -1,0 +1,1 @@
+SELECT column_name FROM information_schema.columns WHERE table_name = 'tasks' AND table_schema = 'waoowaoo' AND column_name LIKE '%episode%';

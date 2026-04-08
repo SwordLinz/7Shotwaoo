@@ -121,9 +121,18 @@ export async function submitTask(params: {
       locale: params.locale,
     },
   }
-  const computedBillingInfo = isBillableTaskType(params.type)
-    ? buildDefaultTaskBillingInfo(params.type, normalizedPayload)
-    : null
+  let computedBillingInfo: TaskBillingInfo | null = null
+  if (isBillableTaskType(params.type)) {
+    try {
+      computedBillingInfo = buildDefaultTaskBillingInfo(params.type, normalizedPayload)
+    } catch {
+      logger.warn({
+        action: 'task.submit.billing_compute_fallback',
+        message: `buildDefaultTaskBillingInfo threw for type=${params.type}; proceeding without computed billing`,
+        details: { type: params.type },
+      })
+    }
+  }
   const resolvedBillingInfo = computedBillingInfo || params.billingInfo || null
 
   const { task, deduped } = await createTask({

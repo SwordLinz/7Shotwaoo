@@ -79,7 +79,8 @@
     "assetHubAiDesignLocation": "资产库场景设计",
     "assetHubAiModifyCharacter": "资产库角色修改",
     "assetHubAiModifyLocation": "资产库场景修改",
-    "assetHubReferenceToCharacter": "资产库参考图转角色"
+    "assetHubReferenceToCharacter": "资产库参考图转角色",
+    "smartRefVideo": "智能参考视频"
   },
   "stage": {
     "received": "任务已接收",
@@ -110,7 +111,14 @@
     "enqueueFailed": "任务入队失败",
     "llmProxySubmit": "提交 LLM 任务",
     "llmProxyExecute": "执行 LLM 任务",
-    "llmProxyPersist": "保存 LLM 结果"
+    "llmProxyPersist": "保存 LLM 结果",
+    "smartRefPanelSplit": "智能参考 · 拆分面板",
+    "smartRefPersist": "智能参考 · 保存面板",
+    "smartRefDone": "智能参考 · 面板拆分完成",
+    "smartRefVoice": "智能参考 · 台词分析",
+    "smartRefPrepare": "智能参考 · 准备参考素材",
+    "smartRefSubmit": "智能参考 · 提交视频任务",
+    "smartRefPolling": "智能参考 · 等待视频生成"
   },
   "runConsole": {
     "storyToScript": "内容到剧本",

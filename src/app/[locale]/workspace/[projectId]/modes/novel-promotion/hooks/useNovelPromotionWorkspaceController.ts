@@ -37,7 +37,7 @@ export function useNovelPromotionWorkspaceController({
   const { onRefresh } = useWorkspaceProvider()
 
   const projectSnapshot = useWorkspaceProjectSnapshot({ project, episode, urlStage })
-  const { currentStage, episodeStoryboards, ...projectSection } = projectSnapshot
+  const { currentStage, episodeStoryboards, workflowMode, ...projectSection } = projectSnapshot
 
   const assetsLoading = false
   const assetsLoadingState = assetsLoading
@@ -96,6 +96,7 @@ export function useNovelPromotionWorkspaceController({
     currentStage,
     analysisModel: projectSnapshot.analysisModel,
     novelText: projectSnapshot.novelText,
+    workflowMode: projectSnapshot.workflowMode,
     t,
     onRefresh,
     onUpdateConfig: configActions.handleUpdateConfig,
@@ -127,6 +128,7 @@ export function useNovelPromotionWorkspaceController({
     episode,
     projectCharacterCount: projectSnapshot.projectCharacters.length,
     episodeStoryboards,
+    workflowMode,
     t,
   })
 
@@ -179,6 +181,7 @@ export function useNovelPromotionWorkspaceController({
   const stageNavState = {
     currentStage,
     capsuleNavItems,
+    workflowMode,
     handleStageChange: configActions.handleStageChange,
   }
 

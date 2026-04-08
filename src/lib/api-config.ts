@@ -445,6 +445,9 @@ export async function getProviderConfig(userId: string, providerId: string): Pro
   if (providerKey === 'youchuan' && !apiAppId) {
     throw new Error(`PROVIDER_YOUCHUAN_APP_ID_MISSING: ${provider.id}`)
   }
+  if (providerKey === 'kling' && !apiAppId) {
+    throw new Error(`PROVIDER_KLING_ACCESS_KEY_MISSING: ${provider.id}`)
+  }
 
   return {
     id: provider.id,

@@ -164,7 +164,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (isErrorResponse(authResult)) return authResult
   const { session } = authResult
 
-  const { name, description } = await request.json()
+  const { name, description, workflowMode } = await request.json()
 
   if (!name || name.trim().length === 0) {
     throw new ApiError('INVALID_PARAMS')
@@ -177,6 +177,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (description && description.length > 500) {
     throw new ApiError('INVALID_PARAMS')
   }
+
+  const VALID_WORKFLOW_MODES = ['srt', 'agent', 'smart-reference'] as const
+  const effectiveWorkflowMode = VALID_WORKFLOW_MODES.includes(workflowMode) ? workflowMode : 'srt'
 
   // 获取用户偏好配置
   const userPreference = await prisma.userPreference.findUnique({
@@ -194,13 +197,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
   })
 
   // 创建 novel-promotion 数据表，使用用户偏好作为默认值
-  // 注意：不再自动创建默认剧集，由用户在选择界面决定：
-  // - 手动创作 → 创建第一个空白剧集
-  // - 智能导入 → AI 分析后批量创建剧集
-  // 🔥 artStylePrompt 通过实时查询获取，不再存储到数据库
   await prisma.novelPromotionProject.create({
     data: {
       projectId: project.id,
+      workflowMode: effectiveWorkflowMode,
       ...(userPreference && {
         analysisModel: userPreference.analysisModel,
         characterModel: userPreference.characterModel,

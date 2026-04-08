@@ -137,7 +137,11 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
   const characterPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_CHARACTER_PROFILE, job.data.locale)
   const locationPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SELECT_LOCATION, job.data.locale)
   const clipPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_CLIP, job.data.locale)
-  const screenplayPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SCREENPLAY_CONVERSION, job.data.locale)
+  const workflowMode = novelData.workflowMode || 'srt'
+  const screenplayPromptId = workflowMode === 'smart-reference'
+    ? PROMPT_IDS.NP_SCREENPLAY_CONVERSION_SMART_REF
+    : PROMPT_IDS.NP_SCREENPLAY_CONVERSION
+  const screenplayPromptTemplate = getPromptTemplate(screenplayPromptId, job.data.locale)
 
   const streamContext = createWorkerLLMStreamContext(job, 'story_to_script')
   const callbacks = createWorkerLLMStreamCallbacks(job, streamContext)

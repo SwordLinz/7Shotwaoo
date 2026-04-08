@@ -1,0 +1,1 @@
+UPDATE tasks SET status = 'cancelled' WHERE episodeId = '98f9bac0-eb83-475d-8c94-ff3a84d7b1a0' AND type = 'VIDEO_PANEL' AND status = 'failed';

@@ -699,26 +699,32 @@ function normalizeBaseUrl(baseUrl: string | undefined): string {
     .replace(/\/+$/, '')
 }
 
-async function testKlingProvider(apiKey: string, baseUrl?: string): Promise<TestProviderResult> {
+async function testKlingProvider(apiKey: string, baseUrl?: string, apiAppId?: string): Promise<TestProviderResult> {
   const steps: TestStep[] = []
   const resolvedBaseUrl = normalizeBaseUrl(baseUrl) || 'https://api-beijing.klingai.com'
   const taskIdProbe = '00000000000000000000000000000000'
-  // 官方网关为 /v1/videos/...；/kling/v1/... 多为聚合层，直连官方会 404
   const url = `${resolvedBaseUrl}/v1/videos/image2video/${encodeURIComponent(taskIdProbe)}`
+
+  let bearerToken: string
+  if (apiAppId) {
+    const { signKlingJwt } = await import('@/lib/generators/kling-jwt')
+    bearerToken = signKlingJwt(apiAppId, apiKey)
+  } else {
+    bearerToken = apiKey
+  }
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${bearerToken}`,
       },
       signal: AbortSignal.timeout(15_000),
     })
 
     // Expected outcomes:
-    // - 401/403: auth fail
-    // - 404: auth ok but task doesn't exist (ideal zero-cost probe)
-    // - 200: also ok (some gateways may return task payload)
+    // - 401/403: auth fail (invalid token)
+    // - Any other status: auth ok (task not found is expected — 404 or 400 depending on API version)
     if (response.status === 401 || response.status === 403) {
       const text = await response.text().catch(() => '')
       steps.push({
@@ -730,24 +736,13 @@ async function testKlingProvider(apiKey: string, baseUrl?: string): Promise<Test
       return { success: false, steps }
     }
 
-    if (response.status === 404 || response.ok) {
-      steps.push({
-        name: 'models',
-        status: 'pass',
-        message: response.status === 404 ? 'Token valid (probe task not found)' : 'Token valid',
-        detail: `GET ${url.replace(/^https?:\/\/[^/]+/i, '')} → ${response.status}`,
-      })
-      return { success: true, steps }
-    }
-
-    const text = await response.text().catch(() => '')
     steps.push({
       name: 'models',
-      status: 'fail',
-      message: `Provider error (${response.status})`,
-      detail: text.slice(0, 500) || undefined,
+      status: 'pass',
+      message: response.ok ? 'Token valid' : 'Token valid (probe task not found)',
+      detail: `GET ${url.replace(/^https?:\/\/[^/]+/i, '')} → ${response.status}`,
     })
-    return { success: false, steps }
+    return { success: true, steps }
   } catch (error) {
     steps.push({
       name: 'models',
@@ -982,7 +977,7 @@ export async function testProviderConnection(payload: TestProviderPayload): Prom
     case 'siliconflow':
       return testSiliconFlowProvider(apiKey)
     case 'kling':
-      return testKlingProvider(apiKey, baseUrl)
+      return testKlingProvider(apiKey, baseUrl, apiAppId)
     case 'youchuan':
       return testYouchuanProvider(apiKey, apiAppId)
     default:

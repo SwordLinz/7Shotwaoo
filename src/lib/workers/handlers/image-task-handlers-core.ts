@@ -20,7 +20,6 @@ import {
   AnyObj,
   parseImageUrls,
   pickFirstString,
-  resolveNovelData,
 } from './image-task-handler-shared'
 import { createScopedLogger } from '@/lib/logging/core'
 import {
@@ -291,9 +290,9 @@ export async function handleModifyAssetImageTask(job: Job<TaskJobData>) {
     const currentUrl = toSignedUrlIfCos(panel.imageUrl, 3600)
     if (!currentUrl) throw new Error('No storyboard panel image url')
 
-    const projectData = await resolveNovelData(job.data.projectId)
-    if (!projectData.videoRatio) throw new Error('Project videoRatio not configured')
-    const aspectRatio = projectData.videoRatio
+    const modelConfig = await getProjectModels(job.data.projectId, job.data.userId)
+    if (!modelConfig.videoRatio) throw new Error('Project videoRatio not configured')
+    const aspectRatio = modelConfig.videoRatio
     const requiredReference = await normalizeToBase64ForGeneration(currentUrl)
     const extraReferenceInputs: string[] = []
 

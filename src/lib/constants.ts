@@ -25,6 +25,9 @@ export const VIDEO_RATIOS = Object.entries(ASPECT_RATIO_CONFIGS).map(([value, co
   label: config.label
 }))
 
+/** 各生成接口通用安全比例（排除 21:9 等易触发上游参数错误项），配置页默认仅展示此项 */
+export const VIDEO_RATIOS_SAFE = VIDEO_RATIOS.filter((item) => item.value !== '21:9')
+
 // 获取比例配置
 export function getAspectRatioConfig(ratio: string) {
   return ASPECT_RATIO_CONFIGS[ratio] || ASPECT_RATIO_CONFIGS['16:9']
@@ -77,9 +80,8 @@ export const VIDEO_MODELS = [
   { value: 'fal-wan25', label: 'Wan 2.6' },
   { value: 'fal-veo31', label: 'Veo 3.1 Fast' },
   { value: 'fal-sora2', label: 'Sora 2' },
-  { value: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video', label: 'Kling 2.5 Turbo Pro' },
-  { value: 'fal-ai/kling-video/v3/standard/image-to-video', label: 'Kling 3 Standard' },
-  { value: 'fal-ai/kling-video/v3/pro/image-to-video', label: 'Kling 3 Pro' }
+  { value: 'kling-video-o1', label: 'Kling O1' },
+  { value: 'kling-v3-omni', label: 'Kling V3 Omni' }
 ]
 
 // SeeDream 批量模型列表（使用 GPU 空闲时间，成本降低50%）

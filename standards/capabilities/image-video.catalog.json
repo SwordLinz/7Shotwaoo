@@ -567,82 +567,6 @@
   },
   {
     "modelType": "video",
-    "provider": "fal",
-    "modelId": "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
-    "capabilities": {
-      "video": {
-        "generationModeOptions": [
-          "normal"
-        ],
-        "durationOptions": [
-          5,
-          10
-        ],
-        "firstlastframe": false,
-        "supportGenerateAudio": false
-      }
-    }
-  },
-  {
-    "modelType": "video",
-    "provider": "fal",
-    "modelId": "fal-ai/kling-video/v3/standard/image-to-video",
-    "capabilities": {
-      "video": {
-        "generationModeOptions": [
-          "normal"
-        ],
-        "durationOptions": [
-          3,
-          4,
-          5,
-          6,
-          7,
-          8,
-          9,
-          10,
-          11,
-          12,
-          13,
-          14,
-          15
-        ],
-        "firstlastframe": false,
-        "supportGenerateAudio": false
-      }
-    }
-  },
-  {
-    "modelType": "video",
-    "provider": "fal",
-    "modelId": "fal-ai/kling-video/v3/pro/image-to-video",
-    "capabilities": {
-      "video": {
-        "generationModeOptions": [
-          "normal"
-        ],
-        "durationOptions": [
-          3,
-          4,
-          5,
-          6,
-          7,
-          8,
-          9,
-          10,
-          11,
-          12,
-          13,
-          14,
-          15
-        ],
-        "firstlastframe": false,
-        "supportGenerateAudio": false
-      }
-    }
-  },
-  {
-    "modelType": "video",
     "provider": "bailian",
     "modelId": "wan2.6-i2v-flash",
     "capabilities": {
@@ -1051,27 +975,67 @@
   {
     "modelType": "video",
     "provider": "kling",
-    "modelId": "image2video",
+    "modelId": "kling-video-o1",
     "capabilities": {
       "video": {
         "generationModeOptions": [
-          "normal"
-        ],
-        "modelIdOptions": [
-          "kling-v1-6",
-          "kling-v2-master",
-          "kling-v2-1-master"
+          "normal",
+          "firstlastframe"
         ],
         "modeOptions": [
           "std",
           "pro"
         ],
         "durationOptions": [
+          3,
+          4,
           5,
+          6,
+          7,
+          8,
+          9,
           10
         ],
-        "firstlastframe": false,
+        "firstlastframe": true,
         "supportGenerateAudio": false
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "kling",
+    "modelId": "kling-v3-omni",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal",
+          "firstlastframe"
+        ],
+        "generateAudioOptions": [
+          true,
+          false
+        ],
+        "modeOptions": [
+          "std",
+          "pro"
+        ],
+        "durationOptions": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "firstlastframe": true,
+        "supportGenerateAudio": true
       }
     }
   },

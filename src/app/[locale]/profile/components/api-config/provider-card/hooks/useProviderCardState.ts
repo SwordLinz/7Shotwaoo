@@ -451,16 +451,18 @@ export function useProviderCardState({
     setIsEditingUrl(true)
   }
 
+  const needsDualCredential = providerKey === 'youchuan' || providerKey === 'kling'
+
   const doSaveKey = useCallback(() => {
     onUpdateApiKey(
       provider.id,
       tempKey,
-      providerKey === 'youchuan' ? tempAppId : undefined,
+      needsDualCredential ? tempAppId : undefined,
     )
     setIsEditing(false)
     setKeyTestStatus('idle')
     setKeyTestSteps([])
-  }, [onUpdateApiKey, provider.id, providerKey, tempAppId, tempKey])
+  }, [onUpdateApiKey, provider.id, needsDualCredential, tempAppId, tempKey])
 
   const handleSaveKey = useCallback(async () => {
     if (!VERIFIABLE_PROVIDER_KEYS.has(providerKey)) {
@@ -468,7 +470,7 @@ export function useProviderCardState({
       return
     }
 
-    if (providerKey === 'youchuan' && (!tempAppId.trim() || !tempKey.trim())) {
+    if (needsDualCredential && (!tempAppId.trim() || !tempKey.trim())) {
       setKeyTestStatus('failed')
       setKeyTestSteps([
         { name: 'models', status: 'fail', message: t('youchuanCredentialsIncomplete') },
@@ -487,7 +489,7 @@ export function useProviderCardState({
       const payload = buildProviderConnectionPayload({
         providerKey,
         apiKey: tempKey,
-        apiAppId: providerKey === 'youchuan' ? tempAppId : undefined,
+        apiAppId: needsDualCredential ? tempAppId : undefined,
         baseUrl: provider.baseUrl,
         llmModel: fallbackLlmModel,
       })
@@ -512,7 +514,7 @@ export function useProviderCardState({
       setKeyTestSteps([{ name: 'models', status: 'fail', message: 'Network error' }])
       setKeyTestStatus('failed')
     }
-  }, [defaultModels.analysisModel, doSaveKey, models, provider.baseUrl, providerKey, t, tempAppId, tempKey])
+  }, [defaultModels.analysisModel, doSaveKey, models, needsDualCredential, provider.baseUrl, providerKey, t, tempAppId, tempKey])
 
   const handleForceSaveKey = useCallback(() => {
     doSaveKey()
@@ -530,7 +532,7 @@ export function useProviderCardState({
       const payload = buildProviderConnectionPayload({
         providerKey,
         apiKey: isEditing ? tempKey : (provider.apiKey || ''),
-        apiAppId: providerKey === 'youchuan' ? (isEditing ? tempAppId : (provider.apiAppId || '')) : undefined,
+        apiAppId: needsDualCredential ? (isEditing ? tempAppId : (provider.apiAppId || '')) : undefined,
         baseUrl: provider.baseUrl,
         llmModel: fallbackLlmModel,
       })
@@ -546,7 +548,7 @@ export function useProviderCardState({
       setKeyTestSteps([{ name: 'models', status: 'fail', message: 'Network error' }])
       setKeyTestStatus('failed')
     }
-  }, [defaultModels.analysisModel, isEditing, models, provider.apiAppId, provider.apiKey, provider.baseUrl, providerKey, tempAppId, tempKey])
+  }, [defaultModels.analysisModel, isEditing, models, needsDualCredential, provider.apiAppId, provider.apiKey, provider.baseUrl, tempAppId, tempKey])
 
   const handleDismissTest = useCallback(() => {
     setKeyTestStatus('idle')

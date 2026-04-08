@@ -29,6 +29,18 @@
   "statsImages": "图片数",
   "statsVideos": "视频数",
   "noContent": "暂无内容",
+  "workflowMode": {
+    "label": "制作模式",
+    "classic": {
+      "title": "经典制作",
+      "description": "剧本 → 分镜图 → 图生视频，适合需要精细控制画面的场景"
+    },
+    "smartReference": {
+      "title": "智能参考",
+      "description": "剧本 → 角色场景参考+文本描述 → 直接生视频，快速出片",
+      "tag": "新"
+    }
+  },
   "modelNotConfigured": {
     "before": "检测到尚未配置模型，请先前往",
     "link": "设置中心",

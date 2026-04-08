@@ -14,6 +14,7 @@ import { logError as _ulogError, logInfo as _ulogInfo } from '@/lib/logging/core
 import { BaseVideoGenerator, type GenerateResult, type VideoGenerateParams } from './base'
 import { getProviderConfig } from '@/lib/api-config'
 import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
+import { sanitizeVideoRatioForRunningHub } from '@/lib/media/safe-aspect-ratio'
 
 const DEFAULT_BASE = 'https://www.runninghub.cn/openapi/v2'
 
@@ -201,12 +202,7 @@ function asBool(v: unknown, defaultValue: boolean): boolean {
 function mapAspectToRatio(aspectRatio: unknown): string | undefined {
   const s = asString(aspectRatio)
   if (!s) return undefined
-  const allowed = new Set([
-    'adaptive', '16:9', '9:16', '4:3', '3:4', '1:1', '3:2', '2:3', '21:9',
-  ])
-  const lower = s.toLowerCase()
-  if (allowed.has(lower)) return lower
-  return 'adaptive'
+  return sanitizeVideoRatioForRunningHub(s)
 }
 
 /* ── nodeInfoList builder for AI App (realpeople) ────────────── */
@@ -267,6 +263,75 @@ function buildRealpeopleNodeInfoList(params: {
 
   return nodes
 }
+
+/* ── Smart Reference: multi-image nodeInfoList builder ────────── */
+
+export interface SmartRefInput {
+  characterImages: Array<{ filename: string }>
+  sceneImage?: { filename: string } | null
+  prompt: string
+  duration: string
+  ratio: string
+  resolution: string
+}
+
+function buildSmartRefNodeInfoList(input: SmartRefInput): NodeInfoItem[] {
+  const nodes: NodeInfoItem[] = []
+  const imageSlots = [RP_NODE.IMAGE_1, RP_NODE.IMAGE_2, RP_NODE.IMAGE_3]
+
+  let slotIdx = 0
+  for (const charImg of input.characterImages) {
+    if (slotIdx >= imageSlots.length) break
+    nodes.push({
+      nodeId: imageSlots[slotIdx],
+      fieldName: 'image',
+      fieldValue: charImg.filename,
+      description: `角色参考图${slotIdx + 1}`,
+    })
+    slotIdx++
+  }
+
+  if (input.sceneImage && slotIdx < imageSlots.length) {
+    nodes.push({
+      nodeId: imageSlots[slotIdx],
+      fieldName: 'image',
+      fieldValue: input.sceneImage.filename,
+      description: '场景参考图',
+    })
+  }
+
+  nodes.push({
+    nodeId: RP_NODE.PARAMS,
+    fieldName: 'duration',
+    fieldValue: input.duration,
+    description: '时长（秒）',
+  })
+  nodes.push({
+    nodeId: RP_NODE.PARAMS,
+    fieldName: 'ratio',
+    fieldValue: input.ratio,
+    description: '比例',
+  })
+  nodes.push({
+    nodeId: RP_NODE.PARAMS,
+    fieldName: 'resolution',
+    fieldValue: input.resolution,
+    description: '分辨率',
+  })
+
+  if (input.prompt.trim()) {
+    nodes.push({
+      nodeId: RP_NODE.PARAMS,
+      fieldName: 'prompt',
+      fieldValue: input.prompt.trim(),
+      description: '视频描述文本',
+    })
+  }
+
+  return nodes
+}
+
+export { uploadBinaryToRunningHub, bytesFromImageInput, normalizeBaseUrl, isAiAppEndpoint, resolveEndpoint, asString, mapAspectToRatio, readRhTaskId, readRhBusinessError, encodeProviderId }
 
 /* ── Generator ───────────────────────────────────────────────── */
 
@@ -449,5 +514,97 @@ export class RunningHubVideoGenerator extends BaseVideoGenerator {
     if (webhookUrl) payload.webhookUrl = webhookUrl
 
     return payload
+  }
+
+  /* ── Smart Reference 多参考图模式 ─────────────────────────────── */
+
+  static async submitSmartRefVideo(params: {
+    userId: string
+    providerId?: string
+    appId?: string
+    referenceImageUrls: string[]
+    prompt: string
+    duration?: number
+    ratio?: string
+    resolution?: string
+    instanceType?: string
+  }): Promise<GenerateResult> {
+    const providerId = params.providerId || 'runninghub'
+    const { apiKey, baseUrl: cfgBase } = await getProviderConfig(params.userId, providerId)
+    const baseUrl = normalizeBaseUrl(cfgBase)
+
+    const appId = params.appId || CHAONENG_REALPEOPLE_APP_ID
+    const submitUrl = `${baseUrl}/run/ai-app/${appId}`
+
+    const uploadedImages: Array<{ filename: string }> = []
+    for (const imgUrl of params.referenceImageUrls) {
+      if (!imgUrl) continue
+      const { bytes, filename, mime } = await bytesFromImageInput(imgUrl)
+      const uploaded = await uploadBinaryToRunningHub(apiKey, baseUrl, bytes, filename, mime)
+      uploadedImages.push({ filename: uploaded.rawFilename })
+    }
+
+    const charImages = uploadedImages.slice(0, 2)
+    const sceneImage = uploadedImages.length > 2 ? uploadedImages[2] : null
+
+    const nodeInfoList = buildSmartRefNodeInfoList({
+      characterImages: charImages,
+      sceneImage,
+      prompt: params.prompt,
+      duration: String(params.duration || 5),
+      ratio: sanitizeVideoRatioForRunningHub(params.ratio || 'adaptive'),
+      resolution: params.resolution || '720p',
+    })
+
+    const payload: Record<string, unknown> = {
+      nodeInfoList,
+      instanceType: params.instanceType || 'default',
+      usePersonalQueue: 'false',
+    }
+
+    _ulogInfo('[RunningHub SmartRef] submit', {
+      baseUrl, appId, imageCount: uploadedImages.length,
+    })
+
+    const response = await fetch(submitUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(120_000),
+    })
+
+    const rawText = await response.text().catch(() => '')
+    let data: Record<string, unknown> = {}
+    if (rawText.trim()) {
+      try { data = JSON.parse(rawText) as Record<string, unknown> } catch { data = {} }
+    }
+
+    if (!response.ok) {
+      _ulogError('[RunningHub SmartRef] HTTP error', { status: response.status, body: rawText.slice(0, 400) })
+      throw new Error(`RunningHub SmartRef Error: ${response.status} ${rawText.slice(0, 200)}`.trim())
+    }
+
+    const wrapCode = data.code
+    if (wrapCode !== undefined && wrapCode !== 0 && wrapCode !== '0') {
+      const msg = typeof data.message === 'string' ? data.message : 'API error'
+      throw new Error(`RunningHub SmartRef: ${msg}`)
+    }
+
+    const bizErr = readRhBusinessError(data)
+    if (bizErr) throw new Error(`RunningHub SmartRef: ${bizErr}`)
+
+    const taskId = readRhTaskId(data)
+    if (!taskId) throw new Error('RUNNINGHUB_SMARTREF_TASK_ID_MISSING')
+
+    const providerToken = encodeProviderId(providerId)
+    return {
+      success: true,
+      async: true,
+      requestId: taskId,
+      externalId: `RUNNINGHUB:VIDEO:${providerToken}:${taskId}`,
+    }
   }
 }

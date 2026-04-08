@@ -50,18 +50,18 @@ export function ProviderBaseFields({ provider, t, state }: ProviderBaseFieldsPro
   return (
     <>
       <div className="space-y-2 px-3.5 pt-2.5">
-        {state.providerKey === 'youchuan' ? (
+        {(state.providerKey === 'youchuan' || state.providerKey === 'kling') ? (
           <>
             <div className="glass-surface-soft flex items-center gap-2.5 rounded-xl px-3 py-2">
               <span className="w-[72px] shrink-0 text-[12px] font-semibold leading-tight text-[var(--glass-text-primary)]">
-                {t('youchuanAppIdLabel')}
+                {state.providerKey === 'kling' ? t('klingAccessKeyLabel') : t('youchuanAppIdLabel')}
               </span>
               {state.isEditing ? (
                 <input
                   type="text"
                   value={state.tempAppId}
                   onChange={(event) => state.setTempAppId(event.target.value)}
-                  placeholder={t('youchuanEnterAppId')}
+                  placeholder={state.providerKey === 'kling' ? t('klingEnterAccessKey') : t('youchuanEnterAppId')}
                   className="glass-input-base flex-1 px-3 py-1.5 text-[12px]"
                   disabled={state.keyTestStatus === 'testing'}
                   autoFocus
@@ -80,7 +80,7 @@ export function ProviderBaseFields({ provider, t, state }: ProviderBaseFieldsPro
             </div>
             <div className="glass-surface-soft flex items-center gap-2.5 rounded-xl px-3 py-2">
               <span className="w-[72px] shrink-0 text-[12px] font-semibold leading-tight text-[var(--glass-text-primary)]">
-                {t('youchuanSecretLabel')}
+                {state.providerKey === 'kling' ? t('klingSecretKeyLabel') : t('youchuanSecretLabel')}
               </span>
               {state.isEditing ? (
                 <div className="flex flex-1 items-center gap-2">
@@ -88,7 +88,7 @@ export function ProviderBaseFields({ provider, t, state }: ProviderBaseFieldsPro
                     type="text"
                     value={state.tempKey}
                     onChange={(event) => state.setTempKey(event.target.value)}
-                    placeholder={t('youchuanEnterSecret')}
+                    placeholder={state.providerKey === 'kling' ? t('klingEnterSecretKey') : t('youchuanEnterSecret')}
                     className="glass-input-base flex-1 px-3 py-1.5 text-[12px]"
                     disabled={state.keyTestStatus === 'testing'}
                   />

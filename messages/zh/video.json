@@ -142,29 +142,56 @@
       "saveSuccess": "保存成功",
       "saveFailed": "保存失败",
       "exportStarted": "导出任务已开始，请稍候...",
-      "exportFailed": "导出失败"
+      "exportSuccess": "工程文件导出成功",
+      "exportFailed": "导出失败",
+      "audioLoadFailed": "音频文件加载失败"
     },
     "toolbar": {
       "back": "← 返回",
       "saveDirty": "保存 *",
       "saved": "已保存",
-      "export": "导出视频"
+      "export": "导出视频",
+      "exportProject": "导出工程文件",
+      "exporting": "导出中...",
+      "uploadBgm": "上传BGM",
+      "removeBgm": "移除BGM"
+    },
+    "export": {
+      "videoGroup": "导出视频",
+      "mergedVideo": "成片（完整视频）",
+      "mergedVideoHint": "将所有片段拼接为一个完整视频文件",
+      "merging": "正在合成视频...",
+      "allClips": "全部片段 (ZIP)",
+      "allClipsHint": "分别下载每个片段 + FFmpeg 合并脚本",
+      "videoDownloading": "正在下载片段...",
+      "projectGroup": "导出工程文件",
+      "fcpxml": "Premiere Pro / 达芬奇",
+      "fcpxmlHint": "FCP XML 格式 (.xml)",
+      "jianying": "剪映 / CapCut 桌面版",
+      "jianyingHint": "剪映草稿工程 (.zip)"
     },
     "left": {
       "title": "素材库",
-      "description": "从视频阶段导入的片段将显示在这里"
+      "description": "生成的视频片段将自动出现在这里"
+    },
+    "media": {
+      "clipCount": "个片段"
     },
     "right": {
       "title": "属性",
       "clipLabel": "片段:",
       "clipFallback": "片段 {index}",
       "durationLabel": "时长:",
+      "voiceLabel": "配音 / 旁白",
+      "voiceAttached": "已添加音频",
+      "uploadVoice": "上传音频文件",
       "transitionLabel": "转场到下一片段",
       "deleteConfirm": "确定删除此片段？",
       "deleteClip": "删除片段",
       "selectClipHint": "选择一个片段查看属性"
     },
     "preview": {
+      "title": "预览",
       "emptyStartEditing": "添加素材开始编辑"
     },
     "timeline": {
@@ -183,6 +210,14 @@
         "fade": "淡入淡出",
         "slide": "滑动"
       }
+    },
+    "bgm": {
+      "title": "BGM 属性",
+      "volume": "音量",
+      "speed": "播放速度",
+      "fadeIn": "淡入",
+      "fadeOut": "淡出",
+      "delete": "移除 BGM"
     }
   },
   "errors": {

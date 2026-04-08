@@ -4,7 +4,8 @@
     "script": "剧本",
     "storyboard": "分镜",
     "video": "成片",
-    "editor": "AI剪辑",
+    "smartRefVideo": "智能参考生视频",
+    "editor": "剪辑",
     "editorComingSoon": "开发中，关注我们获取最新消息"
   },
   "buttons": {
@@ -151,6 +152,24 @@
     "storyToScriptFailed": "内容转剧本失败",
     "scriptToStoryboardFailed": "剧本转分镜失败",
     "taskStreamTimeout": "任务执行超时，请检查任务是否仍在运行，或重新触发"
+  },
+  "smartRefStage": {
+    "title": "智能参考视频",
+    "description": "角色参考图 + 场景参考图 + 分镜描述文本 → 直接生成视频",
+    "noPanels": "暂无面板数据，请先完成「剧本」阶段的内容生成。",
+    "generateAll": "一键生成全部视频",
+    "generating": "生成中...",
+    "generate": "生成视频",
+    "regenerate": "重新生成",
+    "panelLabel": "镜头 {number}",
+    "videoPromptLabel": "视频描述",
+    "durationLabel": "时长",
+    "durationUnit": "秒",
+    "charactersLabel": "角色",
+    "locationLabel": "场景",
+    "videoReady": "视频已生成",
+    "pendingCount": "待生成 {count} 个视频",
+    "completedCount": "已完成 {count} / {total}"
   },
   "rebuildConfirm": {
     "storyToScript": {

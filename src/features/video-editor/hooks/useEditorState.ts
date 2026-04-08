@@ -26,6 +26,7 @@ export function useEditorState({ episodeId, initialProject }: UseEditorStateProp
         currentFrame: 0,
         playing: false,
         selectedClipId: null,
+        selectedBgmId: null,
         zoom: 1
     })
 
@@ -101,6 +102,16 @@ export function useEditorState({ episodeId, initialProject }: UseEditorStateProp
         setIsDirty(true)
     }, [])
 
+    const updateBgm = useCallback((bgmId: string, updates: Partial<BgmClip>) => {
+        setProject(prev => ({
+            ...prev,
+            bgmTrack: prev.bgmTrack.map(b =>
+                b.id === bgmId ? { ...b, ...updates } : b
+            )
+        }))
+        setIsDirty(true)
+    }, [])
+
     // ========================================
     // 播放控制
     // ========================================
@@ -118,7 +129,11 @@ export function useEditorState({ episodeId, initialProject }: UseEditorStateProp
     }, [])
 
     const selectClip = useCallback((clipId: string | null) => {
-        setTimelineState(prev => ({ ...prev, selectedClipId: clipId }))
+        setTimelineState(prev => ({ ...prev, selectedClipId: clipId, selectedBgmId: null }))
+    }, [])
+
+    const selectBgm = useCallback((bgmId: string | null) => {
+        setTimelineState(prev => ({ ...prev, selectedBgmId: bgmId, selectedClipId: null }))
     }, [])
 
     const setZoom = useCallback((zoom: number) => {
@@ -158,12 +173,14 @@ export function useEditorState({ episodeId, initialProject }: UseEditorStateProp
         // BGM actions
         addBgm,
         removeBgm,
+        updateBgm,
 
         // Playback
         play,
         pause,
         seek,
         selectClip,
+        selectBgm,
         setZoom,
 
         // Project

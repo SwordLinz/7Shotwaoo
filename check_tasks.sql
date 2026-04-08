@@ -1,0 +1,1 @@
+SELECT id, type, status, errorMessage FROM tasks WHERE episodeId = 'e02102a8-5b88-4ac2-9f5c-7d4863beff19' ORDER BY createdAt DESC LIMIT 10;

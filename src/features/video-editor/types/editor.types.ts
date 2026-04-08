@@ -94,6 +94,7 @@ export interface BgmClip {
     startFrame: number             // 绝对定位
     durationInFrames: number
     volume: number
+    speed?: number                  // 播放速率 (0.5 ~ 2.0, default 1.0)
     fadeIn?: number
     fadeOut?: number
 }
@@ -106,6 +107,7 @@ export interface TimelineState {
     currentFrame: number
     playing: boolean
     selectedClipId: string | null
+    selectedBgmId: string | null
     zoom: number                   // 缩放级别 (1 = 100%)
 }
 

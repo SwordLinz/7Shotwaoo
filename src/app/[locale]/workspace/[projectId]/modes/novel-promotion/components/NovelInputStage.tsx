@@ -8,7 +8,8 @@
 import { useTranslations } from 'next-intl'
 import { useState, useRef, useEffect } from 'react'
 import '@/styles/animations.css'
-import { ART_STYLES, VIDEO_RATIOS } from '@/lib/constants'
+import { ART_STYLES, VIDEO_RATIOS, VIDEO_RATIOS_SAFE } from '@/lib/constants'
+import { sanitizeVideoRatioForApis } from '@/lib/media/safe-aspect-ratio'
 import TaskStatusInline from '@/components/task/TaskStatusInline'
 import { resolveTaskPresentationState } from '@/lib/task/presentation'
 import { AppIcon, RatioPreviewIcon } from '@/components/ui/icons'
@@ -259,7 +260,7 @@ export default function NovelInputStage({
   const hasContent = localText.trim().length > 0
 
   // 当前配置展示文案
-  const ratioDisplayLabel = (VIDEO_RATIOS.find((option) => option.value === videoRatio) ?? VIDEO_RATIOS[0])?.label
+  const ratioDisplayLabel = (VIDEO_RATIOS.find((option) => option.value === sanitizeVideoRatioForApis(videoRatio)) ?? VIDEO_RATIOS[0])?.label
   const artStyleDisplayLabel = (ART_STYLES.find((option) => option.value === artStyle) ?? ART_STYLES[0])?.label
 
   // 不同比例适合的素材类型文案映射（完整句子，用于 info 悬浮层）
@@ -394,7 +395,7 @@ AI 将根据您的文本智能分析：
             <RatioSelector
               value={videoRatio}
               onChange={(value) => onVideoRatioChange?.(value)}
-              options={VIDEO_RATIOS.map((option) => ({
+              options={VIDEO_RATIOS_SAFE.map((option) => ({
                 ...option,
                 recommended: option.value === '9:16'
               }))}

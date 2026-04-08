@@ -29,6 +29,18 @@
   "statsImages": "Images",
   "statsVideos": "Videos",
   "noContent": "No content yet",
+  "workflowMode": {
+    "label": "Production Mode",
+    "classic": {
+      "title": "Classic",
+      "description": "Script → Storyboard → Image-to-Video, ideal for precise visual control"
+    },
+    "smartReference": {
+      "title": "Smart Reference",
+      "description": "Script → Character/Scene refs + text → Direct video, fast production",
+      "tag": "New"
+    }
+  },
   "modelNotConfigured": {
     "before": "No models configured yet. Please go to",
     "link": "Settings Center",

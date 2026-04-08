@@ -40,3 +40,9 @@ export { TransitionPicker } from './components/TransitionPicker'
 // Hooks
 export { useEditorState } from './hooks/useEditorState'
 export { useEditorActions, createProjectFromPanels } from './hooks/useEditorActions'
+
+// Exporters
+export { exportToFcpXml } from './exporters/fcpxml-exporter'
+export { exportToJianyingDraft, exportJianyingMeta } from './exporters/jianying-exporter'
+export { downloadProjectExport } from './exporters'
+export type { ExportFormat } from './exporters'

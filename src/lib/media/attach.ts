@@ -1,4 +1,5 @@
 import { decodeImageUrlsFromDb } from '@/lib/contracts/image-urls-contract'
+import { sanitizeVideoRatioForApis } from '@/lib/media/safe-aspect-ratio'
 import { resolveMediaRef, resolveMediaRefFromLegacyValue } from './service'
 import type { MediaRef } from './types'
 
@@ -217,8 +218,15 @@ export async function attachMediaFieldsToProject<T extends Record<string, unknow
     ((projectLike.voiceLines as Array<Record<string, unknown>>) || []).map(attachMediaFieldsToVoiceLine),
   )
 
+  const rawRatio = projectLike.videoRatio
+  const videoRatio =
+    typeof rawRatio === 'string' && rawRatio.trim()
+      ? sanitizeVideoRatioForApis(rawRatio)
+      : rawRatio
+
   return {
     ...projectLike,
+    videoRatio,
     media: audioMedia,
     audioMedia,
     audioUrl: audioMedia?.url || projectLike.audioUrl || null,

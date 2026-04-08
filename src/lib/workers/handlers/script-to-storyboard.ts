@@ -36,6 +36,7 @@ import {
   parseStoryboardRetryTarget,
   runScriptToStoryboardAtomicRetry,
 } from './script-to-storyboard-atomic-retry'
+import { convertScreenplayToPanels } from '@/lib/novel-promotion/smart-reference/screenplay-to-panels'
 
 type AnyObj = Record<string, unknown>
 const MAX_VOICE_ANALYZE_ATTEMPTS = 5
@@ -116,6 +117,32 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     throw new Error(`Retry clip not found: ${retryClipId}`)
   }
   const skipVoiceAnalyze = !!retryStepKey && retryStepKey !== 'voice_analyze'
+
+  const workflowMode = (novelData.workflowMode as string) || 'srt'
+  if (workflowMode === 'smart-reference') {
+    return await handleSmartReferenceStoryboard({
+      job,
+      project,
+      novelData: {
+        id: novelData.id,
+        artStyle: (novelData as Record<string, unknown>).artStyle as string | undefined,
+        analysisModel: novelData.analysisModel,
+        characters: (novelData.characters || []).map((c) => ({
+          name: c.name,
+          description: c.profileData || null,
+          introduction: c.introduction || null,
+        })),
+        locations: (novelData.locations || []).map((l) => ({
+          name: l.name,
+          description: l.summary || null,
+        })),
+      },
+      episode,
+      episodeId,
+      clips: selectedClips,
+      payload,
+    })
+  }
 
   const model = await resolveAnalysisModel({
     userId: job.data.userId,
@@ -612,5 +639,296 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     storyboardCount: persistedStoryboards.length,
     panelCount: orchestratorResult.summary.totalPanelCount,
     voiceLineCount: createdVoiceLines.length,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Smart Reference simplified path – deterministic, no LLM calls
+// ---------------------------------------------------------------------------
+
+async function handleSmartReferenceStoryboard(params: {
+  job: Job<TaskJobData>
+  project: { id: string; name: string }
+  novelData: {
+    id: string
+    artStyle?: string | null
+    analysisModel?: string | null
+    characters: Array<{ name: string; description: string | null; introduction?: string | null }>
+    locations: Array<{ name: string; description: string | null }>
+  }
+  episode: { id: string; novelText: string | null }
+  episodeId: string
+  clips: Array<{
+    id: string
+    content: string
+    characters: string | null
+    location: string | null
+    screenplay: string | null
+  }>
+  payload: AnyObj
+}) {
+  const { job, project, novelData, episode, episodeId, clips, payload } = params
+  const payloadMeta = typeof payload.meta === 'object' && payload.meta !== null
+    ? (payload.meta as AnyObj)
+    : {}
+  const runId = typeof payload.runId === 'string' && payload.runId.trim()
+    ? payload.runId.trim()
+    : (typeof payloadMeta.runId === 'string' ? payloadMeta.runId.trim() : '')
+  if (!runId) {
+    throw new Error('runId is required for script_to_storyboard pipeline')
+  }
+
+  onProjectNameAvailable(project.id, project.name)
+
+  await reportTaskProgress(job, 15, {
+    stage: 'smart_ref_panel_split',
+    stageLabel: 'progress.stage.smartRefPanelSplit',
+    displayMode: 'detail',
+  })
+  await assertTaskActive(job, 'smart_ref_panel_split')
+
+  const artStyle = novelData.artStyle
+  const { clipPanels, totalPanelCount } = convertScreenplayToPanels(
+    clips,
+    novelData.characters,
+    novelData.locations,
+    artStyle || undefined,
+  )
+
+  await createArtifact({
+    runId,
+    stepKey: 'smart_ref_panels',
+    artifactType: 'storyboard.smartref.panels',
+    refId: episodeId,
+    payload: { clipPanels, totalPanelCount },
+  })
+
+  await reportTaskProgress(job, 60, {
+    stage: 'smart_ref_persist',
+    stageLabel: 'progress.stage.smartRefPersist',
+    displayMode: 'detail',
+  })
+  await assertTaskActive(job, 'smart_ref_persist')
+
+  const persistedStoryboards = await persistStoryboardsAndPanels({
+    episodeId,
+    clipPanels,
+  })
+
+  // Voice analysis — reuse existing logic for voice line extraction
+  const retryStepKey = typeof payload.retryStepKey === 'string' ? payload.retryStepKey.trim() : ''
+  if (retryStepKey && retryStepKey !== 'voice_analyze') {
+    await reportTaskProgress(job, 96, {
+      stage: 'smart_ref_done',
+      stageLabel: 'progress.stage.smartRefDone',
+      displayMode: 'detail',
+    })
+    return {
+      episodeId,
+      storyboardCount: persistedStoryboards.length,
+      panelCount: totalPanelCount,
+      voiceLineCount: 0,
+      smartReference: true,
+    }
+  }
+
+  if (!episode.novelText || !episode.novelText.trim()) {
+    await reportTaskProgress(job, 96, {
+      stage: 'smart_ref_done',
+      stageLabel: 'progress.stage.smartRefDone',
+      displayMode: 'detail',
+    })
+    return {
+      episodeId,
+      storyboardCount: persistedStoryboards.length,
+      panelCount: totalPanelCount,
+      voiceLineCount: 0,
+      smartReference: true,
+    }
+  }
+
+  await reportTaskProgress(job, 70, {
+    stage: 'smart_ref_voice',
+    stageLabel: 'progress.stage.scriptToStoryboardStep',
+    displayMode: 'detail',
+    message: 'Voice analysis',
+  })
+
+  const model = await resolveAnalysisModel({
+    userId: job.data.userId,
+    inputModel: typeof payload.model === 'string' ? payload.model.trim() : '',
+    projectAnalysisModel: novelData.analysisModel || undefined,
+  })
+
+  const streamContext = createWorkerLLMStreamContext(job, 'script_to_storyboard')
+  const callbacks = createWorkerLLMStreamCallbacks(job, streamContext)
+
+  const voicePrompt = buildPrompt({
+    promptId: PROMPT_IDS.NP_VOICE_ANALYSIS,
+    locale: job.data.locale,
+    variables: {
+      input: episode.novelText,
+      characters_lib_name: novelData.characters.length > 0
+        ? novelData.characters.map((item) => item.name).join('、')
+        : '无',
+      characters_introduction: buildCharactersIntroduction(novelData.characters),
+      storyboard_json: buildStoryboardJson(persistedStoryboards),
+    },
+  })
+
+  const MAX_ATTEMPTS = 5
+  let voiceLineRows: JsonRecord[] | null = null
+  let voiceLastError: Error | null = null
+
+  try {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const voiceOutput = await withInternalLLMStreamCallbacks(
+          callbacks,
+          async () => {
+            const output = await executeAiTextStep({
+              userId: job.data.userId,
+              model,
+              messages: [{ role: 'user', content: voicePrompt }],
+              projectId: project.id,
+              action: 'voice_analyze',
+              meta: { stepId: 'voice_analyze', stepTitle: 'Voice Analysis', stepIndex: 0, stepTotal: 1, stepAttempt: attempt },
+              reasoning: true,
+              reasoningEffort: 'high',
+            })
+            return { text: output.text, reasoning: output.reasoning }
+          },
+        )
+        voiceLineRows = parseVoiceLinesJson(voiceOutput.text)
+        break
+      } catch (error) {
+        if (error instanceof TaskTerminatedError) throw error
+        voiceLastError = error instanceof Error ? error : new Error(String(error))
+      }
+    }
+  } finally {
+    await callbacks.flush()
+  }
+
+  if (!voiceLineRows) {
+    throw voiceLastError!
+  }
+
+  await createArtifact({
+    runId,
+    stepKey: 'voice_analyze',
+    artifactType: 'voice.lines',
+    refId: episodeId,
+    payload: { lines: voiceLineRows },
+  })
+
+  await assertTaskActive(job, 'smart_ref_voice_persist')
+  const panelIdByStoryboardPanel = new Map<string, string>()
+  for (const storyboard of persistedStoryboards) {
+    for (const panel of storyboard.panels) {
+      panelIdByStoryboardPanel.set(`${storyboard.storyboardId}:${panel.panelIndex}`, panel.id)
+    }
+  }
+
+  const createdVoiceLines = await prisma.$transaction(async (tx) => {
+    const voiceLineModel = tx.novelPromotionVoiceLine as unknown as {
+      upsert?: (args: unknown) => Promise<{ id: string }>
+      create: (args: unknown) => Promise<{ id: string }>
+      deleteMany: (args: unknown) => Promise<unknown>
+    }
+    const created: Array<{ id: string }> = []
+    for (let i = 0; i < voiceLineRows!.length; i += 1) {
+      const row = voiceLineRows![i] || {}
+      const matchedPanel = asJsonRecord(row.matchedPanel)
+      const matchedStoryboardId =
+        matchedPanel && typeof matchedPanel.storyboardId === 'string'
+          ? matchedPanel.storyboardId.trim()
+          : null
+      const matchedPanelIndex = matchedPanel ? toPositiveInt(matchedPanel.panelIndex) : null
+      let matchedPanelId: string | null = null
+      if (matchedPanel !== null) {
+        if (!matchedStoryboardId || matchedPanelIndex === null) {
+          throw new Error(`voice line ${i + 1} has invalid matchedPanel reference`)
+        }
+        const panelKey = `${matchedStoryboardId}:${matchedPanelIndex}`
+        const resolvedPanelId = panelIdByStoryboardPanel.get(panelKey)
+        if (!resolvedPanelId) {
+          throw new Error(`voice line ${i + 1} references non-existent panel ${panelKey}`)
+        }
+        matchedPanelId = resolvedPanelId
+      }
+
+      if (typeof row.emotionStrength !== 'number' || !Number.isFinite(row.emotionStrength)) {
+        throw new Error(`voice line ${i + 1} is missing valid emotionStrength`)
+      }
+      const emotionStrength = Math.min(1, Math.max(0.1, row.emotionStrength))
+      if (typeof row.lineIndex !== 'number' || !Number.isFinite(row.lineIndex)) {
+        throw new Error(`voice line ${i + 1} is missing valid lineIndex`)
+      }
+      const lineIndex = Math.floor(row.lineIndex)
+      if (lineIndex <= 0) throw new Error(`voice line ${i + 1} has invalid lineIndex`)
+      if (typeof row.speaker !== 'string' || !row.speaker.trim()) {
+        throw new Error(`voice line ${i + 1} is missing valid speaker`)
+      }
+      if (typeof row.content !== 'string' || !row.content.trim()) {
+        throw new Error(`voice line ${i + 1} is missing valid content`)
+      }
+
+      const upsertArgs = {
+        where: { episodeId_lineIndex: { episodeId, lineIndex } },
+        create: {
+          episodeId,
+          lineIndex,
+          speaker: row.speaker.trim(),
+          content: row.content,
+          emotionStrength,
+          matchedPanelId,
+          matchedStoryboardId: matchedPanelId ? matchedStoryboardId : null,
+          matchedPanelIndex,
+        },
+        update: {
+          speaker: row.speaker.trim(),
+          content: row.content,
+          emotionStrength,
+          matchedPanelId,
+          matchedStoryboardId: matchedPanelId ? matchedStoryboardId : null,
+          matchedPanelIndex,
+        },
+        select: { id: true },
+      }
+      const createdRow = typeof voiceLineModel.upsert === 'function'
+        ? await voiceLineModel.upsert(upsertArgs)
+        : (
+          process.env.NODE_ENV === 'test'
+            ? await voiceLineModel.create({ data: upsertArgs.create, select: { id: true } })
+            : (() => { throw new Error('novelPromotionVoiceLine.upsert unavailable') })()
+        )
+      created.push(createdRow)
+    }
+
+    const nextLineIndexes = voiceLineRows!
+      .map((row) => (typeof row.lineIndex === 'number' && Number.isFinite(row.lineIndex) ? Math.floor(row.lineIndex) : -1))
+      .filter((value) => value > 0)
+    await voiceLineModel.deleteMany({
+      where: {
+        episodeId,
+        lineIndex: { notIn: nextLineIndexes.length > 0 ? nextLineIndexes : [0] },
+      },
+    })
+    return created
+  }, { timeout: 15000 })
+
+  await reportTaskProgress(job, 96, {
+    stage: 'smart_ref_done',
+    stageLabel: 'progress.stage.smartRefDone',
+    displayMode: 'detail',
+  })
+
+  return {
+    episodeId,
+    storyboardCount: persistedStoryboards.length,
+    panelCount: totalPanelCount,
+    voiceLineCount: createdVoiceLines.length,
+    smartReference: true,
   }
 }

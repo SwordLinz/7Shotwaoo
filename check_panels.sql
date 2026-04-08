@@ -1,0 +1,1 @@
+SELECT COUNT(*) as cnt FROM novel_promotion_panels np JOIN novel_promotion_storyboards ns ON np.storyboard_id = ns.id WHERE ns.episode_id = '44612361-4484-4d0a-957f-7494bc975256';

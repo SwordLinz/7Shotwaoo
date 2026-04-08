@@ -13,6 +13,7 @@ import {
   resolveVideoSourceFromGeneration,
   toSignedUrlIfCos,
   uploadVideoSourceToCos,
+  waitExternalResult,
 } from './utils'
 import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
 import { resolveBuiltinCapabilitiesByModelKey } from '@/lib/model-capabilities/lookup'
@@ -283,6 +284,162 @@ async function handleLipSyncTask(job: Job<TaskJobData>) {
   }
 }
 
+async function handleSmartRefVideoTask(job: Job<TaskJobData>) {
+  const payload = (job.data.payload || {}) as AnyObj
+  const panel = await getPanelForVideoTask(job)
+
+  if (!panel.videoPrompt) {
+    throw new Error(`Panel ${panel.id} has no videoPrompt for smart-ref`)
+  }
+
+  const storyboard = await prisma.novelPromotionStoryboard.findUnique({
+    where: { id: panel.storyboardId },
+    select: { clipId: true, episodeId: true },
+  })
+  if (!storyboard) throw new Error('Storyboard not found')
+
+  const clip = await prisma.novelPromotionClip.findUnique({
+    where: { id: storyboard.clipId },
+    select: { characters: true, location: true },
+  })
+
+  const novelData = await prisma.novelPromotionProject.findFirst({
+    where: { project: { id: job.data.projectId } },
+    include: { characters: { include: { appearances: true } }, locations: { include: { images: true } } },
+  })
+  if (!novelData) throw new Error('Novel data not found')
+
+  await reportTaskProgress(job, 10, { stage: 'smart_ref_prepare' })
+
+  const referenceImageUrls: string[] = []
+
+  const panelCharNames = tryParseCharacterNames(panel.characters || clip?.characters)
+  for (const charName of panelCharNames) {
+    const character = novelData.characters.find(
+      (c) => c.name.toLowerCase() === charName.toLowerCase(),
+    )
+    if (!character) continue
+    const primaryAppearance = character.appearances.find((a) => a.appearanceIndex === 0)
+    const imgUrl = primaryAppearance?.imageUrl
+    if (imgUrl) {
+      const signed = toSignedUrlIfCos(imgUrl, 3600)
+      if (signed) referenceImageUrls.push(signed)
+    }
+    if (referenceImageUrls.length >= 2) break
+  }
+
+  const locationName = panel.location || clip?.location
+  if (locationName) {
+    const location = novelData.locations.find(
+      (l) => l.name.toLowerCase() === locationName.toLowerCase(),
+    )
+    if (location) {
+      const selectedImg = location.selectedImageId
+        ? location.images.find((img) => img.id === location.selectedImageId)
+        : location.images[0]
+      const locImgUrl = selectedImg?.imageUrl
+      if (locImgUrl) {
+        const signed = toSignedUrlIfCos(locImgUrl, 3600)
+        if (signed) referenceImageUrls.push(signed)
+      }
+    }
+  }
+
+  await reportTaskProgress(job, 20, { stage: 'smart_ref_submit', refCount: referenceImageUrls.length })
+  await assertTaskActive(job, 'smart_ref_submit')
+
+  const projectModels = await getProjectModels(job.data.projectId, job.data.userId)
+  const videoModel = projectModels.videoModel || ''
+
+  const isRunningHubModel = !videoModel
+    || videoModel.startsWith('runninghub')
+    || videoModel.includes('::runninghub')
+    || (typeof payload.provider === 'string' && payload.provider === 'runninghub')
+
+  let cosKey: string
+
+  if (isRunningHubModel) {
+    const providerId = typeof payload.provider === 'string' ? payload.provider : 'runninghub'
+    const appId = typeof payload.rhAppId === 'string' ? payload.rhAppId : undefined
+
+    const { RunningHubVideoGenerator } = await import('@/lib/generators/runninghub')
+    const generateResult = await RunningHubVideoGenerator.submitSmartRefVideo({
+      userId: job.data.userId,
+      providerId,
+      appId,
+      referenceImageUrls,
+      prompt: panel.videoPrompt,
+      duration: panel.duration || 5,
+      ratio: projectModels.videoRatio || 'adaptive',
+      resolution: typeof payload.resolution === 'string' ? payload.resolution : '720p',
+      instanceType: typeof payload.instanceType === 'string' ? payload.instanceType : undefined,
+    })
+
+    if (!generateResult.success || !generateResult.externalId) {
+      throw new Error(generateResult.error || 'Smart-ref video submission failed')
+    }
+
+    await reportTaskProgress(job, 30, { stage: 'smart_ref_polling' })
+
+    const { url: videoSource } = await waitExternalResult(
+      job,
+      generateResult.externalId,
+      job.data.userId,
+      { progressStart: 30, progressEnd: 90 },
+    )
+
+    cosKey = await uploadVideoSourceToCos(videoSource, 'panel-video', panel.id)
+  } else {
+    const primaryImageUrl = referenceImageUrls[0]
+    if (!primaryImageUrl) {
+      throw new Error('Smart-ref video requires at least one reference image')
+    }
+    const additionalRefs = referenceImageUrls.slice(1)
+
+    const generatedVideo = await resolveVideoSourceFromGeneration(job, {
+      userId: job.data.userId,
+      modelId: videoModel,
+      imageUrl: primaryImageUrl,
+      options: {
+        prompt: panel.videoPrompt,
+        duration: panel.duration || 5,
+        ...(projectModels.videoRatio ? { aspectRatio: projectModels.videoRatio } : {}),
+        imageMode: 'reference',
+        ...(additionalRefs.length > 0 ? { _referenceImageUrlsJson: JSON.stringify(additionalRefs) } : {}),
+      },
+      pollProgress: { start: 30, end: 90 },
+    })
+
+    cosKey = await uploadVideoSourceToCos(generatedVideo.url, 'panel-video', panel.id, generatedVideo.downloadHeaders)
+  }
+
+  await assertTaskActive(job, 'smart_ref_persist')
+  await prisma.novelPromotionPanel.update({
+    where: { id: panel.id },
+    data: {
+      videoUrl: cosKey,
+      videoGenerationMode: 'normal',
+    },
+  })
+
+  return {
+    panelId: panel.id,
+    videoUrl: cosKey,
+    smartReference: true,
+  }
+}
+
+function tryParseCharacterNames(raw: string | null | undefined): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (Array.isArray(parsed)) return parsed.filter((s): s is string => typeof s === 'string')
+    return []
+  } catch {
+    return raw.split(/[,，、]/).map((s) => s.trim()).filter(Boolean)
+  }
+}
+
 async function processVideoTask(job: Job<TaskJobData>) {
   await reportTaskProgress(job, 5, { stage: 'received' })
 
@@ -291,6 +448,8 @@ async function processVideoTask(job: Job<TaskJobData>) {
       return await handleVideoPanelTask(job)
     case TASK_TYPE.LIP_SYNC:
       return await handleLipSyncTask(job)
+    case TASK_TYPE.SMART_REF_VIDEO:
+      return await handleSmartRefVideoTask(job)
     default:
       throw new Error(`Unsupported video task type: ${job.data.type}`)
   }

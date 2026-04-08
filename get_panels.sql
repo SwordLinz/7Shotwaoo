@@ -1,0 +1,1 @@
+SELECT p.id, p.panelIndex, p.imageUrl, p.videoUrl FROM novel_promotion_panels p JOIN novel_promotion_storyboards s ON p.storyboardId = s.id WHERE s.episodeId = '98f9bac0-eb83-475d-8c94-ff3a84d7b1a0' ORDER BY p.panelIndex ASC LIMIT 7;

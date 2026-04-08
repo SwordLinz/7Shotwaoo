@@ -123,6 +123,10 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
     pathStem: 'novel-promotion/screenplay_conversion',
     variableKeys: ['clip_content', 'locations_lib_name', 'characters_lib_name', 'characters_introduction', 'clip_id'],
   },
+  [PROMPT_IDS.NP_SCREENPLAY_CONVERSION_SMART_REF]: {
+    pathStem: 'novel-promotion/screenplay_conversion_smart_ref',
+    variableKeys: ['clip_content', 'locations_lib_name', 'characters_lib_name', 'characters_introduction', 'clip_id'],
+  },
   [PROMPT_IDS.NP_SELECT_LOCATION]: {
     pathStem: 'novel-promotion/select_location',
     variableKeys: ['input', 'locations_lib_name'],

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useRef, useEffect } from 'react'
+import React, { useMemo, useRef, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Player, PlayerRef } from '@remotion/player'
 import { AppIcon } from '@/components/ui/icons'
@@ -16,10 +16,6 @@ interface RemotionPreviewProps {
     onPlayingChange?: (playing: boolean) => void
 }
 
-/**
- * Remotion Player 预览封装
- * 支持双向同步：timelineState ↔ Player
- */
 export const RemotionPreview: React.FC<RemotionPreviewProps> = ({
     project,
     currentFrame,
@@ -36,62 +32,71 @@ export const RemotionPreview: React.FC<RemotionPreviewProps> = ({
         [project.timeline]
     )
 
-    // 当 currentFrame 从外部改变时，同步到 Player
+    // Auto-detect actual video dimensions from the first clip
+    const [detectedSize, setDetectedSize] = useState<{ w: number; h: number } | null>(null)
+
+    useEffect(() => {
+        const firstSrc = project.timeline[0]?.src
+        if (!firstSrc) { setDetectedSize(null); return }
+
+        const video = document.createElement('video')
+        video.crossOrigin = 'anonymous'
+        video.muted = true
+        video.preload = 'metadata'
+
+        const timeout = setTimeout(() => { video.remove() }, 8000)
+
+        video.onloadedmetadata = () => {
+            clearTimeout(timeout)
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                setDetectedSize({ w: video.videoWidth, h: video.videoHeight })
+            }
+            video.remove()
+        }
+        video.onerror = () => { clearTimeout(timeout); video.remove() }
+        video.src = firstSrc
+    }, [project.timeline[0]?.src])
+
+    const compWidth = detectedSize?.w || project.config.width
+    const compHeight = detectedSize?.h || project.config.height
+
     useEffect(() => {
         const player = playerRef.current
         if (!player) return
-
-        // 避免循环更新：只有当帧差距大于 1 时才 seek
         if (Math.abs(currentFrame - lastSyncedFrame.current) > 1) {
             player.seekTo(currentFrame)
             lastSyncedFrame.current = currentFrame
         }
     }, [currentFrame])
 
-    // 当 playing 状态改变时，控制 Player 播放/暂停
     useEffect(() => {
         const player = playerRef.current
         if (!player) return
-
-        if (playing) {
-            player.play()
-        } else {
-            player.pause()
-        }
+        if (playing) player.play()
+        else player.pause()
     }, [playing])
 
-    // 监听 Player 的帧变化，同步到 timelineState
     useEffect(() => {
         const player = playerRef.current
         if (!player) return
-
         const handleFrameUpdate = () => {
             const frame = player.getCurrentFrame()
             lastSyncedFrame.current = frame
             onFrameChange?.(frame)
         }
-
-        // Remotion Player 触发 timeupdate 事件
         player.addEventListener('frameupdate', handleFrameUpdate)
-
-        return () => {
-            player.removeEventListener('frameupdate', handleFrameUpdate)
-        }
+        return () => player.removeEventListener('frameupdate', handleFrameUpdate)
     }, [onFrameChange])
 
-    // 监听 Player 播放状态变化
     useEffect(() => {
         const player = playerRef.current
         if (!player) return
-
         const handlePlay = () => onPlayingChange?.(true)
         const handlePause = () => onPlayingChange?.(false)
         const handleEnded = () => onPlayingChange?.(false)
-
         player.addEventListener('play', handlePlay)
         player.addEventListener('pause', handlePause)
         player.addEventListener('ended', handleEnded)
-
         return () => {
             player.removeEventListener('play', handlePlay)
             player.removeEventListener('pause', handlePause)
@@ -99,20 +104,16 @@ export const RemotionPreview: React.FC<RemotionPreviewProps> = ({
         }
     }, [onPlayingChange])
 
-    // 如果没有片段，显示占位
     if (project.timeline.length === 0) {
         return (
             <div style={{
                 width: '100%',
-                aspectRatio: `${project.config.width} / ${project.config.height}`,
+                aspectRatio: `${compWidth} / ${compHeight}`,
                 maxHeight: '100%',
                 background: 'var(--glass-bg-surface)',
                 border: '1px solid var(--glass-stroke-base)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '8px',
-                color: 'var(--glass-text-tertiary)'
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '8px', color: 'var(--glass-text-tertiary)'
             }}>
                 <div style={{ textAlign: 'center' }}>
                     <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
@@ -127,7 +128,7 @@ export const RemotionPreview: React.FC<RemotionPreviewProps> = ({
     return (
         <div style={{
             width: '100%',
-            aspectRatio: `${project.config.width} / ${project.config.height}`,
+            aspectRatio: `${compWidth} / ${compHeight}`,
             maxHeight: '100%',
             background: 'var(--glass-overlay-strong)',
             borderRadius: '8px',
@@ -139,19 +140,16 @@ export const RemotionPreview: React.FC<RemotionPreviewProps> = ({
                 inputProps={{
                     clips: project.timeline,
                     bgmTrack: project.bgmTrack,
-                    config: project.config
+                    config: { ...project.config, width: compWidth, height: compHeight }
                 }}
                 durationInFrames={Math.max(1, totalDuration)}
                 fps={project.config.fps}
-                compositionWidth={project.config.width}
-                compositionHeight={project.config.height}
-                style={{
-                    width: '100%',
-                    height: '100%'
-                }}
-                controls={false}  // 使用自定义控制
+                compositionWidth={compWidth}
+                compositionHeight={compHeight}
+                style={{ width: '100%', height: '100%' }}
+                controls={false}
                 loop={false}
-                clickToPlay={false}  // 禁用点击播放，由外部控制
+                clickToPlay={false}
             />
         </div>
     )

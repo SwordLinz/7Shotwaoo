@@ -1,0 +1,1 @@
+UPDATE tasks SET status = 'pending', errorMessage = null, errorCode = null WHERE episodeId = 'e02102a8-5b88-4ac2-9f5c-7d4863beff19' AND type = 'IMAGE_LOCATION' AND status = 'failed';

@@ -1,0 +1,1 @@
+UPDATE automation_jobs SET phase = 'generating_assets', status = 'running', errorMessage = null, errorCode = null WHERE id = '188d6e2a-78c0-4a51-8b73-47b768287fd2';

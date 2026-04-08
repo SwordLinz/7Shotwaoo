@@ -26,12 +26,12 @@ export interface Provider {
     gatewayRoute?: 'official' | 'openai-compat'
 }
 
-/** 是否已填写该厂商连接所需的全部凭证（悠船需 App ID + 授权码） */
+/** 是否已填写该厂商连接所需的全部凭证（悠船需 App ID + 授权码，可灵需 Access Key + Secret Key） */
 export function isProviderCredentialComplete(provider: Pick<Provider, 'id' | 'apiKey' | 'apiAppId'>): boolean {
     const key = getProviderKey(provider.id).toLowerCase()
     const secret = (provider.apiKey || '').trim()
     const appId = (provider.apiAppId || '').trim()
-    if (key === 'youchuan') {
+    if (key === 'youchuan' || key === 'kling') {
         return !!(secret && appId)
     }
     return !!secret
@@ -168,10 +168,8 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'fal-wan25', name: 'Wan 2.6', type: 'video', provider: 'fal' },
     { modelId: 'fal-veo31', name: 'Veo 3.1', type: 'video', provider: 'fal' },
     { modelId: 'fal-sora2', name: 'Sora 2', type: 'video', provider: 'fal' },
-    { modelId: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video', name: 'Kling 2.5 Turbo Pro', type: 'video', provider: 'fal' },
-    { modelId: 'fal-ai/kling-video/v3/standard/image-to-video', name: 'Kling 3 Standard', type: 'video', provider: 'fal' },
-    { modelId: 'fal-ai/kling-video/v3/pro/image-to-video', name: 'Kling 3 Pro', type: 'video', provider: 'fal' },
-    { modelId: 'image2video', name: 'Kling 图生视频（官方 API）', type: 'video', provider: 'kling' },
+    { modelId: 'kling-video-o1', name: 'Kling O1（官方 API）', type: 'video', provider: 'kling' },
+    { modelId: 'kling-v3-omni', name: 'Kling V3 Omni（官方 API）', type: 'video', provider: 'kling' },
     { modelId: 'sparkvideo-2.0-i2v', name: 'RunningHub 超能视频 2.0（图生视频）', type: 'video', provider: 'runninghub' },
     { modelId: 'chaoneng-realpeople-i2v', name: 'RunningHub 超能视频（真人视频）', type: 'video', provider: 'runninghub' },
 

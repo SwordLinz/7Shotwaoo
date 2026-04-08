@@ -4,7 +4,7 @@ import { TASK_TYPE, type TaskJobData } from '@/lib/task/types'
 
 const utilsMock = vi.hoisted(() => ({
   assertTaskActive: vi.fn(async () => {}),
-  getProjectModels: vi.fn(async () => ({ editModel: 'edit-model' })),
+  getProjectModels: vi.fn(async () => ({ editModel: 'edit-model', videoRatio: '16:9' })),
   getUserModels: vi.fn(async () => ({ editModel: 'edit-model', analysisModel: 'analysis-model' })),
   resolveImageSourceFromGeneration: vi.fn(async () => 'generated-image-source'),
   stripLabelBar: vi.fn(async () => 'required-reference-image'),

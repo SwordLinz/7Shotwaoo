@@ -14,6 +14,7 @@ interface UseWorkspaceExecutionParams {
   currentStage: string
   analysisModel?: string | null
   novelText: string
+  workflowMode?: string
   t: (key: string) => string
   onRefresh: (options?: { scope?: string; mode?: string }) => Promise<void>
   onUpdateConfig: (key: string, value: unknown) => Promise<void>
@@ -63,6 +64,7 @@ export function useWorkspaceExecution({
   currentStage,
   analysisModel,
   novelText,
+  workflowMode,
   t,
   onRefresh,
   onUpdateConfig,
@@ -130,9 +132,9 @@ export function useWorkspaceExecution({
     }
 
     setScriptToStoryboardConsoleMinimized(true)
-    onStageChange('storyboard')
+    onStageChange(workflowMode === 'smart-reference' ? 'videos' : 'storyboard')
     scriptToStoryboardStream.reset()
-  }, [onRefresh, onStageChange, scriptToStoryboardStream])
+  }, [onRefresh, onStageChange, scriptToStoryboardStream, workflowMode])
 
   useEffect(() => {
     setStoryToScriptConsoleMinimized(readSessionBoolean(storyToScriptMinimizedStorageKey))

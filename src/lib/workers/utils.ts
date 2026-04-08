@@ -13,6 +13,7 @@ import {
   getUserModelConfig,
   resolveProjectModelCapabilityGenerationOptions,
 } from '@/lib/config-service'
+import { sanitizeVideoRatioForApis } from '@/lib/media/safe-aspect-ratio'
 import { TaskTerminatedError } from '@/lib/task/errors'
 import { isTaskActive, trySetTaskExternalId } from '@/lib/task/service'
 import { type TaskJobData } from '@/lib/task/types'
@@ -228,12 +229,14 @@ export async function resolveImageSourceFromGeneration(
     },
   })
 
+  const mergedImageOptions: Record<string, unknown> = { ...params.options, ...capabilityOptions }
+  if (typeof mergedImageOptions.aspectRatio === 'string') {
+    mergedImageOptions.aspectRatio = sanitizeVideoRatioForApis(mergedImageOptions.aspectRatio)
+  }
+
   const result = await withLogContext(
     { projectId: job.data.projectId, taskId: job.data.taskId, userId: params.userId },
-    () => generateImage(params.userId, params.modelId, params.prompt, {
-      ...params.options,
-      ...capabilityOptions,
-    }),
+    () => generateImage(params.userId, params.modelId, params.prompt, mergedImageOptions),
   )
   if (!result.success) {
     throw new Error(result.error || 'Image generation failed')
@@ -361,12 +364,17 @@ export async function resolveVideoSourceFromGeneration(
     providerRequestOptions[key] = value
   }
 
+  const mergedOptions = { ...providerRequestOptions, ...providerCapabilityOptions }
+  if (typeof mergedOptions.aspectRatio === 'string') {
+    mergedOptions.aspectRatio = sanitizeVideoRatioForApis(mergedOptions.aspectRatio)
+  }
+  if (typeof mergedOptions.aspect_ratio === 'string') {
+    mergedOptions.aspect_ratio = sanitizeVideoRatioForApis(mergedOptions.aspect_ratio as string)
+  }
+
   const result = await withLogContext(
     { projectId: job.data.projectId, taskId: job.data.taskId, userId: params.userId },
-    () => generateVideo(params.userId, params.modelId, params.imageUrl, {
-      ...providerRequestOptions,
-      ...providerCapabilityOptions,
-    }),
+    () => generateVideo(params.userId, params.modelId, params.imageUrl, mergedOptions),
   )
   if (!result.success) {
     throw new Error(result.error || 'Video generation failed')

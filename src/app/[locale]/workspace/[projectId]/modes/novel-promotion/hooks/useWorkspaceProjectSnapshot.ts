@@ -32,7 +32,7 @@ export function useWorkspaceProjectSnapshot({
       projectCharacters: projectData?.characters || [],
       projectLocations: projectData?.locations || [],
       episodeStoryboards: episode?.storyboards || [],
-      currentStage: urlStage === 'editor' ? 'videos' : (urlStage || 'config'),
+      currentStage: urlStage || 'config',
       globalAssetText: projectData?.globalAssetText || '',
       novelText: episode?.novelText || '',
       analysisModel: projectData?.analysisModel,
@@ -46,6 +46,7 @@ export function useWorkspaceProjectSnapshot({
       capabilityOverrides,
       ttsRate: projectData?.ttsRate,
       artStyle: projectData?.artStyle,
+      workflowMode: (projectData?.workflowMode as import('@/types/project').WorkflowMode) || 'srt',
     }
   }, [episode?.novelText, episode?.storyboards, project.novelPromotionData, urlStage])
 }

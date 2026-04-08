@@ -21,7 +21,8 @@ interface VoiceTaskTarget {
   hasOutput: boolean
 }
 
-export function buildPanelVideoTargets(storyboards: Storyboard[]): VideoTaskTarget[] {
+export function buildPanelVideoTargets(storyboards: Storyboard[], smartRef?: boolean): VideoTaskTarget[] {
+  const types = smartRef ? ['smart_ref_video', 'video_panel'] : ['video_panel']
   const targets: VideoTaskTarget[] = []
   for (const storyboard of storyboards) {
     for (const panel of storyboard.panels || []) {
@@ -30,7 +31,7 @@ export function buildPanelVideoTargets(storyboards: Storyboard[]): VideoTaskTarg
         key: `panel-video:${panel.id}`,
         targetType: 'NovelPromotionPanel',
         targetId: panel.id,
-        types: ['video_panel'],
+        types,
         resource: 'video',
         hasOutput: !!panel.videoUrl,
       })

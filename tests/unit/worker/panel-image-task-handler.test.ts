@@ -11,7 +11,7 @@ const prismaMock = vi.hoisted(() => ({
 
 const utilsMock = vi.hoisted(() => ({
   assertTaskActive: vi.fn(async () => undefined),
-  getProjectModels: vi.fn(async () => ({ storyboardModel: 'storyboard-model-1', artStyle: 'realistic' })),
+  getProjectModels: vi.fn(async () => ({ storyboardModel: 'storyboard-model-1', artStyle: 'realistic', videoRatio: '16:9' })),
   resolveImageSourceFromGeneration: vi.fn(),
   uploadImageSourceToCos: vi.fn(),
 }))

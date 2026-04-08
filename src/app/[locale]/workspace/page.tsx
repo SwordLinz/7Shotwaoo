@@ -54,7 +54,8 @@ export default function WorkspacePage() {
   const [createLoading, setCreateLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    workflowMode: 'srt' as 'srt' | 'smart-reference',
   })
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -156,8 +157,9 @@ export default function WorkspacePage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          ...formData,
-          mode: 'novel-promotion' // 固定为 novel-promotion
+          name: formData.name,
+          description: formData.description,
+          workflowMode: formData.workflowMode,
         })
       })
 
@@ -177,7 +179,7 @@ export default function WorkspacePage() {
         setPagination(prev => ({ ...prev, page: 1 }))
         void fetchProjects(1, '')
         setShowCreateModal(false)
-        setFormData({ name: '', description: '' })
+        setFormData({ name: '', description: '', workflowMode: 'srt' })
 
         if (shouldOpenModelSetup) {
           alert(t('analysisModelRequiredAfterCreate'))
@@ -585,7 +587,7 @@ export default function WorkspacePage() {
                   autoFocus
                 />
               </div>
-              <div className="mb-6">
+              <div className="mb-4">
                 <label htmlFor="description" className="glass-field-label block mb-2">
                   {t('projectDescription')}
                 </label>
@@ -599,12 +601,54 @@ export default function WorkspacePage() {
                   maxLength={500}
                 />
               </div>
+              <div className="mb-6">
+                <label className="glass-field-label block mb-2">
+                  {t('workflowMode.label')}
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, workflowMode: 'srt' })}
+                    className={`relative text-left p-3 rounded-xl border-2 transition-all duration-200 ${
+                      formData.workflowMode === 'srt'
+                        ? 'border-[var(--glass-tone-info-fg)] bg-[var(--glass-tone-info-fg)]/5'
+                        : 'border-[var(--glass-border)] hover:border-[var(--glass-text-tertiary)]'
+                    }`}
+                  >
+                    <div className="text-sm font-semibold text-[var(--glass-text-primary)] mb-1">
+                      {t('workflowMode.classic.title')}
+                    </div>
+                    <div className="text-[11px] leading-relaxed text-[var(--glass-text-secondary)]">
+                      {t('workflowMode.classic.description')}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, workflowMode: 'smart-reference' })}
+                    className={`relative text-left p-3 rounded-xl border-2 transition-all duration-200 ${
+                      formData.workflowMode === 'smart-reference'
+                        ? 'border-[var(--glass-tone-info-fg)] bg-[var(--glass-tone-info-fg)]/5'
+                        : 'border-[var(--glass-border)] hover:border-[var(--glass-text-tertiary)]'
+                    }`}
+                  >
+                    <span className="absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
+                      {t('workflowMode.smartReference.tag')}
+                    </span>
+                    <div className="text-sm font-semibold text-[var(--glass-text-primary)] mb-1">
+                      {t('workflowMode.smartReference.title')}
+                    </div>
+                    <div className="text-[11px] leading-relaxed text-[var(--glass-text-secondary)]">
+                      {t('workflowMode.smartReference.description')}
+                    </div>
+                  </button>
+                </div>
+              </div>
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => {
                     setShowCreateModal(false)
-                    setFormData({ name: '', description: '' })
+                    setFormData({ name: '', description: '', workflowMode: 'srt' })
                   }}
                   className="glass-btn-base glass-btn-secondary px-4 py-2"
                   disabled={createLoading}

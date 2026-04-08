@@ -79,7 +79,8 @@
     "assetHubAiDesignLocation": "Asset hub location design",
     "assetHubAiModifyCharacter": "Asset hub character modify",
     "assetHubAiModifyLocation": "Asset hub location modify",
-    "assetHubReferenceToCharacter": "Asset hub reference to character"
+    "assetHubReferenceToCharacter": "Asset hub reference to character",
+    "smartRefVideo": "Smart reference video"
   },
   "stage": {
     "received": "Task received",
@@ -110,7 +111,14 @@
     "enqueueFailed": "Task enqueue failed",
     "llmProxySubmit": "Submit LLM task",
     "llmProxyExecute": "Execute LLM task",
-    "llmProxyPersist": "Persist LLM result"
+    "llmProxyPersist": "Persist LLM result",
+    "smartRefPanelSplit": "Smart ref: splitting panels",
+    "smartRefPersist": "Smart ref: persisting panels",
+    "smartRefDone": "Smart ref: panel split done",
+    "smartRefVoice": "Smart ref: voice analysis",
+    "smartRefPrepare": "Smart ref: preparing references",
+    "smartRefSubmit": "Smart ref: submitting video",
+    "smartRefPolling": "Smart ref: waiting for video"
   },
   "runConsole": {
     "storyToScript": "Story to Script",

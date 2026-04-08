@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
     ART_STYLES,
-    VIDEO_RATIOS,
+    VIDEO_RATIOS_SAFE,
 } from '@/lib/constants'
 import type {
     CapabilitySelections,
@@ -497,7 +497,7 @@ export function SettingsModal({
                             <RatioSelector
                                 value={videoRatio}
                                 onChange={(value) => { handleChange(onVideoRatioChange)(value) }}
-                                options={VIDEO_RATIOS}
+                                options={VIDEO_RATIOS_SAFE}
                             />
                         </div>
                     </div>

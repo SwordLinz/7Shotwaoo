@@ -192,10 +192,9 @@ export async function handlePanelVariantTask(job: Job<TaskJobData>) {
   if (!sourcePanel) throw new Error('Source panel not found')
 
   const projectData = await resolveNovelData(job.data.projectId)
-  if (!projectData.videoRatio) throw new Error('Project videoRatio not configured')
-  const aspectRatio = projectData.videoRatio
-
   const modelConfig = await getProjectModels(job.data.projectId, job.data.userId)
+  if (!modelConfig.videoRatio) throw new Error('Project videoRatio not configured')
+  const aspectRatio = modelConfig.videoRatio
   const storyboardModel = modelConfig.storyboardModel
   if (!storyboardModel) throw new Error('Storyboard model not configured')
 

@@ -7,6 +7,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
+import { sanitizeVideoRatioForApis } from '@/lib/media/safe-aspect-ratio'
 import {
   type CapabilitySelections,
   type CapabilityValue,
@@ -161,7 +162,7 @@ export async function getProjectModelConfig(
     editModel: extractModelKey(projectData?.editModel) || null,
     videoModel: extractModelKey(projectData?.videoModel) || null,
     audioModel: extractModelKey(projectData?.audioModel) || extractModelKey(userPref?.audioModel) || null,
-    videoRatio: projectData?.videoRatio || '16:9',
+    videoRatio: sanitizeVideoRatioForApis(projectData?.videoRatio || '16:9'),
     artStyle: projectData?.artStyle || null,
     capabilityDefaults: parseCapabilitySelections(userPref?.capabilityDefaults),
     capabilityOverrides: parseCapabilitySelections(projectData?.capabilityOverrides),

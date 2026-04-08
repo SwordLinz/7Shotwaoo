@@ -195,8 +195,8 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
   })
 
   const artStyle = getArtStylePrompt(modelConfig.artStyle, job.data.locale)
-  if (!projectData.videoRatio) throw new Error('Project videoRatio not configured')
-  const aspectRatio = projectData.videoRatio
+  if (!modelConfig.videoRatio) throw new Error('Project videoRatio not configured')
+  const aspectRatio = modelConfig.videoRatio
   const promptContext = buildPanelPromptContext({
     panel: {
       id: panel.id,

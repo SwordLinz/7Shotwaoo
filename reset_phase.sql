@@ -1,0 +1,1 @@
+UPDATE automation_jobs SET phase = 'generating_panel_images', status = 'running', errorMessage = null, errorCode = null WHERE id = 'bc1daa1f-17a5-4192-b709-60290c37572e';
