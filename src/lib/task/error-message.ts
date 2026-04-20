@@ -90,6 +90,7 @@ export function resolveTaskErrorSummary(payload: unknown, fallbackMessage = 'Tas
 
   const shouldPreferUserFriendlyMessage =
     normalized?.code === 'MODEL_NOT_OPEN'
+    || normalized?.code === 'ARK_ENDPOINT_ACCESS_DENIED'
     || normalized?.code === 'EMPTY_RESPONSE'
 
   return {

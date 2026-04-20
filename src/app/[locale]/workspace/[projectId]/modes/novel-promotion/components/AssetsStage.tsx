@@ -39,6 +39,7 @@ import { useAssetsImageEdit } from './assets/hooks/useAssetsImageEdit'
 // Components
 import CharacterSection from './assets/CharacterSection'
 import LocationSection from './assets/LocationSection'
+import ReferenceAssetSection from './assets/ReferenceAssetSection'
 import AssetToolbar from './assets/AssetToolbar'
 import AssetsStageStatusOverlays from './assets/AssetsStageStatusOverlays'
 import UnconfirmedProfilesSection from './assets/UnconfirmedProfilesSection'
@@ -351,6 +352,9 @@ export default function AssetsStage({
         onImageEdit={(locId, imgIdx) => handleOpenLocationImageEdit(locId, imgIdx)}
         onCopyFromGlobal={handleCopyLocationFromGlobal}
       />
+
+      {/* 参考资产区块 */}
+      <ReferenceAssetSection projectId={projectId} />
 
       <AssetsStageModals
         projectId={projectId}

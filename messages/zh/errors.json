@@ -5,6 +5,7 @@
     "INSUFFICIENT_BALANCE": "API余额不足，请充值后重试",
     "RATE_LIMIT": "请求过于频繁，请 {retryAfter} 秒后重试",
     "MODEL_NOT_OPEN": "模型权限未开通。请前往 https://console.volcengine.com/ark/region:ark+cn-beijing/openManagement?LLM=%7B%7D&advancedActiveKey=model ，在模型管理页面点击右上角「一键开通所有模型」",
+    "ARK_ENDPOINT_ACCESS_DENIED": "火山方舟拒绝访问该推理接入点(ep)。请确认：1) 本应用中的 API Key 与控制台里创建该 ep 的火山账号一致；2) 该 Key 在「API Key 管理」中已授权访问对应接入点；3) ep 仍有效且地域为北京(cn-beijing)。",
     "MODEL_NOT_REGISTERED": "模型未注册，请先在配置中添加可用模型",
     "QUOTA_EXCEEDED": "配额已用尽，请稍后重试",
     "GENERATION_FAILED": "生成失败，请重试",

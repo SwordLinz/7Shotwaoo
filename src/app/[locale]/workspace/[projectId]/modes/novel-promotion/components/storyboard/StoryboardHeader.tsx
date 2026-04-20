@@ -5,6 +5,8 @@ import { GlassButton, GlassChip, GlassSurface } from '@/components/ui/primitives
 import TaskStatusInline from '@/components/task/TaskStatusInline'
 import { resolveTaskPresentationState } from '@/lib/task/presentation'
 
+export type StoryboardViewMode = 'panel' | 'canvas'
+
 interface StoryboardHeaderProps {
   totalSegments: number
   totalPanels: number
@@ -15,6 +17,8 @@ interface StoryboardHeaderProps {
   onDownloadAllImages: () => void
   onGenerateAllPanels: () => void
   onBack: () => void
+  viewMode: StoryboardViewMode
+  onViewModeChange: (mode: StoryboardViewMode) => void
 }
 
 export default function StoryboardHeader({
@@ -26,7 +30,9 @@ export default function StoryboardHeader({
   isBatchSubmitting,
   onDownloadAllImages,
   onGenerateAllPanels,
-  onBack
+  onBack,
+  viewMode,
+  onViewModeChange,
 }: StoryboardHeaderProps) {
   const t = useTranslations('storyboard')
   const storyboardTaskRunningState = runningCount > 0
@@ -41,12 +47,38 @@ export default function StoryboardHeader({
   return (
     <GlassSurface variant="elevated" className="space-y-4 p-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-[var(--glass-text-primary)]">{t('header.storyboardPanel')}</h3>
-          <p className="text-sm text-[var(--glass-text-secondary)]">
-            {t('header.segmentsCount', { count: totalSegments })}
-            {t('header.panelsCount', { count: totalPanels })}
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="glass-segmented">
+            <button
+              onClick={() => onViewModeChange('panel')}
+              className="glass-segmented-item"
+              data-active={viewMode === 'panel'}
+            >
+              {t('header.viewPanel')}
+            </button>
+            <button
+              onClick={() => onViewModeChange('canvas')}
+              className="glass-segmented-item"
+              data-active={viewMode === 'canvas'}
+            >
+              {t('header.viewCanvas')}
+            </button>
+          </div>
+
+          {viewMode === 'panel' && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-[var(--glass-text-primary)]">{t('header.storyboardPanel')}</h3>
+              <p className="text-sm text-[var(--glass-text-secondary)]">
+                {t('header.segmentsCount', { count: totalSegments })}
+                {t('header.panelsCount', { count: totalPanels })}
+              </p>
+            </div>
+          )}
+          {viewMode === 'canvas' && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-[var(--glass-text-primary)]">{t('header.storyboardCanvas')}</h3>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -62,29 +94,31 @@ export default function StoryboardHeader({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {pendingPanelCount > 0 ? (
+      {viewMode === 'panel' && (
+        <div className="flex flex-wrap items-center gap-2">
+          {pendingPanelCount > 0 ? (
+            <GlassButton
+              variant="primary"
+              loading={isBatchSubmitting}
+              onClick={onGenerateAllPanels}
+              disabled={runningCount > 0}
+            >
+              {t('header.generateAllPanels')} ({pendingPanelCount})
+            </GlassButton>
+          ) : null}
+
           <GlassButton
-            variant="primary"
-            loading={isBatchSubmitting}
-            onClick={onGenerateAllPanels}
-            disabled={runningCount > 0}
+            variant="secondary"
+            loading={isDownloadingImages}
+            onClick={onDownloadAllImages}
+            disabled={totalPanels === 0}
           >
-            {t('header.generateAllPanels')} ({pendingPanelCount})
+            {isDownloadingImages ? t('header.downloading') : t('header.downloadAll')}
           </GlassButton>
-        ) : null}
 
-        <GlassButton
-          variant="secondary"
-          loading={isDownloadingImages}
-          onClick={onDownloadAllImages}
-          disabled={totalPanels === 0}
-        >
-          {isDownloadingImages ? t('header.downloading') : t('header.downloadAll')}
-        </GlassButton>
-
-        <GlassButton variant="ghost" onClick={onBack}>{t('header.back')}</GlassButton>
-      </div>
+          <GlassButton variant="ghost" onClick={onBack}>{t('header.back')}</GlassButton>
+        </div>
+      )}
     </GlassSurface>
   )
 }

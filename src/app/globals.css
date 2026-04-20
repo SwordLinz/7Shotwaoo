@@ -520,3 +520,68 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* React Flow – glass theme overrides */
+.react-flow {
+  --xy-background-color: var(--glass-bg-canvas) !important;
+  --xy-node-border-radius: var(--glass-radius-lg) !important;
+  --xy-edge-stroke: var(--glass-stroke-base) !important;
+  --xy-edge-stroke-selected: var(--glass-accent-from) !important;
+  --xy-edge-stroke-width: 1.5 !important;
+  --xy-connectionline-stroke: var(--glass-accent-from) !important;
+  --xy-connectionline-stroke-width: 1.5 !important;
+  --xy-attribution-background-color: transparent !important;
+}
+
+.react-flow__controls {
+  background: var(--glass-bg-surface-strong) !important;
+  border: 1px solid var(--glass-stroke-soft) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow: var(--glass-shadow-sm) !important;
+  backdrop-filter: blur(var(--glass-blur-md));
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--glass-stroke-soft) !important;
+  color: var(--glass-text-tertiary) !important;
+  fill: var(--glass-text-tertiary) !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--glass-ghost-hover-bg) !important;
+  color: var(--glass-text-primary) !important;
+  fill: var(--glass-text-primary) !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__minimap {
+  background: var(--glass-bg-surface-strong) !important;
+  border: 1px solid var(--glass-stroke-soft) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow: var(--glass-shadow-sm) !important;
+  backdrop-filter: blur(var(--glass-blur-md));
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(0, 0, 0, 0.06) !important;
+}
+
+.react-flow__handle {
+  width: 10px !important;
+  height: 10px !important;
+  border: 2px solid var(--glass-bg-surface-strong) !important;
+  box-shadow: var(--glass-shadow-sm) !important;
+}
+
+.react-flow__background pattern circle,
+.react-flow__background pattern rect {
+  fill: var(--glass-stroke-base) !important;
+}

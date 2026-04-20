@@ -786,6 +786,50 @@
   },
   {
     "apiType": "video",
+    "provider": "niuniu",
+    "modelId": "doubao-seedance-2-0-fast",
+    "pricing": {
+      "mode": "capability",
+      "tiers": [
+        {
+          "when": {
+            "resolution": "480p"
+          },
+          "amount": 0.2
+        },
+        {
+          "when": {
+            "resolution": "720p"
+          },
+          "amount": 0.43
+        }
+      ]
+    }
+  },
+  {
+    "apiType": "video",
+    "provider": "niuniu",
+    "modelId": "doubao-seedance-2-0",
+    "pricing": {
+      "mode": "capability",
+      "tiers": [
+        {
+          "when": {
+            "resolution": "480p"
+          },
+          "amount": 0.73
+        },
+        {
+          "when": {
+            "resolution": "720p"
+          },
+          "amount": 1.54
+        }
+      ]
+    }
+  },
+  {
+    "apiType": "video",
     "provider": "google",
     "modelId": "veo-3.1-generate-preview",
     "pricing": {

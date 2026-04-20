@@ -18,7 +18,7 @@ import { logInfo as _ulogInfo, logWarn as _ulogWarn } from '@/lib/logging/core'
 // 类型定义
 // ============================================================
 
-export type VideoProvider = 'minimax' | 'fal' | 'ark' | 'vidu'
+export type VideoProvider = 'minimax' | 'fal' | 'ark' | 'niuniu' | 'vidu'
 
 // ============================================================
 // 分辨率适配规则
@@ -80,6 +80,14 @@ const RESOLUTION_ADAPTERS: Record<VideoProvider, (input: string) => string> = {
 
         if (normalized.includes('720')) return '720p'
         return '1080p' // 默认和高于1080p的都映射到1080p
+    },
+
+    /** 火山牛牛（方舟 ep，分辨率规则同 ark） */
+    niuniu: (input: string): string => {
+        const normalized = input.toLowerCase()
+
+        if (normalized.includes('720')) return '720p'
+        return '1080p'
     },
 
     /**
@@ -145,6 +153,7 @@ export function getSupportedResolutions(provider: string): string[] {
         minimax: ['768P', '1080P'],
         fal: ['720p', '1080p', '1440p', '4K'],
         ark: ['720p', '1080p'],
+        niuniu: ['720p', '1080p'],
         vidu: ['720p', '1080p', '2K']
     }
 

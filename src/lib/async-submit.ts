@@ -1,3 +1,4 @@
+import { normalizeArkApiKeyForBearer } from '@/lib/ark-api'
 import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core'
 /**
  * 异步任务提交工具
@@ -236,7 +237,8 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
     resultUrl?: string
     error?: string
 }> {
-    if (!apiKey) {
+    const token = normalizeArkApiKeyForBearer(apiKey)
+    if (!token) {
         throw new Error('请配置火山引擎 API Key')
     }
 
@@ -245,7 +247,7 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
         {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'Authorization': `Bearer ${token}`
             }
         }
     )

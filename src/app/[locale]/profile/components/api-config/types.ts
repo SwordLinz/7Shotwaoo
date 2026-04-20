@@ -150,7 +150,8 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'doubao-seedance-1-0-pro-fast-251015', name: 'Seedance 1.0 Pro Fast', type: 'video', provider: 'ark' },
     { modelId: 'doubao-seedance-1-0-lite-i2v-250428', name: 'Seedance 1.0 Lite', type: 'video', provider: 'ark' },
     { modelId: 'doubao-seedance-1-5-pro-251215', name: 'Seedance 1.5 Pro', type: 'video', provider: 'ark' },
-    { modelId: 'doubao-seedance-2-0-260128', name: 'Seedance 2.0（待上线）', type: 'video', provider: 'ark' },
+    { modelId: 'doubao-seedance-2-0', name: 'Seedance 2.0', type: 'video', provider: 'niuniu' },
+    { modelId: 'doubao-seedance-2-0-fast', name: 'Seedance 2.0 Fast', type: 'video', provider: 'niuniu' },
     { modelId: 'doubao-seedance-1-0-pro-250528', name: 'Seedance 1.0 Pro', type: 'video', provider: 'ark' },
     // Google Veo
     { modelId: 'veo-3.1-generate-preview', name: 'Veo 3.1', type: 'video', provider: 'google' },
@@ -199,9 +200,7 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'vidu2.0', name: 'Vidu 2.0', type: 'video', provider: 'vidu' },
 ]
 
-const PRESET_COMING_SOON_MODEL_KEYS = new Set<string>([
-    encodeModelKey('ark', 'doubao-seedance-2-0-260128'),
-])
+const PRESET_COMING_SOON_MODEL_KEYS = new Set<string>([])
 
 export function isPresetComingSoonModel(provider: string, modelId: string): boolean {
     return PRESET_COMING_SOON_MODEL_KEYS.has(encodeModelKey(provider, modelId))
@@ -214,6 +213,8 @@ export function isPresetComingSoonModelKey(modelKey: string): boolean {
 // 预设提供商（API Key 唯一归属于 provider id）
 export const PRESET_PROVIDERS: Omit<Provider, 'apiKey' | 'hasApiKey'>[] = [
     { id: 'ark', name: 'Volcengine Ark' },
+    /** 火山 Seedance 2（方舟 ep），独立 Key，与 ark 并存 */
+    { id: 'niuniu', name: 'Niuniu (Volcengine Ark EP)' },
     { id: 'google', name: 'Google AI Studio' },
     { id: 'bailian', name: 'Alibaba Bailian' },
     { id: 'openrouter', name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
@@ -228,6 +229,7 @@ export const PRESET_PROVIDERS: Omit<Provider, 'apiKey' | 'hasApiKey'>[] = [
 
 const ZH_PROVIDER_NAME_MAP: Record<string, string> = {
     ark: '火山引擎 Ark',
+    niuniu: '火山牛牛',
     minimax: '海螺 MiniMax',
     vidu: '生数科技 Vidu',
     bailian: '阿里云百炼',

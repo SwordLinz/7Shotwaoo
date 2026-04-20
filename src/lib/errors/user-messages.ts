@@ -11,6 +11,7 @@ export const USER_ERROR_MESSAGES_ZH: Record<UnifiedErrorCode, string> = {
   NO_RESULT: '任务已完成，但没有可用结果。',
   RATE_LIMIT: '请求过于频繁，请稍后重试。',
   MODEL_NOT_OPEN: '模型权限未开通。请前往 https://console.volcengine.com/ark/region:ark+cn-beijing/openManagement?LLM=%7B%7D&advancedActiveKey=model ，在模型管理页面点击右上角「一键开通所有模型」。',
+  ARK_ENDPOINT_ACCESS_DENIED: '火山方舟拒绝访问该推理接入点(ep)。请确认 API Key 与创建该 ep 的火山账号一致，且 Key 已授权该接入点；ep 需有效且地域为北京(cn-beijing)。',
   MODEL_NOT_REGISTERED: '模型尚未注册，请先完成模型配置后再试。',
   QUOTA_EXCEEDED: '额度已用尽，请稍后再试。',
   EXTERNAL_ERROR: '外部服务暂时不可用，请稍后重试。',

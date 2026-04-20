@@ -10,6 +10,7 @@ import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core
  * - Seedance 1.0 Pro (doubao-seedance-1-0-pro-250528)
  * - Seedance 1.0 Lite (doubao-seedance-1-0-lite-i2v-250428)
  * - Seedance 1.5 Pro (doubao-seedance-1-5-pro-251215)
+ * - Seedance 2.0 / 2.0 Fast（方舟 ep 接入点）
  * - 支持批量模式 (-batch 后缀)
  * - 支持首尾帧模式
  * - 支持音频生成 (Seedance 1.5 Pro)
@@ -25,6 +26,11 @@ import {
 import { getProviderConfig } from '@/lib/api-config'
 import { arkImageGeneration, arkCreateVideoTask } from '@/lib/ark-api'
 import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
+
+function readArkProviderId(options: { provider?: string }, fallback: string): string {
+    const raw = typeof options.provider === 'string' ? options.provider.trim() : ''
+    return raw || fallback
+}
 
 interface ArkImageOptions {
     aspectRatio?: string
@@ -57,6 +63,8 @@ interface ArkVideoOptions {
 type ArkVideoContentItem =
     | { type: 'text'; text: string }
     | { type: 'image_url'; image_url: { url: string }; role?: 'first_frame' | 'last_frame' | 'reference_image' }
+    | { type: 'video_url'; video_url: { url: string }; role?: 'reference_video' }
+    | { type: 'audio_url'; audio_url: { url: string }; role?: 'reference_audio' }
 
 interface ArkSeedanceModelSpec {
     durationMin: number
@@ -65,7 +73,35 @@ interface ArkSeedanceModelSpec {
     supportsGenerateAudio: boolean
     supportsDraft: boolean
     supportsFrames: boolean
+    /** 官方：480p / 720p；2.0 / 2.0 fast 不支持 1080p */
     resolutionOptions: ReadonlyArray<'480p' | '720p' | '1080p'>
+    /** duration = -1 智能时长（与 1.5 Pro、2.0 系列一致） */
+    supportsIntelligentDuration: boolean
+    /** 首尾帧图生视频路径是否可用 */
+    supportsCameraFixed: boolean
+    /** 是否允许批量模式（service_tier=flex）；2.0 官方不支持离线批量 */
+    supportsBatchFlex: boolean
+}
+
+/**
+ * 方舟推理接入点：产品侧 modelId → 请求体 `model`（与控制台「接入点」ID 一致）
+ * - Doubao-Seedance-2.0 → ep-20260417181420-rcq5g
+ * - Doubao-Seedance-2.0-fast → ep-20260417181723-72tfg
+ */
+const ARK_SEEDANCE_ENDPOINT_BY_MODEL_ID: Readonly<Record<string, string>> = {
+    'doubao-seedance-2-0': 'ep-20260417181420-rcq5g',
+    'doubao-seedance-2-0-fast': 'ep-20260417181723-72tfg',
+    /** 与官方文档示例 model 名一致时可复用同一 ep */
+    'doubao-seedance-2-0-260128': 'ep-20260417181420-rcq5g',
+}
+
+/** 控制台/官方文档中的别名 → 参与 ARK_SEEDANCE_MODEL_SPECS 查找的 canonical id */
+const SEEDANCE_SPEC_MODEL_ALIASES: Readonly<Record<string, string>> = {
+    'doubao-seedance-2-0-260128': 'doubao-seedance-2-0',
+}
+
+function resolveSeedanceSpecModelId(realModel: string): string {
+    return SEEDANCE_SPEC_MODEL_ALIASES[realModel] ?? realModel
 }
 
 const ARK_SEEDANCE_MODEL_SPECS: Record<string, ArkSeedanceModelSpec> = {
@@ -77,6 +113,9 @@ const ARK_SEEDANCE_MODEL_SPECS: Record<string, ArkSeedanceModelSpec> = {
         supportsDraft: false,
         supportsFrames: true,
         resolutionOptions: ['480p', '720p', '1080p'],
+        supportsIntelligentDuration: false,
+        supportsCameraFixed: true,
+        supportsBatchFlex: true,
     },
     'doubao-seedance-1-0-pro-250528': {
         durationMin: 2,
@@ -86,6 +125,9 @@ const ARK_SEEDANCE_MODEL_SPECS: Record<string, ArkSeedanceModelSpec> = {
         supportsDraft: false,
         supportsFrames: true,
         resolutionOptions: ['480p', '720p', '1080p'],
+        supportsIntelligentDuration: false,
+        supportsCameraFixed: true,
+        supportsBatchFlex: true,
     },
     'doubao-seedance-1-0-lite-i2v-250428': {
         durationMin: 2,
@@ -95,6 +137,9 @@ const ARK_SEEDANCE_MODEL_SPECS: Record<string, ArkSeedanceModelSpec> = {
         supportsDraft: false,
         supportsFrames: true,
         resolutionOptions: ['480p', '720p', '1080p'],
+        supportsIntelligentDuration: false,
+        supportsCameraFixed: true,
+        supportsBatchFlex: true,
     },
     'doubao-seedance-1-5-pro-251215': {
         durationMin: 4,
@@ -104,6 +149,34 @@ const ARK_SEEDANCE_MODEL_SPECS: Record<string, ArkSeedanceModelSpec> = {
         supportsDraft: true,
         supportsFrames: false,
         resolutionOptions: ['480p', '720p', '1080p'],
+        supportsIntelligentDuration: true,
+        supportsCameraFixed: true,
+        supportsBatchFlex: true,
+    },
+    /** Seedance 2.0：官方时长 [4,15] 或 -1；仅 480p/720p；不支持 frames/camera_fixed；支持 generate_audio */
+    'doubao-seedance-2-0': {
+        durationMin: 4,
+        durationMax: 15,
+        supportsFirstLastFrame: true,
+        supportsGenerateAudio: true,
+        supportsDraft: false,
+        supportsFrames: false,
+        resolutionOptions: ['480p', '720p'],
+        supportsIntelligentDuration: true,
+        supportsCameraFixed: false,
+        supportsBatchFlex: false,
+    },
+    'doubao-seedance-2-0-fast': {
+        durationMin: 4,
+        durationMax: 15,
+        supportsFirstLastFrame: false,
+        supportsGenerateAudio: true,
+        supportsDraft: false,
+        supportsFrames: false,
+        resolutionOptions: ['480p', '720p'],
+        supportsIntelligentDuration: true,
+        supportsCameraFixed: false,
+        supportsBatchFlex: false,
     },
 }
 
@@ -160,7 +233,8 @@ export class ArkImageGenerator extends BaseImageGenerator {
     protected async doGenerate(params: ImageGenerateParams): Promise<GenerateResult> {
         const { userId, prompt, referenceImages = [], options = {} } = params
 
-        const { apiKey } = await getProviderConfig(userId, 'ark')
+        const providerId = readArkProviderId(options as ArkImageOptions, 'ark')
+        const { apiKey } = await getProviderConfig(userId, providerId)
         const {
             aspectRatio,
             modelId = 'doubao-seedream-4-5-251128',
@@ -269,7 +343,8 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
     protected async doGenerate(params: VideoGenerateParams): Promise<GenerateResult> {
         const { userId, imageUrl, prompt = '', options = {} } = params
 
-        const { apiKey } = await getProviderConfig(userId, 'ark')
+        const providerId = readArkProviderId(options as ArkVideoOptions, 'ark')
+        const { apiKey } = await getProviderConfig(userId, providerId)
         const {
             modelId = 'doubao-seedance-1-0-pro-fast-251015',
             resolution,
@@ -315,9 +390,17 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         // 解析批量模式
         const isBatchMode = modelId.endsWith('-batch')
         const realModel = isBatchMode ? modelId.replace('-batch', '') : modelId
-        const modelSpec = ARK_SEEDANCE_MODEL_SPECS[realModel]
+        const specModelId = resolveSeedanceSpecModelId(realModel)
+        const modelSpec = ARK_SEEDANCE_MODEL_SPECS[specModelId]
         if (!modelSpec) {
             throw new Error(`ARK_VIDEO_MODEL_UNSUPPORTED: ${realModel}`)
+        }
+
+        if (isBatchMode && !modelSpec.supportsBatchFlex) {
+            throw new Error(`ARK_VIDEO_OPTION_UNSUPPORTED: batch (flex) is not supported for ${realModel}`)
+        }
+        if (serviceTier === 'flex' && !modelSpec.supportsBatchFlex) {
+            throw new Error(`ARK_VIDEO_OPTION_UNSUPPORTED: service_tier=flex is not supported for ${realModel}`)
         }
 
         if (resolution !== undefined && !modelSpec.resolutionOptions.includes(resolution as '480p' | '720p' | '1080p')) {
@@ -331,8 +414,8 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
             if (durationOutOfRange) {
                 throw new Error(`ARK_VIDEO_OPTION_VALUE_UNSUPPORTED: duration=${duration}`)
             }
-            if (duration === -1 && realModel !== 'doubao-seedance-1-5-pro-251215') {
-                throw new Error('ARK_VIDEO_OPTION_VALUE_UNSUPPORTED: duration=-1 only supported by Seedance 1.5 Pro')
+            if (duration === -1 && !modelSpec.supportsIntelligentDuration) {
+                throw new Error(`ARK_VIDEO_OPTION_VALUE_UNSUPPORTED: duration=-1 not supported for ${realModel}`)
             }
         }
         if (frames !== undefined) {
@@ -351,6 +434,9 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         }
         if (lastFrameImageUrl && !modelSpec.supportsFirstLastFrame) {
             throw new Error(`ARK_VIDEO_OPTION_UNSUPPORTED: lastFrameImageUrl for ${realModel}`)
+        }
+        if (cameraFixed === true && !modelSpec.supportsCameraFixed) {
+            throw new Error(`ARK_VIDEO_OPTION_UNSUPPORTED: cameraFixed for ${realModel}`)
         }
         if (generateAudio !== undefined && !modelSpec.supportsGenerateAudio) {
             throw new Error(`ARK_VIDEO_OPTION_UNSUPPORTED: generateAudio for ${realModel}`)
@@ -389,7 +475,11 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
             }
         }
 
-        _ulogInfo(`[ARK Video] 模型: ${realModel}, 批量: ${isBatchMode}, 分辨率: ${resolution || '(默认)'}, 时长: ${duration ?? '(默认)'}`)
+        const modelForApi =
+            ARK_SEEDANCE_ENDPOINT_BY_MODEL_ID[realModel]
+            ?? ARK_SEEDANCE_ENDPOINT_BY_MODEL_ID[specModelId]
+            ?? realModel
+        _ulogInfo(`[ARK Video] 模型: ${realModel}, ep: ${modelForApi}, 批量: ${isBatchMode}, 分辨率: ${resolution || '(默认)'}, 时长: ${duration ?? '(默认)'}`)
 
         // 转换图片为 base64
         const imageBase64 = await normalizeToBase64ForGeneration(imageUrl)
@@ -437,7 +527,7 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
             generate_audio?: boolean
             draft?: boolean
         } = {
-            model: realModel,
+            model: modelForApi,
             content
         }
 
@@ -456,7 +546,7 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         if (typeof seed === 'number') {
             requestBody.seed = seed
         }
-        if (typeof cameraFixed === 'boolean') {
+        if (typeof cameraFixed === 'boolean' && modelSpec.supportsCameraFixed) {
             requestBody.camera_fixed = cameraFixed
         }
         if (typeof watermark === 'boolean') {
@@ -484,7 +574,7 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
             _ulogInfo('[ARK Video] 批量模式: service_tier=flex')
         }
 
-        // 音频生成（仅 Seedance 1.5 Pro）
+        // 音频：1.5 Pro、2.0 / 2.0 fast（官方默认 true，未传则由方舟默认）
         if (generateAudio !== undefined) {
             requestBody.generate_audio = generateAudio
         }
@@ -507,7 +597,11 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
                 success: true,
                 async: true,
                 requestId: taskId,  // 向后兼容
-                externalId: `ARK:VIDEO:${taskId}`  // 🔥 标准格式
+                // 轮询须用与创建相同的 Wacoo provider（如 niuniu），否则 Ark 任务查询会 404
+                externalId:
+                    providerId === 'ark'
+                        ? `ARK:VIDEO:${taskId}`
+                        : `ARK:VIDEO:${providerId}:${taskId}`,
             }
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : '未知错误'

@@ -1,6 +1,6 @@
 'use client'
 
-import type { Character, Location } from '@/types/project'
+import type { Character, Location, ReferenceAsset } from '@/types/project'
 import { useTranslations } from 'next-intl'
 import { toDisplayImageUrl } from '@/lib/media/image-url'
 import { MediaImageWithLoading } from '@/components/media/MediaImageWithLoading'
@@ -11,6 +11,7 @@ interface ImageEditModalAssetPickerProps {
   isOpen: boolean
   characters: Character[]
   locations: Location[]
+  referenceAssets?: ReferenceAsset[]
   selectedAssets: SelectedAsset[]
   onClose: () => void
   onAddAsset: (asset: SelectedAsset) => void
@@ -22,6 +23,7 @@ export default function ImageEditModalAssetPicker({
   isOpen,
   characters,
   locations,
+  referenceAssets = [],
   selectedAssets,
   onClose,
   onAddAsset,
@@ -29,6 +31,7 @@ export default function ImageEditModalAssetPicker({
   onPreviewImage,
 }: ImageEditModalAssetPickerProps) {
   const t = useTranslations('storyboard')
+  const tAssets = useTranslations('assets')
   if (!isOpen) return null
 
   return (
@@ -167,6 +170,57 @@ export default function ImageEditModalAssetPicker({
                       )}
                       <div className="absolute bottom-0 left-0 right-0 bg-[var(--glass-overlay)] text-white text-xs p-1 truncate">
                         {location.name}
+                      </div>
+                      {isSelected && (
+                        <div className="absolute top-1 right-1 w-5 h-5 bg-[var(--glass-accent-from)] text-white rounded-full flex items-center justify-center">
+                          <AppIcon name="checkXs" className="h-3 w-3" />
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {referenceAssets.length > 0 && (
+            <div className="mt-4">
+              <h5 className="text-sm font-medium text-[var(--glass-text-secondary)] mb-2 flex items-center gap-1.5">
+                <AppIcon name="image" className="h-4 w-4 text-[var(--glass-text-tertiary)]" />
+                <span>{tAssets('referenceAsset.title')}</span>
+              </h5>
+
+              <div className="grid grid-cols-4 gap-2">
+                {referenceAssets.map((ref) => {
+                  const isSelected = selectedAssets.some((asset) => asset.id === ref.id && asset.type === 'reference')
+                  return (
+                    <button
+                      key={ref.id}
+                      onClick={() => {
+                        if (isSelected) {
+                          onRemoveAsset(ref.id, 'reference')
+                        } else {
+                          onAddAsset({
+                            id: ref.id,
+                            name: ref.name,
+                            type: 'reference',
+                            imageUrl: ref.imageUrl,
+                          })
+                        }
+                      }}
+                      className={`relative aspect-square rounded-lg overflow-hidden border-2 ${isSelected ? 'border-[var(--glass-stroke-focus)]' : 'border-transparent'}`}
+                    >
+                      <MediaImageWithLoading
+                        src={ref.imageUrl}
+                        alt={ref.name}
+                        containerClassName="w-full h-full"
+                        className="w-full h-full object-cover cursor-zoom-in"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onPreviewImage(ref.imageUrl)
+                        }}
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-[var(--glass-overlay)] text-white text-xs p-1 truncate">
+                        {ref.name}
                       </div>
                       {isSelected && (
                         <div className="absolute top-1 right-1 w-5 h-5 bg-[var(--glass-accent-from)] text-white rounded-full flex items-center justify-center">

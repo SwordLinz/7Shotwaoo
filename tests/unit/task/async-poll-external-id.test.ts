@@ -61,6 +61,29 @@ describe('async poll externalId contract', () => {
     expect(parsed.requestId).toBe('68be9b50553a97d658968285')
   })
 
+  it('parses ARK video externalId with default ark key (3 segments)', () => {
+    const parsed = parseExternalId('ARK:VIDEO:cgt-test-123')
+    expect(parsed.provider).toBe('ARK')
+    expect(parsed.type).toBe('VIDEO')
+    expect(parsed.requestId).toBe('cgt-test-123')
+    expect(parsed.arkProviderKey).toBe('ark')
+  })
+
+  it('parses ARK video externalId with Wacoo provider key (niuniu)', () => {
+    const parsed = parseExternalId('ARK:VIDEO:niuniu:cgt-test-456')
+    expect(parsed.provider).toBe('ARK')
+    expect(parsed.type).toBe('VIDEO')
+    expect(parsed.arkProviderKey).toBe('niuniu')
+    expect(parsed.requestId).toBe('cgt-test-456')
+  })
+
+  it('formats ARK externalId with optional wacoo provider key', () => {
+    expect(formatExternalId('ARK', 'VIDEO', 'cgt-1')).toBe('ARK:VIDEO:cgt-1')
+    expect(formatExternalId('ARK', 'VIDEO', 'cgt-1', undefined, undefined, undefined, 'niuniu')).toBe(
+      'ARK:VIDEO:niuniu:cgt-1',
+    )
+  })
+
   it('parses and formats RUNNINGHUB video externalId', () => {
     const token = Buffer.from('runninghub', 'utf8').toString('base64url')
     const externalId = formatExternalId('RUNNINGHUB', 'VIDEO', '2013508786110730241', undefined, token)

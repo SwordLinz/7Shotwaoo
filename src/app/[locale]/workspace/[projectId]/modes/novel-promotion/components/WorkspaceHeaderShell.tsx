@@ -3,7 +3,7 @@
 import { CapsuleNav, EpisodeSelector } from '@/components/ui/CapsuleNav'
 import { SettingsModal, WorldContextModal } from '@/components/ui/ConfigModals'
 import WorkspaceTopActions from './WorkspaceTopActions'
-import type { NovelPromotionPanel } from '@/types/project'
+import type { NovelPromotionPanel, WorkflowMode } from '@/types/project'
 import type { CapabilitySelections, ModelCapabilities } from '@/lib/model-config-contract'
 
 interface EpisodeSummary {
@@ -77,6 +77,7 @@ interface WorkspaceHeaderShellProps {
   assetLibraryLabel: string
   settingsLabel: string
   refreshTitle: string
+  workflowMode?: WorkflowMode
 }
 
 export default function WorkspaceHeaderShell({
@@ -117,6 +118,7 @@ export default function WorkspaceHeaderShell({
   assetLibraryLabel,
   settingsLabel,
   refreshTitle,
+  workflowMode,
 }: WorkspaceHeaderShellProps) {
   return (
     <>
@@ -147,6 +149,7 @@ export default function WorkspaceHeaderShell({
         onVideoRatioChange={(value) => { onUpdateConfig('videoRatio', value) }}
         onCapabilityOverridesChange={(value) => { onUpdateConfig('capabilityOverrides', value) }}
         onTTSRateChange={(value) => { onUpdateConfig('ttsRate', value) }}
+        workflowMode={workflowMode}
       />
 
       <WorldContextModal

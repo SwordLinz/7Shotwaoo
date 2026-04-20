@@ -670,7 +670,7 @@ export function useProviderCardState({
     }
 
     const finalModelId =
-      type === 'video' && batchMode && provider.id === 'ark'
+      type === 'video' && batchMode && (provider.id === 'ark' || provider.id === 'niuniu')
         ? `${newModel.modelId}-batch`
         : newModel.modelId
     const finalModelKey = encodeModelKey(provider.id, finalModelId)
@@ -682,7 +682,7 @@ export function useProviderCardState({
     }
 
     const finalName =
-      type === 'video' && batchMode && provider.id === 'ark'
+      type === 'video' && batchMode && (provider.id === 'ark' || provider.id === 'niuniu')
         ? `${newModel.name} (Batch)`
         : newModel.name
 

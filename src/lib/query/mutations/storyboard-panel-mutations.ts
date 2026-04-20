@@ -72,7 +72,7 @@ export function useModifyProjectStoryboardImage(projectId: string) {
             selectedAssets: Array<{
                 id: string
                 name: string
-                type: 'character' | 'location'
+                type: 'character' | 'location' | 'reference'
                 imageUrl: string | null
                 appearanceId?: number
                 appearanceName?: string

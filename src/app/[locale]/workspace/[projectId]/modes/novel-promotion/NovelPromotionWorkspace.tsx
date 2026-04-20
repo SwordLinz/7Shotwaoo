@@ -116,6 +116,7 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
         assetLibraryLabel={vm.i18n.t('buttons.assetLibrary')}
         settingsLabel={vm.i18n.t('buttons.settings')}
         refreshTitle={vm.i18n.t('buttons.refreshData')}
+        workflowMode={vm.stageNav.workflowMode}
       />
 
       <div className="pt-24">

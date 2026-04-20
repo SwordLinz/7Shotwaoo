@@ -25,7 +25,7 @@ import { usePanelImageDownload } from './usePanelImageDownload'
 export interface SelectedAsset {
   id: string
   name: string
-  type: 'character' | 'location'
+  type: 'character' | 'location' | 'reference'
   imageUrl: string | null
   appearanceId?: number
   appearanceName?: string

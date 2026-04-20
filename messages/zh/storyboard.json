@@ -55,6 +55,9 @@
         "submit": "提交生成",
         "submitting": "提交中...",
         "storyboardPanel": "分镜面板",
+        "storyboardCanvas": "分镜画布",
+        "viewPanel": "面板",
+        "viewCanvas": "画布",
         "segments": "个片段",
         "segmentsCount": "共 {count} 个片段，",
         "panelsCount": "{count} 个镜头",
@@ -254,6 +257,29 @@
     "canvas": {
         "emptyTitle": "暂无分镜数据",
         "emptyDescription": "请先生成Clips和文字分镜，或点击上方按钮添加分镜组"
+    },
+    "nodeCanvas": {
+        "addComfyNode": "添加 ComfyUI 节点",
+        "addImageNode": "添加图片预览",
+        "saveScreenshot": "保存截图为参考",
+        "emptyTitle": "空白画布",
+        "emptyDescription": "点击上方工具栏添加节点，开始构建分镜工作流",
+        "comfyNode": {
+            "title": "ComfyUI 工作流",
+            "workflowPath": "工作流路径",
+            "workflowPlaceholder": "输入本地 workflow JSON 路径...",
+            "execute": "执行",
+            "executing": "执行中...",
+            "output": "输出",
+            "noOutput": "暂无输出",
+            "executeFailed": "执行失败: {error}",
+            "saveAsReference": "保存为参考资产"
+        },
+        "imageNode": {
+            "title": "图片预览",
+            "noImage": "暂无图片",
+            "saveAsReference": "保存为参考资产"
+        }
     },
     "imageEdit": {
         "title": "编辑分镜",

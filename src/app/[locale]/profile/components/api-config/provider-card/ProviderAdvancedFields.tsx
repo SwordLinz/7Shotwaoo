@@ -222,9 +222,9 @@ export function ProviderAdvancedFields({
                 state.setNewModel({ ...state.newModel, modelId: event.target.value })
               }
               placeholder={t('modelActualId')}
-              className={`glass-input-base flex-1 px-3 py-1.5 text-[12px] font-mono ${currentType === 'video' && state.batchMode && provider.id === 'ark' ? 'rounded-r-none' : ''}`}
+              className={`glass-input-base flex-1 px-3 py-1.5 text-[12px] font-mono ${currentType === 'video' && state.batchMode && (provider.id === 'ark' || provider.id === 'niuniu') ? 'rounded-r-none' : ''}`}
             />
-            {currentType === 'video' && state.batchMode && provider.id === 'ark' && (
+            {currentType === 'video' && state.batchMode && (provider.id === 'ark' || provider.id === 'niuniu') && (
               <span className="rounded-r-lg bg-[var(--glass-bg-muted)] px-2 py-1.5 font-mono text-[12px] text-[var(--glass-text-secondary)]">
                 -batch
               </span>
@@ -242,7 +242,7 @@ export function ProviderAdvancedFields({
               {t('openaiCompatVideoOnlyHint')}
             </p>
           )}
-          {currentType === 'video' && provider.id === 'ark' && (
+          {currentType === 'video' && (provider.id === 'ark' || provider.id === 'niuniu') && (
             <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-[var(--glass-bg-muted)] px-2 py-2">
               <button
                 onClick={() => state.setBatchMode(!state.batchMode)}

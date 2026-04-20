@@ -33,6 +33,12 @@ import {
 } from './official'
 import { YouchuanImageGenerator } from './youchuan'
 
+/** 与配置中心一致：去掉首尾空白，避免 provider 带空格导致 switch 不匹配（如 niuniu） */
+function normalizeFactoryProviderKey(provider: string): string {
+    const trimmed = typeof provider === 'string' ? provider.trim() : ''
+    return getProviderKey(trimmed).toLowerCase()
+}
+
 /**
  * 根据 provider 创建图片生成器
  */
@@ -44,7 +50,7 @@ export function createImageGenerator(provider: string, modelId?: string): ImageG
     }
 
     const actualModelId = normalizeModelId(modelId)
-    const providerKey = getProviderKey(provider).toLowerCase()
+    const providerKey = normalizeFactoryProviderKey(provider)
     switch (providerKey) {
         case 'fal':
             return new FalBananaGenerator()
@@ -81,11 +87,12 @@ export function createImageGenerator(provider: string, modelId?: string): ImageG
  * 根据 provider 创建视频生成器
  */
 export function createVideoGenerator(provider: string): VideoGenerator {
-    const providerKey = getProviderKey(provider).toLowerCase()
+    const providerKey = normalizeFactoryProviderKey(provider)
     switch (providerKey) {
         case 'fal':
             return new FalVideoGenerator()
         case 'ark':
+        case 'niuniu':
             return new ArkSeedanceVideoGenerator()
         case 'google':
             return new GoogleVeoVideoGenerator()
@@ -114,7 +121,7 @@ export function createVideoGenerator(provider: string): VideoGenerator {
  * 创建语音生成器
  */
 export function createAudioGenerator(provider: string): AudioGenerator {
-    const providerKey = getProviderKey(provider).toLowerCase()
+    const providerKey = normalizeFactoryProviderKey(provider)
     switch (providerKey) {
         case 'bailian':
             return new BailianAudioGenerator()

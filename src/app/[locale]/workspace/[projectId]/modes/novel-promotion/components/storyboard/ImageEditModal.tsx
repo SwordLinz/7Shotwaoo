@@ -1,7 +1,7 @@
 'use client'
 import { useTranslations } from 'next-intl'
-import { useState, useRef, useCallback } from 'react'
-import { Character, Location } from '@/types/project'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { Character, Location, ReferenceAsset } from '@/types/project'
 import { useProjectAssets } from '@/lib/query/hooks/useProjectAssets'
 import { SelectedAsset } from './hooks/useImageGeneration'
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal'
@@ -28,6 +28,14 @@ export default function ImageEditModal({
   const { data: assets } = useProjectAssets(projectId)
   const characters: Character[] = assets?.characters ?? []
   const locations: Location[] = assets?.locations ?? []
+
+  const [referenceAssets, setReferenceAssets] = useState<ReferenceAsset[]>([])
+  useEffect(() => {
+    fetch(`/api/novel-promotion/${projectId}/reference-assets`)
+      .then((r) => r.ok ? r.json() : { referenceAssets: [] })
+      .then((data) => setReferenceAssets(data.referenceAssets || []))
+      .catch(() => {})
+  }, [projectId])
 
   const [editPrompt, setEditPrompt] = useState('')
   const [editImages, setEditImages] = useState<string[]>([])
@@ -182,6 +190,7 @@ export default function ImageEditModal({
         isOpen={showAssetPicker}
         characters={characters}
         locations={locations}
+        referenceAssets={referenceAssets}
         selectedAssets={selectedAssets}
         onClose={() => setShowAssetPicker(false)}
         onAddAsset={handleAddAsset}

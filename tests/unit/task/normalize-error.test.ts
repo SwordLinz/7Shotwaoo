@@ -32,6 +32,16 @@ describe('normalizeAnyError provider-specific mapping', () => {
     expect(normalized.retryable).toBe(false)
   })
 
+  it('maps Ark AccessDenied (ep / resource) to ARK_ENDPOINT_ACCESS_DENIED', () => {
+    const normalized = normalizeAnyError(
+      new Error(
+        '[ARK Video] 创建视频任务失败: 403 - {"error":{"code":"AccessDenied","message":"The request failed because you do not have access to the requested resource.","param":"","type":"Forbidden"}}',
+      ),
+    )
+    expect(normalized.code).toBe('ARK_ENDPOINT_ACCESS_DENIED')
+    expect(normalized.retryable).toBe(false)
+  })
+
   it('maps Gemini empty response payload to EMPTY_RESPONSE even when status is 429', () => {
     const normalized = normalizeAnyError({
       status: 429,

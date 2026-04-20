@@ -55,6 +55,9 @@
         "submit": "Submit Generation",
         "submitting": "Submitting...",
         "storyboardPanel": "Storyboard Panel",
+        "storyboardCanvas": "Storyboard Canvas",
+        "viewPanel": "Panel",
+        "viewCanvas": "Canvas",
         "segments": "segments",
         "segmentsCount": "Total {count} segments,",
         "panelsCount": "{count} panels",
@@ -254,6 +257,29 @@
     "canvas": {
         "emptyTitle": "No storyboard data yet",
         "emptyDescription": "Generate clips and storyboard text first, or add a storyboard group above"
+    },
+    "nodeCanvas": {
+        "addComfyNode": "Add ComfyUI Node",
+        "addImageNode": "Add Image Preview",
+        "saveScreenshot": "Save Screenshot as Reference",
+        "emptyTitle": "Empty Canvas",
+        "emptyDescription": "Click the toolbar above to add nodes and build your storyboard workflow",
+        "comfyNode": {
+            "title": "ComfyUI Workflow",
+            "workflowPath": "Workflow Path",
+            "workflowPlaceholder": "Enter local workflow JSON path...",
+            "execute": "Execute",
+            "executing": "Executing...",
+            "output": "Output",
+            "noOutput": "No output yet",
+            "executeFailed": "Execution failed: {error}",
+            "saveAsReference": "Save as Reference Asset"
+        },
+        "imageNode": {
+            "title": "Image Preview",
+            "noImage": "No image yet",
+            "saveAsReference": "Save as Reference Asset"
+        }
     },
     "imageEdit": {
         "title": "Edit Storyboard Image",

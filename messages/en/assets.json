@@ -235,6 +235,23 @@
         "aiDesignFailed": "AI design failed",
         "createFailed": "Creation failed"
     },
+    "referenceAsset": {
+        "title": "Reference Assets",
+        "count": "{count} references",
+        "add": "Add Reference",
+        "upload": "Upload Image",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this reference asset?",
+        "deleteFailed": "Delete failed: {error}",
+        "noAssets": "No reference assets",
+        "noAssetsHint": "Save reference images from ComfyUI outputs or upload manually",
+        "sourceType": {
+            "comfyui-output": "ComfyUI Output",
+            "manual-upload": "Manual Upload"
+        },
+        "saveFailed": "Save reference asset failed: {error}",
+        "saveSuccess": "Reference asset saved"
+    },
     "assetLibrary": {
         "button": "Asset Library",
         "title": "Asset Library",

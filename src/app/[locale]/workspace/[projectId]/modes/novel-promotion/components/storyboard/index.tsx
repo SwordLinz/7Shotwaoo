@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { NovelPromotionStoryboard, NovelPromotionClip } from '@/types/project'
 import { CharacterPickerModal, LocationPickerModal } from '../PanelEditForm'
 import ImageEditModal from './ImageEditModal'
@@ -11,6 +12,10 @@ import StoryboardToolbar from './StoryboardToolbar'
 import StoryboardCanvas from './StoryboardCanvas'
 import { useStoryboardStageController } from './hooks/useStoryboardStageController'
 import { useStoryboardModalRuntime } from './hooks/useStoryboardModalRuntime'
+import type { StoryboardViewMode } from './StoryboardHeader'
+import dynamic from 'next/dynamic'
+
+const StoryboardNodeCanvas = dynamic(() => import('./canvas/StoryboardNodeCanvas'), { ssr: false })
 
 interface StoryboardStageProps {
   projectId: string
@@ -34,6 +39,7 @@ export default function StoryboardStage({
   isTransitioning = false,
 }: StoryboardStageProps) {
   const tCommon = useTranslations('common')
+  const [viewMode, setViewMode] = useState<StoryboardViewMode>('panel')
   const controller = useStoryboardStageController({
     projectId,
     episodeId,
@@ -164,9 +170,15 @@ export default function StoryboardStage({
           onGenerateAllPanels={handleGenerateAllPanels}
           onAddStoryboardGroupAtStart={() => addStoryboardGroup(0)}
           onBack={onBack}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
         />
 
-        <StoryboardCanvas
+        {viewMode === 'canvas' && (
+          <StoryboardNodeCanvas projectId={projectId} episodeId={episodeId} />
+        )}
+
+        {viewMode === 'panel' && <StoryboardCanvas
           sortedStoryboards={sortedStoryboards}
           videoRatio={videoRatio}
           expandedClips={expandedClips}
@@ -218,7 +230,7 @@ export default function StoryboardStage({
           addStoryboardGroup={addStoryboardGroup}
           addingStoryboardGroup={addingStoryboardGroup}
           setLocalStoryboards={setLocalStoryboards}
-        />
+        />}
 
         {modalRuntime.editingPanel && (
           <ImageEditModal

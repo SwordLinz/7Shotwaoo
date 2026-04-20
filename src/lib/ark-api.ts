@@ -10,7 +10,31 @@ import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core
  * - 详细的错误日志
  */
 
+/**
+ * 火山方舟 OpenAPI（与控制台「推理接入」一致）
+ *
+ * - 地域：北京 (`ark.cn-beijing.volces.com`)
+ * - 鉴权：`Authorization: Bearer <API Key>`，Key 在控制台「API Key 管理」创建，密钥常见前缀为 `ark-`（例如含类似 `ark-xxxxxxxx-…-xxxx` 的片段，以控制台显示为准）
+ * - 视频生成（异步）：`POST /api/v3/contents/generations/tasks`
+ * - 请求体 `model`：填**推理接入点 ID**（控制台接入点列，如 `ep-…` 或部分环境为 `ep-m-…`），对应官方模型如 Doubao-Seedance-2.0 / 2.0-fast
+ * - 任务查询：`GET /api/v3/contents/generations/tasks/{task_id}`
+ */
 const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
+
+/**
+ * 规范化后再拼接到 `Authorization: Bearer …`。
+ * 若误粘贴整段 `Bearer xxx`、带引号或首尾空格，方舟会返回 AuthenticationError: The API key format is incorrect。
+ */
+export function normalizeArkApiKeyForBearer(raw: string): string {
+    let key = raw.trim()
+    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+        key = key.slice(1, -1).trim()
+    }
+    if (/^bearer\s+/i.test(key)) {
+        key = key.replace(/^bearer\s+/i, '').trim()
+    }
+    return key
+}
 
 // 超时配置
 const DEFAULT_TIMEOUT_MS = 60 * 1000  // 60秒
@@ -69,10 +93,17 @@ interface ArkImageGenerationResponse {
 interface ArkVideoTaskRequest {
     model: string
     content: Array<{
-        type: 'image_url' | 'text' | 'draft_task'
+        type: 'image_url' | 'text' | 'draft_task' | 'video_url' | 'audio_url'
         image_url?: { url: string }
+        video_url?: { url: string }
+        audio_url?: { url: string }
         text?: string
-        role?: 'first_frame' | 'last_frame' | 'reference_image'
+        role?:
+            | 'first_frame'
+            | 'last_frame'
+            | 'reference_image'
+            | 'reference_video'
+            | 'reference_audio'
         draft_task?: { id: string }
     }>
     resolution?: '480p' | '720p' | '1080p'
@@ -158,7 +189,8 @@ function validateArkVideoTaskRequest(request: ArkVideoTaskRequest) {
         if (!isInteger(request.duration)) {
             throw new Error('ARK_VIDEO_REQUEST_INVALID: duration must be integer')
         }
-        if (request.duration !== -1 && (request.duration < 2 || request.duration > 12)) {
+        // 宽松上限 15：覆盖 Seedance 2.0/2.0 fast 官方区间 [4,15] 与 1.x；具体模型限制在生成器侧校验
+        if (request.duration !== -1 && (request.duration < 2 || request.duration > 15)) {
             throw new Error(`ARK_VIDEO_REQUEST_INVALID: duration=${request.duration}`)
         }
     }
@@ -242,6 +274,26 @@ function validateArkVideoTaskRequest(request: ArkVideoTaskRequest) {
         if (item.type === 'draft_task') {
             if (!isRecord(item.draft_task) || !isNonEmptyString(item.draft_task.id)) {
                 throw new Error(`ARK_VIDEO_REQUEST_INVALID: ${path}.draft_task.id is required`)
+            }
+            continue
+        }
+
+        if (item.type === 'video_url') {
+            if (!isRecord(item.video_url) || !isNonEmptyString(item.video_url.url)) {
+                throw new Error(`ARK_VIDEO_REQUEST_INVALID: ${path}.video_url.url is required`)
+            }
+            if (item.role !== undefined && item.role !== 'reference_video') {
+                throw new Error(`ARK_VIDEO_REQUEST_INVALID: ${path}.role=${String(item.role)}`)
+            }
+            continue
+        }
+
+        if (item.type === 'audio_url') {
+            if (!isRecord(item.audio_url) || !isNonEmptyString(item.audio_url.url)) {
+                throw new Error(`ARK_VIDEO_REQUEST_INVALID: ${path}.audio_url.url is required`)
+            }
+            if (item.role !== undefined && item.role !== 'reference_audio') {
+                throw new Error(`ARK_VIDEO_REQUEST_INVALID: ${path}.role=${String(item.role)}`)
             }
             continue
         }
@@ -364,16 +416,16 @@ export async function arkImageGeneration(
         logPrefix?: string
     }
 ): Promise<ArkImageGenerationResponse> {
-    if (!options?.apiKey) {
-        throw new Error('请配置火山引擎 API Key')
-    }
-
     const {
-        apiKey,
+        apiKey: rawKey,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         maxRetries = MAX_RETRIES,
         logPrefix = '[Ark Image]'
-    } = options
+    } = options || {}
+    const apiKey = normalizeArkApiKeyForBearer(typeof rawKey === 'string' ? rawKey : '')
+    if (!apiKey) {
+        throw new Error('请配置火山引擎 API Key')
+    }
 
     const url = `${ARK_BASE_URL}/images/generations`
 
@@ -424,13 +476,14 @@ export async function arkCreateVideoTask(
         logPrefix?: string
     }
 ): Promise<{ id: string; [key: string]: unknown }> {
-    if (!options.apiKey) {
-        throw new Error('请配置火山引擎 API Key')
-    }
     validateArkVideoTaskRequest(request)
 
+    const apiKey = normalizeArkApiKeyForBearer(options.apiKey)
+    if (!apiKey) {
+        throw new Error('请配置火山引擎 API Key')
+    }
+
     const {
-        apiKey,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         maxRetries = MAX_RETRIES,
         logPrefix = '[Ark Video]'
@@ -478,12 +531,12 @@ export async function arkQueryVideoTask(
         logPrefix?: string
     }
 ): Promise<ArkVideoTaskResponse> {
-    if (!options.apiKey) {
+    const apiKey = normalizeArkApiKeyForBearer(options.apiKey)
+    if (!apiKey) {
         throw new Error('请配置火山引擎 API Key')
     }
 
     const {
-        apiKey,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         maxRetries = MAX_RETRIES,
         logPrefix = '[Ark Video]'

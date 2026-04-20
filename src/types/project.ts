@@ -124,6 +124,20 @@ export interface AssetLibraryLocation {
 }
 
 // ============================================
+// 参考资产
+// ============================================
+
+export type ReferenceAssetSourceType = 'comfyui-output' | 'manual-upload'
+
+export interface ReferenceAsset {
+  id: string
+  name: string
+  imageUrl: string
+  sourceType: ReferenceAssetSourceType
+  createdAt: string
+}
+
+// ============================================
 // 小说推文模式类型
 // ============================================
 

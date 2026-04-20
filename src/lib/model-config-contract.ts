@@ -45,6 +45,8 @@ export interface VideoCapabilities {
   resolutionOptions?: string[]
   firstlastframe?: boolean
   supportGenerateAudio?: boolean
+  /** 智能参考 / 多参考图生视频：模型是否支持同时传入多张参考图（角色+场景等） */
+  supportsMultipleReferenceImages?: boolean
   fieldI18n?: CapabilityFieldI18nMap
 }
 
@@ -101,6 +103,7 @@ const VIDEO_ALLOWED_FIELDS = new Set<keyof VideoCapabilities>([
   'resolutionOptions',
   'firstlastframe',
   'supportGenerateAudio',
+  'supportsMultipleReferenceImages',
   'fieldI18n',
 ])
 
@@ -377,6 +380,17 @@ function validateVideoCapabilities(issues: CapabilityValidationIssue[], raw: unk
       code: 'CAPABILITY_FIELD_INVALID',
       field: 'capabilities.video.firstlastframe',
       message: 'firstlastframe must be boolean',
+    })
+  }
+
+  if (
+    raw.supportsMultipleReferenceImages !== undefined
+    && typeof raw.supportsMultipleReferenceImages !== 'boolean'
+  ) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.video.supportsMultipleReferenceImages',
+      message: 'supportsMultipleReferenceImages must be boolean',
     })
   }
 

@@ -53,6 +53,12 @@ function isModelNotOpenMessage(message: string): boolean {
   ])
 }
 
+/** 方舟 bodies JSON：code AccessDenied + 无权访问该资源（常与 ep/API Key 账号不一致有关） */
+function isArkEndpointAccessDeniedMessage(message: string): boolean {
+  const lower = message.toLowerCase()
+  return lower.includes('accessdenied') && lower.includes('do not have access to the requested resource')
+}
+
 function isModelNotRegisteredMessage(message: string): boolean {
   return containsAny(message, [
     'model_not_registered',
@@ -137,6 +143,7 @@ function inferCodeFromMessage(message: string): UnifiedErrorCode | null {
     }
   }
 
+  if (isArkEndpointAccessDeniedMessage(message)) return 'ARK_ENDPOINT_ACCESS_DENIED'
   if (isModelNotOpenMessage(message)) return 'MODEL_NOT_OPEN'
   if (isModelNotRegisteredMessage(message)) return 'MODEL_NOT_REGISTERED'
   if (isEmptyResponseMessage(message)) return 'EMPTY_RESPONSE'
@@ -219,6 +226,9 @@ export function normalizeAnyError(input: unknown, options: NormalizeOptions = {}
     }, provider)
   }
 
+  if (isArkEndpointAccessDeniedMessage(lowerMessage)) {
+    return buildNormalizedError('ARK_ENDPOINT_ACCESS_DENIED', message, options.details, provider)
+  }
   if (isModelNotOpenCode(errorLike.code) || isModelNotOpenMessage(lowerMessage)) {
     return buildNormalizedError('MODEL_NOT_OPEN', message, options.details, provider)
   }

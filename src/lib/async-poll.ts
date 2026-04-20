@@ -8,7 +8,8 @@ import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core
  * 例如：
  * - FAL:VIDEO:fal-ai/wan/v2.6:abc123
  * - FAL:IMAGE:fal-ai/nano-banana-pro:def456
- * - ARK:VIDEO:task_789
+ * - ARK:VIDEO:task_789（API Key 存 Wacoo 的 ark）
+ * - ARK:VIDEO:niuniu:cgt_xxxx（API Key 存 Wacoo 的 niuniu，与创建任务时一致）
  * - ARK:IMAGE:task_xyz
  * - GEMINI:BATCH:batches/ghi012
  * 
@@ -53,6 +54,8 @@ export function parseExternalId(externalId: string): {
     type: 'VIDEO' | 'IMAGE' | 'BATCH' | 'UNKNOWN'
     endpoint?: string
     requestId: string
+    /** Wacoo `getProviderConfig` 的 key（如 ark / niuniu）；仅 ARK 异步任务轮询用 */
+    arkProviderKey?: string
     providerToken?: string
     modelKeyToken?: string
 } {
@@ -82,14 +85,34 @@ export function parseExternalId(externalId: string): {
     if (externalId.startsWith('ARK:')) {
         const parts = externalId.split(':')
         const type = parts[1]
-        const requestId = parts.slice(2).join(':')
-        if ((type !== 'VIDEO' && type !== 'IMAGE') || !requestId) {
-            throw new Error(`无效 ARK externalId: "${externalId}"，应为 ARK:TYPE:requestId`)
+        if ((type !== 'VIDEO' && type !== 'IMAGE') || parts.length < 3) {
+            throw new Error(
+                `无效 ARK externalId: "${externalId}"，应为 ARK:TYPE:taskId 或 ARK:TYPE:<wacooProviderKey>:taskId`
+            )
+        }
+        // 兼容：ARK:VIDEO:cgt-xxx → 与历史任务一致，使用 ark 配置
+        if (parts.length === 3) {
+            const requestId = parts[2]
+            if (!requestId) {
+                throw new Error(`无效 ARK externalId: "${externalId}"，缺少 taskId`)
+            }
+            return {
+                provider: 'ARK',
+                type: type as 'VIDEO' | 'IMAGE',
+                requestId,
+                arkProviderKey: 'ark',
+            }
+        }
+        const arkProviderKey = parts[2]
+        const requestId = parts.slice(3).join(':')
+        if (!arkProviderKey?.trim() || !requestId) {
+            throw new Error(`无效 ARK externalId: "${externalId}"，缺少 wacooProviderKey 或 taskId`)
         }
         return {
             provider: 'ARK',
             type: type as 'VIDEO' | 'IMAGE',
             requestId,
+            arkProviderKey,
         }
     }
 
@@ -258,7 +281,7 @@ export function parseExternalId(externalId: string): {
 
     throw new Error(
         `无法识别的 externalId 格式: "${externalId}". ` +
-        `支持的格式: FAL:TYPE:endpoint:requestId, ARK:TYPE:requestId, GEMINI:BATCH:batchName, GOOGLE:VIDEO:operationName, MINIMAX:TYPE:taskId, VIDU:TYPE:taskId, RUNNINGHUB:VIDEO:providerToken:taskId, OPENAI:VIDEO:providerToken:videoId, OCOMPAT:TYPE:providerToken:modelKeyToken:taskId, BAILIAN:TYPE:requestId, SILICONFLOW:TYPE:requestId, YOUCHUAN:IMAGE:jobId`
+        `支持的格式: FAL:TYPE:endpoint:requestId, ARK:TYPE:requestId|ARK:TYPE:wacooProviderKey:requestId, GEMINI:BATCH:batchName, GOOGLE:VIDEO:operationName, MINIMAX:TYPE:taskId, VIDU:TYPE:taskId, RUNNINGHUB:VIDEO:providerToken:taskId, OPENAI:VIDEO:providerToken:videoId, OCOMPAT:TYPE:providerToken:modelKeyToken:taskId, BAILIAN:TYPE:requestId, SILICONFLOW:TYPE:requestId, YOUCHUAN:IMAGE:jobId`
     )
 }
 
@@ -281,7 +304,7 @@ export async function pollAsyncTask(
         case 'FAL':
             return await pollFalTask(parsed.endpoint!, parsed.requestId, userId)
         case 'ARK':
-            return await pollArkTask(parsed.requestId, userId)
+            return await pollArkTask(parsed.requestId, userId, parsed.arkProviderKey ?? 'ark')
         case 'GEMINI':
             return await pollGeminiTask(parsed.requestId, userId)
         case 'GOOGLE':
@@ -700,9 +723,11 @@ async function pollFalTask(
  */
 async function pollArkTask(
     taskId: string,
-    userId: string
+    userId: string,
+    wacooProviderKey: string
 ): Promise<PollResult> {
-    const { apiKey } = await getProviderConfig(userId, 'ark')
+    const key = typeof wacooProviderKey === 'string' ? wacooProviderKey.trim() : ''
+    const { apiKey } = await getProviderConfig(userId, key || 'ark')
     const result = await querySeedanceVideoStatus(taskId, apiKey)
 
     return {
@@ -1264,6 +1289,8 @@ export function formatExternalId(
     endpoint?: string,
     providerToken?: string,
     modelKeyToken?: string,
+    /** 为 ARK 时可选：Wacoo 侧 provider（如 niuniu）；省略或 ark 则生成 3 段 ARK:TYPE:taskId */
+    arkProviderKey?: string,
 ): string {
     if (provider === 'FAL') {
         if (!endpoint) {
@@ -1291,6 +1318,13 @@ export function formatExternalId(
             throw new Error('OCOMPAT externalId requires modelKeyToken')
         }
         return `OCOMPAT:${type}:${providerToken}:${modelKeyToken}:${requestId}`
+    }
+    if (provider === 'ARK') {
+        const key = typeof arkProviderKey === 'string' ? arkProviderKey.trim() : ''
+        if (key && key !== 'ark') {
+            return `ARK:${type}:${key}:${requestId}`
+        }
+        return `ARK:${type}:${requestId}`
     }
     return `${provider}:${type}:${requestId}`
 }

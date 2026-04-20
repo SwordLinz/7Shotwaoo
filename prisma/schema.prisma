@@ -116,6 +116,19 @@ model NovelPromotionLocation {
   @@map("novel_promotion_locations")
 }
 
+model NovelPromotionReferenceAsset {
+  id                      String                @id @default(uuid())
+  novelPromotionProjectId String
+  name                    String
+  imageUrl                String                @db.Text
+  sourceType              String                @default("manual-upload") // pose-screenshot | comfyui-output | manual-upload
+  createdAt               DateTime              @default(now())
+  novelPromotionProject   NovelPromotionProject @relation(fields: [novelPromotionProjectId], references: [id], onDelete: Cascade)
+
+  @@index([novelPromotionProjectId])
+  @@map("novel_promotion_reference_assets")
+}
+
 model NovelPromotionEpisode {
   id                      String                     @id @default(uuid())
   novelPromotionProjectId String
@@ -264,6 +277,7 @@ model NovelPromotionProject {
   characters      NovelPromotionCharacter[]
   episodes        NovelPromotionEpisode[]
   locations       NovelPromotionLocation[]
+  referenceAssets NovelPromotionReferenceAsset[]
   project         Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("novel_promotion_projects")

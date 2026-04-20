@@ -235,6 +235,23 @@
         "aiDesignFailed": "AI 设计失败",
         "createFailed": "创建失败"
     },
+    "referenceAsset": {
+        "title": "参考资产",
+        "count": "{count} 个参考",
+        "add": "添加参考",
+        "upload": "上传图片",
+        "delete": "删除",
+        "deleteConfirm": "确定要删除这个参考资产吗？",
+        "deleteFailed": "删除失败: {error}",
+        "noAssets": "暂无参考资产",
+        "noAssetsHint": "从 ComfyUI 输出保存参考图片，或手动上传",
+        "sourceType": {
+            "comfyui-output": "ComfyUI 输出",
+            "manual-upload": "手动上传"
+        },
+        "saveFailed": "保存参考资产失败: {error}",
+        "saveSuccess": "参考资产已保存"
+    },
     "assetLibrary": {
         "button": "资产库",
         "title": "资产库",

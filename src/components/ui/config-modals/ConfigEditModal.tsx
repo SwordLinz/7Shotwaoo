@@ -11,7 +11,8 @@ import type {
     CapabilityValue,
     ModelCapabilities,
 } from '@/lib/model-config-contract'
-import { filterNormalVideoModelOptions } from '@/lib/model-capabilities/video-model-options'
+import { resolveVideoModelOptionsForWorkflow } from '@/lib/model-capabilities/video-model-options'
+import type { WorkflowMode } from '@/types/project'
 import { RatioSelector, StyleSelector } from './config-modal-selectors'
 import { ModelCapabilityDropdown } from './ModelCapabilityDropdown'
 import { AppIcon } from '@/components/ui/icons'
@@ -66,6 +67,8 @@ interface SettingsModalProps {
     onVideoRatioChange?: (value: string) => void
     onCapabilityOverridesChange?: (value: CapabilitySelections) => void
     onTTSRateChange?: (value: string) => void
+    /** 智能参考模式：视频模型下拉仅显示支持多参考图的 API */
+    workflowMode?: WorkflowMode
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -149,6 +152,7 @@ export function SettingsModal({
     onVideoRatioChange,
     onCapabilityOverridesChange,
     onTTSRateChange,
+    workflowMode,
 }: SettingsModalProps) {
     const t = useTranslations('configModal')
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle')
@@ -158,15 +162,27 @@ export function SettingsModal({
         video: Array.isArray(availableModels?.video) ? availableModels.video : [],
         audio: Array.isArray(availableModels?.audio) ? availableModels.audio : [],
     }), [availableModels])
-    const normalVideoModels = useMemo<ModelOption[]>(
-        () => filterNormalVideoModelOptions(userModels.video),
-        [userModels.video],
+    const resolvedVideoModels = useMemo<ModelOption[]>(
+        () => resolveVideoModelOptionsForWorkflow(userModels.video, workflowMode),
+        [userModels.video, workflowMode],
     )
 
     const selectedVideoModelOption = useMemo(
-        () => normalVideoModels.find((model) => model.value === videoModel) || null,
-        [normalVideoModels, videoModel],
+        () => resolvedVideoModels.find((model) => model.value === videoModel) || null,
+        [resolvedVideoModels, videoModel],
     )
+
+    useEffect(() => {
+        if (!isOpen) return
+        if (workflowMode !== 'smart-reference') return
+        if (!onVideoModelChange) return
+        if (resolvedVideoModels.length === 0) return
+        const ok = Boolean(videoModel && resolvedVideoModels.some((m) => m.value === videoModel))
+        if (!ok) {
+            void onVideoModelChange(resolvedVideoModels[0].value)
+        }
+    }, [isOpen, workflowMode, videoModel, resolvedVideoModels, onVideoModelChange])
+
     const selectedAnalysisModelOption = useMemo(
         () => userModels.llm.find((model) => model.value === analysisModel) || null,
         [userModels.llm, analysisModel],
@@ -461,9 +477,9 @@ export function SettingsModal({
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-[var(--glass-text-secondary)]">{t('videoModel')}</label>
                                 <ModelCapabilityDropdown
-                                    models={normalVideoModels}
+                                    models={resolvedVideoModels}
                                     value={videoModel}
-                                    onModelChange={(v) => handleModelChange(v, normalVideoModels, 'video', onVideoModelChange)}
+                                    onModelChange={(v) => handleModelChange(v, resolvedVideoModels, 'video', onVideoModelChange)}
                                     capabilityFields={videoCapabilityFields}
                                     placementMode="downward"
                                     capabilityOverrides={selectedVideoOverrides}

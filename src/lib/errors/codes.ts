@@ -80,6 +80,14 @@ export const ERROR_CATALOG = {
     userMessageKey: 'errors.MODEL_NOT_OPEN',
     defaultMessage: 'Model is not activated for this account',
   },
+  /** 方舟返回 AccessDenied：常见于 API Key 与 ep 接入点不属于同一账号/项目，或 Key 未授权该接入点 */
+  ARK_ENDPOINT_ACCESS_DENIED: {
+    httpStatus: 403,
+    retryable: false,
+    category: ERROR_CATEGORY.PROVIDER,
+    userMessageKey: 'errors.ARK_ENDPOINT_ACCESS_DENIED',
+    defaultMessage: 'ARK API key cannot access this inference endpoint',
+  },
   MODEL_NOT_REGISTERED: {
     httpStatus: 400,
     retryable: false,

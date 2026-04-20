@@ -5,6 +5,7 @@
  * 注意：API Key 现在通过参数传入，不再使用环境变量
  */
 
+import { normalizeArkApiKeyForBearer } from '@/lib/ark-api'
 import { logInternal } from './logging/semantic'
 
 export interface TaskStatus {
@@ -281,7 +282,8 @@ export async function queryGoogleVideoStatus(operationName: string, apiKey: stri
  * @param apiKey 火山引擎 API Key
  */
 export async function querySeedanceVideoStatus(taskId: string, apiKey: string): Promise<TaskStatus> {
-    if (!apiKey) {
+    const token = normalizeArkApiKeyForBearer(apiKey)
+    if (!token) {
         throw new Error('请配置火山引擎 API Key')
     }
 
@@ -292,7 +294,7 @@ export async function querySeedanceVideoStatus(taskId: string, apiKey: string): 
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
+                    'Authorization': `Bearer ${token}`
                 },
                 cache: 'no-store'
             }

@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import type { TaskPresentationState } from '@/lib/task/presentation'
-import StoryboardHeader from './StoryboardHeader'
+import StoryboardHeader, { type StoryboardViewMode } from './StoryboardHeader'
 import TaskStatusInline from '@/components/task/TaskStatusInline'
 import { AppIcon } from '@/components/ui/icons'
 import { GlassButton } from '@/components/ui/primitives'
@@ -20,6 +20,8 @@ interface StoryboardToolbarProps {
   onGenerateAllPanels: () => Promise<void>
   onAddStoryboardGroupAtStart: () => void
   onBack: () => void
+  viewMode: StoryboardViewMode
+  onViewModeChange: (mode: StoryboardViewMode) => void
 }
 
 export default function StoryboardToolbar({
@@ -35,6 +37,8 @@ export default function StoryboardToolbar({
   onGenerateAllPanels,
   onAddStoryboardGroupAtStart,
   onBack,
+  viewMode,
+  onViewModeChange,
 }: StoryboardToolbarProps) {
   const t = useTranslations('storyboard')
   return (
@@ -49,26 +53,30 @@ export default function StoryboardToolbar({
         onDownloadAllImages={onDownloadAllImages}
         onGenerateAllPanels={onGenerateAllPanels}
         onBack={onBack}
+        viewMode={viewMode}
+        onViewModeChange={onViewModeChange}
       />
 
-      <div className="flex justify-center">
-        <GlassButton
-          variant="ghost"
-          size="sm"
-          onClick={onAddStoryboardGroupAtStart}
-          disabled={addingStoryboardGroup}
-          className="opacity-60 hover:opacity-100"
-        >
-          {addingStoryboardGroup ? (
-            <TaskStatusInline state={addingStoryboardGroupState} />
-          ) : (
-            <>
-              <AppIcon name="plusAlt" className="w-4 h-4" />
-              <span>{t('group.addAtStart')}</span>
-            </>
-          )}
-        </GlassButton>
-      </div>
+      {viewMode === 'panel' && (
+        <div className="flex justify-center">
+          <GlassButton
+            variant="ghost"
+            size="sm"
+            onClick={onAddStoryboardGroupAtStart}
+            disabled={addingStoryboardGroup}
+            className="opacity-60 hover:opacity-100"
+          >
+            {addingStoryboardGroup ? (
+              <TaskStatusInline state={addingStoryboardGroupState} />
+            ) : (
+              <>
+                <AppIcon name="plusAlt" className="w-4 h-4" />
+                <span>{t('group.addAtStart')}</span>
+              </>
+            )}
+          </GlassButton>
+        </div>
+      )}
     </>
   )
 }
