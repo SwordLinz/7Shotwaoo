@@ -184,8 +184,14 @@ export function applyTaskLifecycleToOverlay(
         const current = prev[key]
         const incomingTaskId = normalizeOptionalString(params.taskId)
         const currentTaskId = normalizeOptionalString(current.runningTaskId)
-        if (incomingTaskId && currentTaskId && incomingTaskId !== currentTaskId) {
-          return prev
+        // 乐观占位 taskId 与实际任务 id 不一致时，仍应收到服务端 COMPLETED 后清掉遮罩
+        if (
+            incomingTaskId
+            && currentTaskId
+            && incomingTaskId !== currentTaskId
+            && !currentTaskId.startsWith('optimistic:')
+        ) {
+            return prev
         }
         const next: TaskTargetOverlayMap = { ...prev }
         delete next[key]

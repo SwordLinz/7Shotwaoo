@@ -201,8 +201,27 @@ describe('generator-api gateway routing', () => {
 
     const result = await generateVideo('user-1', 'gemini-compatible:gm-1::veo-3.1-generate-preview', 'https://example.com/source.png')
 
-    expect(createVideoGeneratorMock).toHaveBeenCalledWith('gemini-compatible:gm-1')
+    expect(createVideoGeneratorMock).toHaveBeenCalledWith('gemini-compatible:gm-1', 'veo-3.1-generate-preview')
     expect(generateVideoViaOpenAICompatMock).not.toHaveBeenCalled()
+    expect(result).toEqual({ success: true, videoUrl: 'official-video' })
+  })
+
+  it('routes gemini-compatible Seedance video to Ark-style generator', async () => {
+    resolveModelSelectionMock.mockResolvedValueOnce({
+      provider: 'gemini-compatible:gm-1',
+      modelId: 'doubao-seedance-2-0-260128',
+      modelKey: 'gemini-compatible:gm-1::doubao-seedance-2-0-260128',
+      mediaType: 'video',
+    })
+    resolveModelGatewayRouteMock.mockReturnValueOnce('official')
+
+    const result = await generateVideo(
+      'user-1',
+      'gemini-compatible:gm-1::doubao-seedance-2-0-260128',
+      'https://example.com/source.png',
+    )
+
+    expect(createVideoGeneratorMock).toHaveBeenCalledWith('gemini-compatible:gm-1', 'doubao-seedance-2-0-260128')
     expect(result).toEqual({ success: true, videoUrl: 'official-video' })
   })
 
@@ -217,7 +236,7 @@ describe('generator-api gateway routing', () => {
 
     const result = await generateVideo('user-1', 'fal::kling', 'https://example.com/source.png')
 
-    expect(createVideoGeneratorMock).toHaveBeenCalledWith('fal')
+    expect(createVideoGeneratorMock).toHaveBeenCalledWith('fal', 'kling')
     expect(generateVideoViaOpenAICompatMock).not.toHaveBeenCalled()
     expect(result).toEqual({ success: true, videoUrl: 'official-video' })
   })

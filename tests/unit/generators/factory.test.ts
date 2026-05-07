@@ -6,8 +6,14 @@ import { OpenAICompatibleVideoGenerator } from '@/lib/generators/video/openai-co
 import { BailianAudioGenerator, BailianImageGenerator, BailianVideoGenerator, SiliconFlowAudioGenerator } from '@/lib/generators/official'
 
 describe('generator factory', () => {
-  it('routes gemini-compatible video provider to Google video generator', () => {
-    const generator = createVideoGenerator('gemini-compatible:gm-1')
+  it('routes gemini-compatible Seedance 2.0 to Ark video generator', () => {
+    expect(createVideoGenerator('gemini-compatible:gm-1', 'doubao-seedance-2-0-260128')).toBeInstanceOf(
+      ArkSeedanceVideoGenerator,
+    )
+  })
+
+  it('routes gemini-compatible Veo to Google video generator', () => {
+    const generator = createVideoGenerator('gemini-compatible:gm-1', 'veo-3.1-generate-preview')
     expect(generator).toBeInstanceOf(GoogleVeoVideoGenerator)
   })
 

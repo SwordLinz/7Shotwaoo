@@ -194,6 +194,24 @@ export function findBuiltinCapabilityCatalogEntry(
     }
   }
 
+  if (providerKey === 'gemini-compatible' && modelType === 'video' && modelId.startsWith('doubao-seedance')) {
+    const seedanceCanonical: Record<string, string> = {
+      'doubao-seedance-2-0-260128': 'doubao-seedance-2-0',
+    }
+    const canonId = seedanceCanonical[modelId] ?? modelId
+    const fromCatalog =
+      loaded.byProviderKey.get(`${modelType}::ark::${canonId}`)
+      ?? loaded.byProviderKey.get(`${modelType}::ark::${modelId}`)
+      ?? loaded.byProviderKey.get(`${modelType}::niuniu::${canonId}`)
+      ?? loaded.byProviderKey.get(`${modelType}::niuniu::${modelId}`)
+    if (fromCatalog) {
+      return {
+        ...fromCatalog,
+        capabilities: cloneCapabilities(fromCatalog.capabilities),
+      }
+    }
+  }
+
   // Fallback: check canonical provider alias (e.g. gemini-compatible → google)
   const aliasTarget = CAPABILITY_PROVIDER_ALIASES[providerKey]
   if (aliasTarget) {

@@ -24,7 +24,12 @@ import {
     GenerateResult
 } from './base'
 import { getProviderConfig } from '@/lib/api-config'
-import { arkImageGeneration, arkCreateVideoTask } from '@/lib/ark-api'
+import {
+    arkImageGeneration,
+    arkCreateVideoTask,
+    ARK_OPENAPI_V3_BASE_URL_DEFAULT,
+    resolveArkOpenApiV3BaseUrl,
+} from '@/lib/ark-api'
 import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
 
 function readArkProviderId(options: { provider?: string }, fallback: string): string {
@@ -73,7 +78,7 @@ interface ArkSeedanceModelSpec {
     supportsGenerateAudio: boolean
     supportsDraft: boolean
     supportsFrames: boolean
-    /** 官方：480p / 720p；2.0 / 2.0 fast 不支持 1080p */
+    /** 官方常见档位（含 Seedance 2.0 的 1080p，与计费分档一致） */
     resolutionOptions: ReadonlyArray<'480p' | '720p' | '1080p'>
     /** duration = -1 智能时长（与 1.5 Pro、2.0 系列一致） */
     supportsIntelligentDuration: boolean
@@ -153,7 +158,7 @@ const ARK_SEEDANCE_MODEL_SPECS: Record<string, ArkSeedanceModelSpec> = {
         supportsCameraFixed: true,
         supportsBatchFlex: true,
     },
-    /** Seedance 2.0：官方时长 [4,15] 或 -1；仅 480p/720p；不支持 frames/camera_fixed；支持 generate_audio */
+    /** Seedance 2.0：官方时长 [4,15] 或 -1；480p/720p/1080p；不支持 frames/camera_fixed；支持 generate_audio */
     'doubao-seedance-2-0': {
         durationMin: 4,
         durationMax: 15,
@@ -161,7 +166,7 @@ const ARK_SEEDANCE_MODEL_SPECS: Record<string, ArkSeedanceModelSpec> = {
         supportsGenerateAudio: true,
         supportsDraft: false,
         supportsFrames: false,
-        resolutionOptions: ['480p', '720p'],
+        resolutionOptions: ['480p', '720p', '1080p'],
         supportsIntelligentDuration: true,
         supportsCameraFixed: false,
         supportsBatchFlex: false,
@@ -173,7 +178,7 @@ const ARK_SEEDANCE_MODEL_SPECS: Record<string, ArkSeedanceModelSpec> = {
         supportsGenerateAudio: true,
         supportsDraft: false,
         supportsFrames: false,
-        resolutionOptions: ['480p', '720p'],
+        resolutionOptions: ['480p', '720p', '1080p'],
         supportsIntelligentDuration: true,
         supportsCameraFixed: false,
         supportsBatchFlex: false,
@@ -234,7 +239,7 @@ export class ArkImageGenerator extends BaseImageGenerator {
         const { userId, prompt, referenceImages = [], options = {} } = params
 
         const providerId = readArkProviderId(options as ArkImageOptions, 'ark')
-        const { apiKey } = await getProviderConfig(userId, providerId)
+        const { apiKey, baseUrl } = await getProviderConfig(userId, providerId)
         const {
             aspectRatio,
             modelId = 'doubao-seedream-4-5-251128',
@@ -319,7 +324,8 @@ export class ArkImageGenerator extends BaseImageGenerator {
         // 调用 ARK API
         const arkData = await arkImageGeneration(requestBody, {
             apiKey,
-            logPrefix: '[ARK Image]'
+            ...(baseUrl ? { baseUrl } : {}),
+            logPrefix: '[ARK Image]',
         })
 
         const imageUrl = arkData.data?.[0]?.url
@@ -344,7 +350,9 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         const { userId, imageUrl, prompt = '', options = {} } = params
 
         const providerId = readArkProviderId(options as ArkVideoOptions, 'ark')
-        const { apiKey } = await getProviderConfig(userId, providerId)
+        const { apiKey, baseUrl } = await getProviderConfig(userId, providerId)
+        const arkV3Root = resolveArkOpenApiV3BaseUrl(baseUrl)
+        const useVolcengineOfficialArk = arkV3Root === ARK_OPENAPI_V3_BASE_URL_DEFAULT
         const {
             modelId = 'doubao-seedance-1-0-pro-fast-251015',
             resolution,
@@ -476,10 +484,12 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         }
 
         const modelForApi =
-            ARK_SEEDANCE_ENDPOINT_BY_MODEL_ID[realModel]
-            ?? ARK_SEEDANCE_ENDPOINT_BY_MODEL_ID[specModelId]
+            (useVolcengineOfficialArk
+                ? (ARK_SEEDANCE_ENDPOINT_BY_MODEL_ID[realModel]
+                    ?? ARK_SEEDANCE_ENDPOINT_BY_MODEL_ID[specModelId])
+                : undefined)
             ?? realModel
-        _ulogInfo(`[ARK Video] 模型: ${realModel}, ep: ${modelForApi}, 批量: ${isBatchMode}, 分辨率: ${resolution || '(默认)'}, 时长: ${duration ?? '(默认)'}`)
+        _ulogInfo(`[ARK Video] 模型: ${realModel}, 请求 model: ${modelForApi}, 网关: ${arkV3Root}, 批量: ${isBatchMode}, 分辨率: ${resolution || '(默认)'}, 时长: ${duration ?? '(默认)'}`)
 
         // 转换图片为 base64
         const imageBase64 = await normalizeToBase64ForGeneration(imageUrl)
@@ -582,7 +592,8 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         try {
             const taskData = await arkCreateVideoTask(requestBody, {
                 apiKey,
-                logPrefix: '[ARK Video]'
+                ...(baseUrl ? { baseUrl } : {}),
+                logPrefix: '[ARK Video]',
             })
 
             const taskId = taskData.id

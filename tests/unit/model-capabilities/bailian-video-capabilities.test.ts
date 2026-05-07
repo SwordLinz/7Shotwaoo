@@ -8,6 +8,10 @@ describe('bailian video capabilities catalog', () => {
       'wan2.6-i2v',
       'wan2.5-i2v-preview',
       'wan2.2-i2v-plus',
+      'happyhorse-1.0-t2v',
+      'happyhorse-1.0-i2v',
+      'happyhorse-1.0-r2v',
+      'happyhorse-1.0-video-edit',
     ]
 
     for (const modelId of models) {

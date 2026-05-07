@@ -180,7 +180,11 @@ export default function VideoPanelCardBody({ runtime }: VideoPanelCardBodyProps)
                     }
                     className="flex-shrink-0 min-w-[90px] py-2 px-3 text-sm font-medium rounded-lg shadow-sm transition-all disabled:opacity-50 bg-[var(--glass-accent-from)] text-white"
                   >
-                    {panel.videoUrl ? t('stage.hasSynced') : taskStatus.isVideoTaskRunning ? taskStatus.taskRunningVideoLabel : t('panelCard.generateVideo')}
+                    {panel.videoUrl && !taskStatus.isVideoTaskRunning
+                      ? t('stage.hasSynced')
+                      : taskStatus.isVideoTaskRunning
+                        ? taskStatus.taskRunningVideoLabel
+                        : t('panelCard.generateVideo')}
                   </button>
                   <div className="flex-1 min-w-0">
                     <ModelCapabilityDropdown

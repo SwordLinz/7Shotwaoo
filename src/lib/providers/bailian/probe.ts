@@ -6,12 +6,29 @@ function classifyStatus(status: number): string {
   return `Provider error (${status})`
 }
 
+function toAuthorizationHeader(apiKeyRaw: string): string {
+  const trimmed = apiKeyRaw.trim()
+  if (!trimmed) return ''
+  if (/^Bearer\s+/i.test(trimmed)) return trimmed
+  return `Bearer ${trimmed}`
+}
+
 export async function probeBailian(apiKey: string): Promise<BailianProbeResult> {
   const steps: BailianProbeStep[] = []
+  const authorization = toAuthorizationHeader(apiKey)
+  if (!authorization) {
+    return {
+      success: false,
+      steps: [
+        { name: 'models', status: 'fail', message: 'Missing API key' },
+        { name: 'credits', status: 'skip', message: 'Not supported by Bailian probe API' },
+      ],
+    }
+  }
   try {
     const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/models', {
       method: 'GET',
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: { Authorization: authorization },
       signal: AbortSignal.timeout(20_000),
     })
     if (!response.ok) {

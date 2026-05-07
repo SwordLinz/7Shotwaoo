@@ -77,6 +77,16 @@ describe('async poll externalId contract', () => {
     expect(parsed.requestId).toBe('cgt-test-456')
   })
 
+  it('parses ARK video externalId with gemini-compatible composite provider', () => {
+    const parsed = parseExternalId(
+      'ARK:VIDEO:gemini-compatible:7023dae7-9124-4895-abb4-b966e5a00534:cgt-test-789',
+    )
+    expect(parsed.provider).toBe('ARK')
+    expect(parsed.type).toBe('VIDEO')
+    expect(parsed.arkProviderKey).toBe('gemini-compatible:7023dae7-9124-4895-abb4-b966e5a00534')
+    expect(parsed.requestId).toBe('cgt-test-789')
+  })
+
   it('formats ARK externalId with optional wacoo provider key', () => {
     expect(formatExternalId('ARK', 'VIDEO', 'cgt-1')).toBe('ARK:VIDEO:cgt-1')
     expect(formatExternalId('ARK', 'VIDEO', 'cgt-1', undefined, undefined, undefined, 'niuniu')).toBe(

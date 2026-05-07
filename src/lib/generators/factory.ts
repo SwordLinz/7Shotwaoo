@@ -86,8 +86,12 @@ export function createImageGenerator(provider: string, modelId?: string): ImageG
 /**
  * 根据 provider 创建视频生成器
  */
-export function createVideoGenerator(provider: string): VideoGenerator {
+export function createVideoGenerator(provider: string, modelId?: string): VideoGenerator {
     const providerKey = normalizeFactoryProviderKey(provider)
+    const videoModelId = typeof modelId === 'string' ? modelId.trim() : ''
+    if (providerKey === 'gemini-compatible' && videoModelId.startsWith('doubao-seedance')) {
+        return new ArkSeedanceVideoGenerator()
+    }
     switch (providerKey) {
         case 'fal':
             return new FalVideoGenerator()

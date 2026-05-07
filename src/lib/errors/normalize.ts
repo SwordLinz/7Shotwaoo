@@ -116,8 +116,27 @@ function buildNormalizedError(
   }
 }
 
+function unifiedCodeFromHttpStatus(parsedStatus: number): UnifiedErrorCode | null {
+  if (!Number.isFinite(parsedStatus)) return null
+  if (parsedStatus === 404 || parsedStatus === 405 || parsedStatus === 415) {
+    return 'VIDEO_API_FORMAT_UNSUPPORTED'
+  }
+  if (parsedStatus === 401) return 'UNAUTHORIZED'
+  if (parsedStatus === 403) return 'FORBIDDEN'
+  if (parsedStatus === 404) return 'NOT_FOUND'
+  if (parsedStatus === 409) return 'CONFLICT'
+  if (parsedStatus === 422) return 'SENSITIVE_CONTENT'
+  if (parsedStatus === 429) return 'RATE_LIMIT'
+  if (parsedStatus === 502 || parsedStatus === 503) return 'EXTERNAL_ERROR'
+  if (parsedStatus === 504) return 'GENERATION_TIMEOUT'
+  if (parsedStatus >= 500) return 'EXTERNAL_ERROR'
+  if (parsedStatus >= 400) return 'INVALID_PARAMS'
+  return null
+}
+
 function inferCodeFromMessage(message: string): UnifiedErrorCode | null {
   const upper = message.toUpperCase()
+  const lower = message.toLowerCase()
   const explicitMatch = upper.match(/\b([A-Z_]{3,})\b/)
   if (explicitMatch && isKnownErrorCode(explicitMatch[1])) {
     return explicitMatch[1]
@@ -126,21 +145,28 @@ function inferCodeFromMessage(message: string): UnifiedErrorCode | null {
   const statusMatch = message.match(/\bstatus\s+(\d{3})\b/)
   if (statusMatch) {
     const parsedStatus = Number.parseInt(statusMatch[1] || '', 10)
-    if (Number.isFinite(parsedStatus)) {
-      if (parsedStatus === 404 || parsedStatus === 405 || parsedStatus === 415) {
-        return 'VIDEO_API_FORMAT_UNSUPPORTED'
-      }
-      if (parsedStatus === 401) return 'UNAUTHORIZED'
-      if (parsedStatus === 403) return 'FORBIDDEN'
-      if (parsedStatus === 404) return 'NOT_FOUND'
-      if (parsedStatus === 409) return 'CONFLICT'
-      if (parsedStatus === 422) return 'SENSITIVE_CONTENT'
-      if (parsedStatus === 429) return 'RATE_LIMIT'
-      if (parsedStatus === 502 || parsedStatus === 503) return 'EXTERNAL_ERROR'
-      if (parsedStatus === 504) return 'GENERATION_TIMEOUT'
-      if (parsedStatus >= 500) return 'EXTERNAL_ERROR'
-      if (parsedStatus >= 400) return 'INVALID_PARAMS'
-    }
+    const fromStatus = unifiedCodeFromHttpStatus(parsedStatus)
+    if (fromStatus) return fromStatus
+  }
+
+  // Gateway / OpenAI-compat clients often embed HTTP status as JSON, e.g. {"error":{"code":500,...}}
+  const jsonCodeMatch = message.match(/"code"\s*:\s*(\d{3})\b/)
+  if (jsonCodeMatch) {
+    const parsedStatus = Number.parseInt(jsonCodeMatch[1] || '', 10)
+    const fromJson = unifiedCodeFromHttpStatus(parsedStatus)
+    if (fromJson) return fromJson
+  }
+
+  // nginx and other proxies return HTML bodies; message may not contain "status 500"
+  if (
+    containsAny(lower, [
+      '500 internal server error',
+      '502 bad gateway',
+      '504 gateway time-out',
+      '504 gateway timeout',
+    ])
+  ) {
+    return 'EXTERNAL_ERROR'
   }
 
   if (isArkEndpointAccessDeniedMessage(message)) return 'ARK_ENDPOINT_ACCESS_DENIED'

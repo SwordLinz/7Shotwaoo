@@ -103,8 +103,17 @@ export function parseExternalId(externalId: string): {
                 arkProviderKey: 'ark',
             }
         }
-        const arkProviderKey = parts[2]
-        const requestId = parts.slice(3).join(':')
+        /** gemini-compatible:uuid / openai-compatible:uuid 等含冒号的 Wacoo provider id */
+        const segment2 = parts[2]
+        const isCompositeInstance =
+            (segment2 === 'gemini-compatible' || segment2 === 'openai-compatible')
+            && parts.length >= 5
+        const arkProviderKey = isCompositeInstance
+            ? `${segment2}:${parts[3]}`
+            : segment2
+        const requestId = isCompositeInstance
+            ? parts.slice(4).join(':')
+            : parts.slice(3).join(':')
         if (!arkProviderKey?.trim() || !requestId) {
             throw new Error(`无效 ARK externalId: "${externalId}"，缺少 wacooProviderKey 或 taskId`)
         }
@@ -727,8 +736,8 @@ async function pollArkTask(
     wacooProviderKey: string
 ): Promise<PollResult> {
     const key = typeof wacooProviderKey === 'string' ? wacooProviderKey.trim() : ''
-    const { apiKey } = await getProviderConfig(userId, key || 'ark')
-    const result = await querySeedanceVideoStatus(taskId, apiKey)
+    const { apiKey, baseUrl } = await getProviderConfig(userId, key || 'ark')
+    const result = await querySeedanceVideoStatus(taskId, apiKey, { baseUrl })
 
     return {
         status: result.status,

@@ -43,6 +43,13 @@ function classifyProbeFailure(status: number): { status: TestStepStatus; message
   return { status: 'fail', message: `Provider error (${status})` }
 }
 
+function toBearerAuthorization(apiKeyRaw: string): string {
+  const trimmed = apiKeyRaw.trim()
+  if (!trimmed) return ''
+  if (/^Bearer\s+/i.test(trimmed)) return trimmed
+  return `Bearer ${trimmed}`
+}
+
 function toNetworkErrorMessage(error: unknown): string {
   const raw = toErrorMessage(error)
   return `Network error: ${raw}`
@@ -850,7 +857,16 @@ async function testSiliconFlowProvider(apiKey: string): Promise<TestProviderResu
 
 async function testBailianProvider(apiKey: string): Promise<TestProviderResult> {
   const steps: TestStep[] = []
-  const headers = { Authorization: `Bearer ${apiKey}` }
+  const authorization = toBearerAuthorization(apiKey)
+  if (!authorization) {
+    return {
+      success: false,
+      steps: [
+        { name: 'models', status: 'fail', message: 'Missing apiKey' },
+      ],
+    }
+  }
+  const headers = { Authorization: authorization }
 
   try {
     const modelResponse = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/models', {

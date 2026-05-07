@@ -18,8 +18,36 @@ import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core
  * - 视频生成（异步）：`POST /api/v3/contents/generations/tasks`
  * - 请求体 `model`：填**推理接入点 ID**（控制台接入点列，如 `ep-…` 或部分环境为 `ep-m-…`），对应官方模型如 Doubao-Seedance-2.0 / 2.0-fast
  * - 任务查询：`GET /api/v3/contents/generations/tasks/{task_id}`
+ *
+ * 第三方「火山方舟兼容」网关：在提供商中填写根地址（如 `https://token.xinhankr.com`），
+ * 运行时自动拼接为 `…/api/v3` 再访问 `contents/generations/tasks`。
  */
-const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
+export const ARK_OPENAPI_V3_BASE_URL_DEFAULT = 'https://ark.cn-beijing.volces.com/api/v3'
+
+/**
+ * 解析方舟 OpenAPI v3 根路径（不含末尾 `/` 后的子路径）。
+ * - 未配置时使用北京官方 `…/api/v3`
+ * - 仅填站点根时自动追加 `/api/v3`
+ */
+export function resolveArkOpenApiV3BaseUrl(customBaseUrl?: string | null): string {
+    const raw = typeof customBaseUrl === 'string' ? customBaseUrl.trim() : ''
+    if (!raw) {
+        return ARK_OPENAPI_V3_BASE_URL_DEFAULT
+    }
+    const collapsed = raw.replace(/\/+$/, '')
+    if (/\/api\/v3$/i.test(collapsed)) {
+        return collapsed
+    }
+    try {
+        const u = new URL(raw)
+        const p = u.pathname.replace(/\/+$/, '')
+        const nextPath = p === '' || p === '/' ? '/api/v3' : `${p}/api/v3`
+        u.pathname = nextPath.replace(/\/{2,}/g, '/')
+        return u.toString().replace(/\/+$/, '')
+    } catch {
+        return `${collapsed}/api/v3`
+    }
+}
 
 /**
  * 规范化后再拼接到 `Authorization: Bearer …`。
@@ -411,6 +439,8 @@ export async function arkImageGeneration(
     request: ArkImageGenerationRequest,
     options?: {
         apiKey: string  // 必须传入 API Key
+        /** 方舟 OpenAPI 网关根（如 `https://token.xinhankr.com`），省略则用北京官方 */
+        baseUrl?: string
         timeoutMs?: number
         maxRetries?: number
         logPrefix?: string
@@ -418,6 +448,7 @@ export async function arkImageGeneration(
 ): Promise<ArkImageGenerationResponse> {
     const {
         apiKey: rawKey,
+        baseUrl: arkRootOverride,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         maxRetries = MAX_RETRIES,
         logPrefix = '[Ark Image]'
@@ -427,7 +458,8 @@ export async function arkImageGeneration(
         throw new Error('请配置火山引擎 API Key')
     }
 
-    const url = `${ARK_BASE_URL}/images/generations`
+    const base = resolveArkOpenApiV3BaseUrl(arkRootOverride)
+    const url = `${base}/images/generations`
 
     _ulogInfo(`${logPrefix} 开始图片生成请求, 模型: ${request.model}`)
     _ulogInfo(`${logPrefix} 请求参数:`, JSON.stringify({
@@ -471,6 +503,8 @@ export async function arkCreateVideoTask(
     request: ArkVideoTaskRequest,
     options: {
         apiKey: string  // 必须传入 API Key
+        /** 方舟 OpenAPI 网关根；与控制台「Base URL」一致时可只填站点根，会自动补 `/api/v3` */
+        baseUrl?: string
         timeoutMs?: number
         maxRetries?: number
         logPrefix?: string
@@ -484,12 +518,14 @@ export async function arkCreateVideoTask(
     }
 
     const {
+        baseUrl: arkRootOverride,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         maxRetries = MAX_RETRIES,
         logPrefix = '[Ark Video]'
     } = options
 
-    const url = `${ARK_BASE_URL}/contents/generations/tasks`
+    const base = resolveArkOpenApiV3BaseUrl(arkRootOverride)
+    const url = `${base}/contents/generations/tasks`
 
     _ulogInfo(`${logPrefix} 创建视频任务, 模型: ${request.model}`)
 
@@ -526,6 +562,7 @@ export async function arkQueryVideoTask(
     taskId: string,
     options: {
         apiKey: string  // 必须传入 API Key
+        baseUrl?: string
         timeoutMs?: number
         maxRetries?: number
         logPrefix?: string
@@ -537,12 +574,14 @@ export async function arkQueryVideoTask(
     }
 
     const {
+        baseUrl: arkRootOverride,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         maxRetries = MAX_RETRIES,
         logPrefix = '[Ark Video]'
     } = options
 
-    const url = `${ARK_BASE_URL}/contents/generations/tasks/${taskId}`
+    const base = resolveArkOpenApiV3BaseUrl(arkRootOverride)
+    const url = `${base}/contents/generations/tasks/${taskId}`
 
     const response = await fetchWithRetry(
         url,

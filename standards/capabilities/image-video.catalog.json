@@ -281,6 +281,122 @@
   },
   {
     "modelType": "video",
+    "provider": "ark",
+    "modelId": "doubao-seedance-2-0",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal",
+          "firstlastframe"
+        ],
+        "generateAudioOptions": [
+          true,
+          false
+        ],
+        "durationOptions": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "resolutionOptions": [
+          "480p",
+          "720p",
+          "1080p"
+        ],
+        "firstlastframe": true,
+        "supportGenerateAudio": true,
+        "supportsMultipleReferenceImages": true
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "ark",
+    "modelId": "doubao-seedance-2-0-260128",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal",
+          "firstlastframe"
+        ],
+        "generateAudioOptions": [
+          true,
+          false
+        ],
+        "durationOptions": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "resolutionOptions": [
+          "480p",
+          "720p",
+          "1080p"
+        ],
+        "firstlastframe": true,
+        "supportGenerateAudio": true,
+        "supportsMultipleReferenceImages": true
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "ark",
+    "modelId": "doubao-seedance-2-0-fast",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal"
+        ],
+        "generateAudioOptions": [
+          true,
+          false
+        ],
+        "durationOptions": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "resolutionOptions": [
+          "480p",
+          "720p",
+          "1080p"
+        ],
+        "firstlastframe": false,
+        "supportGenerateAudio": true,
+        "supportsMultipleReferenceImages": true
+      }
+    }
+  },
+  {
+    "modelType": "video",
     "provider": "niuniu",
     "modelId": "doubao-seedance-2-0",
     "capabilities": {
@@ -309,7 +425,8 @@
         ],
         "resolutionOptions": [
           "480p",
-          "720p"
+          "720p",
+          "1080p"
         ],
         "firstlastframe": true,
         "supportGenerateAudio": true,
@@ -346,7 +463,8 @@
         ],
         "resolutionOptions": [
           "480p",
-          "720p"
+          "720p",
+          "1080p"
         ],
         "firstlastframe": false,
         "supportGenerateAudio": true,
@@ -721,6 +839,124 @@
         ],
         "firstlastframe": true,
         "supportGenerateAudio": false
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "bailian",
+    "modelId": "happyhorse-1.0-t2v",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal"
+        ],
+        "durationOptions": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "firstlastframe": false,
+        "supportGenerateAudio": true
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "bailian",
+    "modelId": "happyhorse-1.0-i2v",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal"
+        ],
+        "durationOptions": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "firstlastframe": false,
+        "supportGenerateAudio": true
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "bailian",
+    "modelId": "happyhorse-1.0-r2v",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal"
+        ],
+        "durationOptions": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "firstlastframe": false,
+        "supportGenerateAudio": true,
+        "supportsMultipleReferenceImages": true
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "bailian",
+    "modelId": "happyhorse-1.0-video-edit",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal"
+        ],
+        "durationOptions": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "firstlastframe": false,
+        "supportGenerateAudio": true,
+        "supportsMultipleReferenceImages": true
       }
     }
   },

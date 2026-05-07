@@ -150,8 +150,9 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'doubao-seedance-1-0-pro-fast-251015', name: 'Seedance 1.0 Pro Fast', type: 'video', provider: 'ark' },
     { modelId: 'doubao-seedance-1-0-lite-i2v-250428', name: 'Seedance 1.0 Lite', type: 'video', provider: 'ark' },
     { modelId: 'doubao-seedance-1-5-pro-251215', name: 'Seedance 1.5 Pro', type: 'video', provider: 'ark' },
-    { modelId: 'doubao-seedance-2-0', name: 'Seedance 2.0', type: 'video', provider: 'niuniu' },
-    { modelId: 'doubao-seedance-2-0-fast', name: 'Seedance 2.0 Fast', type: 'video', provider: 'niuniu' },
+    { modelId: 'doubao-seedance-2-0', name: 'Seedance 2.0', type: 'video', provider: 'ark' },
+    { modelId: 'doubao-seedance-2-0-260128', name: 'Seedance 2.0', type: 'video', provider: 'ark' },
+    { modelId: 'doubao-seedance-2-0-fast', name: 'Seedance 2.0 Fast', type: 'video', provider: 'ark' },
     { modelId: 'doubao-seedance-1-0-pro-250528', name: 'Seedance 1.0 Pro', type: 'video', provider: 'ark' },
     // Google Veo
     { modelId: 'veo-3.1-generate-preview', name: 'Veo 3.1', type: 'video', provider: 'google' },
@@ -166,13 +167,15 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'wan2.2-i2v-plus', name: 'Wan2.2 I2V Plus', type: 'video', provider: 'bailian' },
     { modelId: 'wan2.2-kf2v-flash', name: 'Wan2.2 KF2V Flash', type: 'video', provider: 'bailian' },
     { modelId: 'wanx2.1-kf2v-plus', name: 'WanX2.1 KF2V Plus', type: 'video', provider: 'bailian' },
+    { modelId: 'happyhorse-1.0-t2v', name: 'HappyHorse 1.0 T2V', type: 'video', provider: 'bailian' },
+    { modelId: 'happyhorse-1.0-i2v', name: 'HappyHorse 1.0 I2V', type: 'video', provider: 'bailian' },
+    { modelId: 'happyhorse-1.0-r2v', name: 'HappyHorse 1.0 R2V', type: 'video', provider: 'bailian' },
+    { modelId: 'happyhorse-1.0-video-edit', name: 'HappyHorse 1.0 Video Edit', type: 'video', provider: 'bailian' },
     { modelId: 'fal-wan25', name: 'Wan 2.6', type: 'video', provider: 'fal' },
     { modelId: 'fal-veo31', name: 'Veo 3.1', type: 'video', provider: 'fal' },
     { modelId: 'fal-sora2', name: 'Sora 2', type: 'video', provider: 'fal' },
     { modelId: 'kling-video-o1', name: 'Kling O1（官方 API）', type: 'video', provider: 'kling' },
     { modelId: 'kling-v3-omni', name: 'Kling V3 Omni（官方 API）', type: 'video', provider: 'kling' },
-    { modelId: 'sparkvideo-2.0-i2v', name: 'RunningHub 超能视频 2.0（图生视频）', type: 'video', provider: 'runninghub' },
-    { modelId: 'chaoneng-realpeople-i2v', name: 'RunningHub 超能视频（真人视频）', type: 'video', provider: 'runninghub' },
 
     // 音频模型
     { modelId: 'fal-ai/index-tts-2/text-to-speech', name: 'IndexTTS 2', type: 'audio', provider: 'fal' },
@@ -213,8 +216,6 @@ export function isPresetComingSoonModelKey(modelKey: string): boolean {
 // 预设提供商（API Key 唯一归属于 provider id）
 export const PRESET_PROVIDERS: Omit<Provider, 'apiKey' | 'hasApiKey'>[] = [
     { id: 'ark', name: 'Volcengine Ark' },
-    /** 火山 Seedance 2（方舟 ep），独立 Key，与 ark 并存 */
-    { id: 'niuniu', name: 'Niuniu (Volcengine Ark EP)' },
     { id: 'google', name: 'Google AI Studio' },
     { id: 'bailian', name: 'Alibaba Bailian' },
     { id: 'openrouter', name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
@@ -223,7 +224,6 @@ export const PRESET_PROVIDERS: Omit<Provider, 'apiKey' | 'hasApiKey'>[] = [
     { id: 'fal', name: 'FAL' },
     // KlingAI (可灵) 官方 OpenAPI（北京）
     { id: 'kling', name: 'Kling AI', baseUrl: 'https://api-beijing.klingai.com' },
-    { id: 'runninghub', name: 'RunningHub', baseUrl: 'https://www.runninghub.cn/openapi/v2' },
     { id: 'youchuan', name: 'Youchuan AI' },
 ]
 
@@ -266,8 +266,10 @@ export function getProviderDisplayName(providerId?: string, locale?: string): st
     if (!providerId) return ''
     const providerKey = getProviderKey(providerId)
     const provider = PRESET_PROVIDERS.find(p => p.id === providerKey)
-    if (!provider) return providerId
-    return resolvePresetProviderName(provider.id, provider.name, locale)
+    if (provider) return resolvePresetProviderName(provider.id, provider.name, locale)
+    const zhLegacy = isZhLocale(locale) ? ZH_PROVIDER_NAME_MAP[providerKey] : undefined
+    if (zhLegacy) return zhLegacy
+    return providerId
 }
 
 /**

@@ -1,4 +1,5 @@
 import { normalizeArkApiKeyForBearer } from '@/lib/ark-api'
+import { classifyArkGenerationTaskPhase, extractSeedanceTaskVideoUrl } from '@/lib/async-task-utils'
 import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core'
 /**
  * 异步任务提交工具
@@ -260,21 +261,27 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
         }
     }
 
-    const data = await response.json()
-    const status = data.status
+    const data: unknown = await response.json()
+    const pollPhase = classifyArkGenerationTaskPhase(data)
 
-    if (status === 'succeeded') {
+    if (pollPhase === 'success') {
         return {
             status: 'succeeded',
             completed: true,
             failed: false,
-            resultUrl: data.content?.video_url
+            resultUrl: extractSeedanceTaskVideoUrl(data),
         }
     }
 
-    if (status === 'failed') {
-        const errorObj = data.error || {}
-        let errorMessage = errorObj.message || '任务失败'
+    if (pollPhase === 'failure') {
+        const record = data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, unknown>) : {}
+        const errorObj = record.error && typeof record.error === 'object' && !Array.isArray(record.error)
+            ? (record.error as Record<string, unknown>)
+            : {}
+        let errorMessage =
+            typeof errorObj.message === 'string' && errorObj.message.trim().length > 0
+                ? errorObj.message.trim()
+                : '任务失败'
 
         // 友好的错误信息
         if (errorObj.code === 'OutputVideoSensitiveContentDetected') {
@@ -291,10 +298,14 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
         }
     }
 
+    const record =
+        data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, unknown>) : {}
+    const rawStatus = typeof record.status === 'string' ? record.status : 'unknown'
+
     return {
-        status,
+        status: rawStatus,
         completed: false,
-        failed: false
+        failed: false,
     }
 }
 

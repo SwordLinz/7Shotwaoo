@@ -191,7 +191,6 @@ const OPTIONAL_PRICING_PROVIDER_KEYS = new Set([
   'gemini-compatible',
   'bailian',
   'siliconflow',
-  'runninghub',
 ])
 const OFFICIAL_ONLY_PROVIDER_KEYS = new Set(['bailian', 'siliconflow'])
 const RETIRED_PROVIDER_KEYS = new Set(['qwen'])
@@ -1729,6 +1728,30 @@ export const GET = apiHandler(async () => {
         provider: p.id,
         price: 0,
         // alias 回退自动从 google catalog 获取 capabilities
+        capabilities: findBuiltinCapabilities(preset.type, p.id, preset.modelId),
+      }
+      disabledPresets.push({ ...withDisplayPricing(base, pricingDisplay), enabled: false })
+    }
+  }
+
+  // openai-compatible：注入常用图像模型预设（未保存过的以 disabled 展示，用户可一键启用）
+  const OPENAI_COMPATIBLE_IMAGE_PRESETS: { type: UnifiedModelType; modelId: string; name: string }[] = [
+    { type: 'image', modelId: 'gpt-image-1', name: 'GPT Image 1' },
+    { type: 'image', modelId: 'gpt-image-2', name: 'GPT Image 2' },
+  ]
+  for (const p of providers) {
+    if (getProviderKey(p.id) !== 'openai-compatible') continue
+    for (const preset of OPENAI_COMPATIBLE_IMAGE_PRESETS) {
+      const modelKey = composeModelKey(p.id, preset.modelId)
+      if (!modelKey || savedModelKeys.has(modelKey)) continue
+      savedModelKeys.add(modelKey)
+      const base: StoredModel = {
+        modelId: preset.modelId,
+        modelKey,
+        name: preset.name,
+        type: preset.type,
+        provider: p.id,
+        price: 0,
         capabilities: findBuiltinCapabilities(preset.type, p.id, preset.modelId),
       }
       disabledPresets.push({ ...withDisplayPricing(base, pricingDisplay), enabled: false })

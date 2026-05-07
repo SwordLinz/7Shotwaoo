@@ -57,6 +57,16 @@ describe('normalizeAnyError provider-specific mapping', () => {
     expect(normalized.retryable).toBe(true)
   })
 
+  it('maps JSON-wrapped HTTP 500 (e.g. gateway HTML body) to EXTERNAL_ERROR', () => {
+    const normalized = normalizeAnyError(
+      new Error(
+        '{"error":{"message":"<html>\\r\\n<head><title>500 Internal Server Error</title></head>\\r\\n<body>\\r\\n<center><h1>500 Internal Server Error</h1></center>\\r\\n<hr><center>nginx</center>\\r\\n</body>\\r\\n</html>\\r\\n","code":500,"status":"Internal Server Error"}}',
+      ),
+    )
+    expect(normalized.code).toBe('EXTERNAL_ERROR')
+    expect(normalized.retryable).toBe(true)
+  })
+
   it('maps openai-compatible video template mismatch to VIDEO_API_FORMAT_UNSUPPORTED', () => {
     const normalized = normalizeAnyError(
       new Error('VIDEO_API_FORMAT_UNSUPPORTED: OPENAI_COMPAT_VIDEO_TEMPLATE_TASK_ID_NOT_FOUND'),

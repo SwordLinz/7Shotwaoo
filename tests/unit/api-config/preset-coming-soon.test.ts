@@ -15,21 +15,21 @@ describe('api-config preset coming soon', () => {
     expect(model?.name).toBe('Nano Banana 2')
   })
 
-  it('registers Seedance 2.0 preset models under niuniu', () => {
+  it('registers Seedance 2.0 preset models under Volcengine Ark', () => {
     const seedance2 = PRESET_MODELS.find(
-      (entry) => entry.provider === 'niuniu' && entry.modelId === 'doubao-seedance-2-0',
+      (entry) => entry.provider === 'ark' && entry.modelId === 'doubao-seedance-2-0',
     )
     const seedance2Fast = PRESET_MODELS.find(
-      (entry) => entry.provider === 'niuniu' && entry.modelId === 'doubao-seedance-2-0-fast',
+      (entry) => entry.provider === 'ark' && entry.modelId === 'doubao-seedance-2-0-fast',
     )
     expect(seedance2?.name).toBe('Seedance 2.0')
     expect(seedance2Fast?.name).toBe('Seedance 2.0 Fast')
   })
 
   it('does not mark Seedance 2.0 as coming soon', () => {
-    expect(isPresetComingSoonModel('niuniu', 'doubao-seedance-2-0')).toBe(false)
-    expect(isPresetComingSoonModel('niuniu', 'doubao-seedance-2-0-fast')).toBe(false)
-    expect(isPresetComingSoonModelKey(encodeModelKey('niuniu', 'doubao-seedance-2-0'))).toBe(false)
+    expect(isPresetComingSoonModel('ark', 'doubao-seedance-2-0')).toBe(false)
+    expect(isPresetComingSoonModel('ark', 'doubao-seedance-2-0-fast')).toBe(false)
+    expect(isPresetComingSoonModelKey(encodeModelKey('ark', 'doubao-seedance-2-0'))).toBe(false)
   })
 
   it('does not mark normal preset models as coming soon', () => {
@@ -50,6 +50,10 @@ describe('api-config preset coming soon', () => {
       'wan2.2-i2v-plus',
       'wan2.2-kf2v-flash',
       'wanx2.1-kf2v-plus',
+      'happyhorse-1.0-t2v',
+      'happyhorse-1.0-i2v',
+      'happyhorse-1.0-r2v',
+      'happyhorse-1.0-video-edit',
     ]))
   })
 })

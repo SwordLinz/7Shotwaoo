@@ -268,7 +268,7 @@ export async function generateVideo(
         })
     }
 
-    const generator = createVideoGenerator(selection.provider)
+    const generator = createVideoGenerator(selection.provider, selection.modelId)
     return await generator.generate({
         userId,
         imageUrl,

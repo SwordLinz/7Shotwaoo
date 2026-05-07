@@ -69,10 +69,13 @@ export const queueRedis = singleton.queue || (singleton.queue = createQueueRedis
  * 创建仅用于 SUBSCRIBE/UNSUBSCRIBE 的独立连接。
  * Redis 规定：一旦连接执行过 SUBSCRIBE，该连接进入「订阅模式」，只能再发订阅相关命令；
  * 若在同一连接上执行 PUBLISH/GET/SET 等会报 "Connection in subscriber mode"。
- * 使用 duplicate() 得到一条与 app 配置相同的新连接，专供 SSE 订阅，绝不混用。
+ * 使用独立配置的全新连接（勿用队列/BullMQ 连接，也避免 duplicate(app) 在部分环境下的异常复用）。
  */
 export function createSubscriber() {
-  const client = redis.duplicate()
+  const client = new Redis({
+    ...buildBaseConfig(),
+    maxRetriesPerRequest: 2,
+  })
   onConnectLog('sub', client)
   return client
 }

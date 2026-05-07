@@ -242,6 +242,19 @@ export function findBuiltinPricingCatalogEntry(
     if (keyEntry) return cloneEntry(keyEntry)
   }
 
+  if (providerKey === 'gemini-compatible' && apiType === 'video' && modelId.startsWith('doubao-seedance')) {
+    const seedanceCanonical: Record<string, string> = {
+      'doubao-seedance-2-0-260128': 'doubao-seedance-2-0',
+    }
+    const canonId = seedanceCanonical[modelId] ?? modelId
+    const fromCatalog =
+      loaded.exact.get(`${apiType}::ark::${canonId}`)
+      ?? loaded.exact.get(`${apiType}::ark::${modelId}`)
+      ?? loaded.exact.get(`${apiType}::niuniu::${canonId}`)
+      ?? loaded.exact.get(`${apiType}::niuniu::${modelId}`)
+    if (fromCatalog) return cloneEntry(fromCatalog)
+  }
+
   // Alias fallback: look up the canonical provider
   const aliasTarget = PROVIDER_ALIASES[providerKey]
   if (aliasTarget) {
