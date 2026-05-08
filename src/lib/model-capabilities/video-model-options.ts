@@ -40,8 +40,8 @@ export function isSmartReferenceVideoModelKey(modelKey: string | null | undefine
 }
 
 /**
- * 智能参考流程：仅保留支持多参考图的模型（如 Kling Omni/O1、RunningHub 超能视频系列）。
- * 仅以 provider::modelId 白名单为准，避免目录字段被误标导致错误放行。
+ * 历史白名单：部分「多参考图」视频模型 key（测试与能力识别用）。
+ * 工作区视频模型列表请使用 {@link resolveVideoModelOptionsForWorkflow}，不再按此名单限制智能参考模式。
  */
 export function isSmartReferenceVideoModel(
   model: VideoModelCapabilityCarrier & { value: string },
@@ -55,12 +55,12 @@ export function filterSmartReferenceVideoModelOptions<
   return models.filter(isSmartReferenceVideoModel)
 }
 
+/**
+ * 工作区配置里可用的视频模型列表（与剧本/剪辑等阶段一致）。
+ * 智能参考生视频不再单独限制为少数「多参考图」白名单模型，由用户任选已配置的常用视频模型。
+ */
 export function resolveVideoModelOptionsForWorkflow<
   T extends VideoModelCapabilityCarrier & { value: string },
->(models: T[], workflowMode: WorkflowModeForVideoFilter | undefined): T[] {
-  const base = filterNormalVideoModelOptions(models)
-  if (workflowMode === 'smart-reference') {
-    return filterSmartReferenceVideoModelOptions(base)
-  }
-  return base
+>(models: T[], _workflowMode?: WorkflowModeForVideoFilter | undefined): T[] {
+  return filterNormalVideoModelOptions(models)
 }

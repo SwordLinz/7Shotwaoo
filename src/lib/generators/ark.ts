@@ -63,6 +63,10 @@ interface ArkVideoOptions {
     watermark?: boolean
     provider?: string
     modelKey?: string
+    /** Kling 等会传，Seedance 侧忽略，仅避免与智能参考任务参数冲突 */
+    imageMode?: string
+    /** 智能参考等多参考图：`JSON.stringify(string[])`，方舟映射为 content 中 role=reference_image */
+    _referenceImageUrlsJson?: string
 }
 
 type ArkVideoContentItem =
@@ -345,6 +349,18 @@ export class ArkImageGenerator extends BaseImageGenerator {
 // ARK 视频生成器 (Seedance)
 // ============================================================
 
+function parseArkExtraReferenceImageUrls(options: ArkVideoOptions): string[] {
+    const raw = options._referenceImageUrlsJson
+    if (typeof raw !== 'string' || !raw.trim()) return []
+    try {
+        const parsed = JSON.parse(raw) as unknown
+        if (!Array.isArray(parsed)) return []
+        return parsed.filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
+    } catch {
+        return []
+    }
+}
+
 export class ArkVideoGenerator extends BaseVideoGenerator {
     protected async doGenerate(params: VideoGenerateParams): Promise<GenerateResult> {
         const { userId, imageUrl, prompt = '', options = {} } = params
@@ -387,6 +403,8 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
             'seed',
             'cameraFixed',
             'watermark',
+            'imageMode',
+            '_referenceImageUrlsJson',
         ])
         for (const [key, value] of Object.entries(options)) {
             if (value === undefined) continue
@@ -402,6 +420,15 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         const modelSpec = ARK_SEEDANCE_MODEL_SPECS[specModelId]
         if (!modelSpec) {
             throw new Error(`ARK_VIDEO_MODEL_UNSUPPORTED: ${realModel}`)
+        }
+
+        /** 智能参考等多图：与首尾帧 / return_last_frame 在方舟侧互斥（否则会报 content 混用） */
+        const extraReferenceImageUrls = parseArkExtraReferenceImageUrls(options as ArkVideoOptions)
+        const isMultiReferenceImageMode = extraReferenceImageUrls.length > 0
+        const effectiveLastFrameImageUrl =
+            lastFrameImageUrl && !isMultiReferenceImageMode ? lastFrameImageUrl : undefined
+        if (lastFrameImageUrl && isMultiReferenceImageMode) {
+            _ulogInfo('[ARK Video] 多 reference_image：忽略 lastFrameImageUrl')
         }
 
         if (isBatchMode && !modelSpec.supportsBatchFlex) {
@@ -440,7 +467,7 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         if (aspectRatio !== undefined && !ARK_VIDEO_ALLOWED_RATIOS.has(aspectRatio)) {
             throw new Error(`ARK_VIDEO_OPTION_VALUE_UNSUPPORTED: aspectRatio=${aspectRatio}`)
         }
-        if (lastFrameImageUrl && !modelSpec.supportsFirstLastFrame) {
+        if (effectiveLastFrameImageUrl && !modelSpec.supportsFirstLastFrame) {
             throw new Error(`ARK_VIDEO_OPTION_UNSUPPORTED: lastFrameImageUrl for ${realModel}`)
         }
         if (cameraFixed === true && !modelSpec.supportsCameraFixed) {
@@ -500,9 +527,9 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
             content.push({ type: 'text', text: prompt })
         }
 
-        if (lastFrameImageUrl) {
-            // 首尾帧模式
-            const lastImageBase64 = await normalizeToBase64ForGeneration(lastFrameImageUrl)
+        if (effectiveLastFrameImageUrl) {
+            // 首尾帧模式（仅当没有多 reference_image 时）
+            const lastImageBase64 = await normalizeToBase64ForGeneration(effectiveLastFrameImageUrl)
             content.push({
                 type: 'image_url',
                 image_url: { url: imageBase64 },
@@ -514,10 +541,26 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
                 role: 'last_frame'
             })
             _ulogInfo(`[ARK Video] 首尾帧模式`)
+        } else if (isMultiReferenceImageMode) {
+            // Seedance 2.0 等：多参考角色、场景 — 全部为 reference_image（与 first_frame 不能混用）
+            content.push({
+                type: 'image_url',
+                image_url: { url: imageBase64 },
+                role: 'reference_image',
+            })
+            for (const refUrl of extraReferenceImageUrls) {
+                const refB64 = await normalizeToBase64ForGeneration(refUrl)
+                content.push({
+                    type: 'image_url',
+                    image_url: { url: refB64 },
+                    role: 'reference_image',
+                })
+            }
+            _ulogInfo(`[ARK Video] 多图参考模式: ${1 + extraReferenceImageUrls.length} 张 reference_image`)
         } else {
             content.push({
                 type: 'image_url',
-                image_url: { url: imageBase64 }
+                image_url: { url: imageBase64 },
             })
         }
 
@@ -562,8 +605,10 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         if (typeof watermark === 'boolean') {
             requestBody.watermark = watermark
         }
-        if (typeof returnLastFrame === 'boolean') {
+        if (typeof returnLastFrame === 'boolean' && !isMultiReferenceImageMode) {
             requestBody.return_last_frame = returnLastFrame
+        } else if (isMultiReferenceImageMode && returnLastFrame === true) {
+            _ulogInfo('[ARK Video] 多参考模式不传 return_last_frame，避免与 reference 内容冲突')
         }
         if (typeof draft === 'boolean') {
             requestBody.draft = draft

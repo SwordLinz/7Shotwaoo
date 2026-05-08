@@ -67,7 +67,7 @@ interface SettingsModalProps {
     onVideoRatioChange?: (value: string) => void
     onCapabilityOverridesChange?: (value: CapabilitySelections) => void
     onTTSRateChange?: (value: string) => void
-    /** 智能参考模式：视频模型下拉仅显示支持多参考图的 API */
+    /** 预留：与工作流区分视频列表（当前各模式列表一致） */
     workflowMode?: WorkflowMode
 }
 
@@ -171,17 +171,6 @@ export function SettingsModal({
         () => resolvedVideoModels.find((model) => model.value === videoModel) || null,
         [resolvedVideoModels, videoModel],
     )
-
-    useEffect(() => {
-        if (!isOpen) return
-        if (workflowMode !== 'smart-reference') return
-        if (!onVideoModelChange) return
-        if (resolvedVideoModels.length === 0) return
-        const ok = Boolean(videoModel && resolvedVideoModels.some((m) => m.value === videoModel))
-        if (!ok) {
-            void onVideoModelChange(resolvedVideoModels[0].value)
-        }
-    }, [isOpen, workflowMode, videoModel, resolvedVideoModels, onVideoModelChange])
 
     const selectedAnalysisModelOption = useMemo(
         () => userModels.llm.find((model) => model.value === analysisModel) || null,

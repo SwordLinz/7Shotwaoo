@@ -13,7 +13,10 @@ interface ImageEditModalAssetPickerProps {
   locations: Location[]
   referenceAssets?: ReferenceAsset[]
   selectedAssets: SelectedAsset[]
+  /** 底部确认按钮 */
   onClose: () => void
+  /** 右上角关闭；未传时与 onClose 相同 */
+  onCancel?: () => void
   onAddAsset: (asset: SelectedAsset) => void
   onRemoveAsset: (assetId: string, assetType: string) => void
   onPreviewImage: (url: string | null) => void
@@ -26,6 +29,7 @@ export default function ImageEditModalAssetPicker({
   referenceAssets = [],
   selectedAssets,
   onClose,
+  onCancel,
   onAddAsset,
   onRemoveAsset,
   onPreviewImage,
@@ -39,7 +43,11 @@ export default function ImageEditModalAssetPicker({
       <div className="glass-surface-modal w-full max-w-lg max-h-[80vh] overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between">
           <h4 className="font-bold text-[var(--glass-text-primary)]">{t('imageEdit.selectAsset')}</h4>
-          <button onClick={onClose} className="text-[var(--glass-text-tertiary)] hover:text-[var(--glass-text-secondary)]">
+          <button
+            type="button"
+            onClick={() => (onCancel ?? onClose)()}
+            className="text-[var(--glass-text-tertiary)] hover:text-[var(--glass-text-secondary)]"
+          >
             <AppIcon name="close" className="w-5 h-5" />
           </button>
         </div>

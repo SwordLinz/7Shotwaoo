@@ -110,7 +110,7 @@ describe('video model options partition', () => {
     expect(isSmartReferenceVideoModel(mixed[3])).toBe(false)
   })
 
-  it('resolveVideoModelOptionsForWorkflow applies smart-reference filter only for that mode', () => {
+  it('resolveVideoModelOptionsForWorkflow matches normal workflow for smart-reference (no extra filter)', () => {
     const list: VideoModelOption[] = [
       {
         value: 'kling::kling-video-o1',
@@ -123,12 +123,8 @@ describe('video model options partition', () => {
         capabilities: { video: { generationModeOptions: ['normal'] } },
       },
     ]
-    expect(resolveVideoModelOptionsForWorkflow(list, 'srt').map((m) => m.value)).toEqual([
-      'kling::kling-video-o1',
-      'ark::doubao-seedance-1-0-pro-250528',
-    ])
-    expect(resolveVideoModelOptionsForWorkflow(list, 'smart-reference').map((m) => m.value)).toEqual([
-      'kling::kling-video-o1',
-    ])
+    const expected = ['kling::kling-video-o1', 'ark::doubao-seedance-1-0-pro-250528']
+    expect(resolveVideoModelOptionsForWorkflow(list, 'srt').map((m) => m.value)).toEqual(expected)
+    expect(resolveVideoModelOptionsForWorkflow(list, 'smart-reference').map((m) => m.value)).toEqual(expected)
   })
 })
