@@ -4,7 +4,9 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN npm ci
+# The repository lockfile can drift from package.json; use install here so
+# internal deployments stay buildable instead of failing hard on npm ci.
+RUN npm install
 
 # ==================== Stage 2: Build ====================
 FROM node:20-alpine AS builder

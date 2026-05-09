@@ -104,8 +104,8 @@ services:
       BULL_BOARD_HOST: "0.0.0.0"
       BULL_BOARD_PORT: "3010"
       BULL_BOARD_BASE_PATH: "/admin/queues"
-      BULL_BOARD_USER: ""
-      BULL_BOARD_PASSWORD: ""
+      BULL_BOARD_USER: ${BULL_BOARD_USER}
+      BULL_BOARD_PASSWORD: ${BULL_BOARD_PASSWORD}
       # 日志
       LOG_UNIFIED_ENABLED: "true"
       LOG_LEVEL: "INFO"
