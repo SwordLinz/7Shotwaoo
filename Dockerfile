@@ -59,4 +59,4 @@ RUN mkdir -p /app/logs && touch /app/.env
 EXPOSE 3000 3010
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["npm", "run", "start"]
+CMD ["sh", "-c", "${START_CMD:-npm run start}"]
