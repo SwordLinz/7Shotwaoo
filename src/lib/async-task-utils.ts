@@ -5,13 +5,14 @@
  * 注意：API Key 现在通过参数传入，不再使用环境变量
  */
 
-import { normalizeArkApiKeyForBearer, resolveArkOpenApiV3BaseUrl } from '@/lib/ark-api'
 import { logInternal } from './logging/semantic'
+import { buildFalQueueUrl } from '@/lib/providers/fal/base-url'
 
 export interface TaskStatus {
     status: 'pending' | 'completed' | 'failed'
     imageUrl?: string
     videoUrl?: string
+    actualVideoTokens?: number
     error?: string
 }
 
@@ -21,116 +22,21 @@ function asRecord(value: unknown): UnknownRecord | null {
     return value && typeof value === 'object' ? (value as UnknownRecord) : null
 }
 
-function readTrimmedString(value: unknown): string | undefined {
-    if (typeof value !== 'string') return undefined
-    const t = value.trim()
-    return t.length > 0 ? t : undefined
-}
-
-function normalizeUpstreamTaskStatus(raw: unknown): string {
-    return typeof raw === 'string' ? raw.trim().toLowerCase() : ''
-}
-
-function isUpstreamTaskSucceeded(norm: string): boolean {
-    return (
-        norm === 'succeeded'
-        || norm === 'success'
-        || norm === 'completed'
-        || norm === 'complete'
-        || norm === 'finish'
-        || norm === 'finished'
-    )
-}
-
-function isUpstreamTaskFailed(norm: string): boolean {
-    return (
-        norm === 'failed'
-        || norm === 'failure'
-        || norm === 'error'
-        || norm === 'canceled'
-        || norm === 'cancelled'
-    )
-}
-
-/**
- * 方舟官方与兼容网关：`GET …/contents/generations/tasks/{id}` 成功时成片 URL 可能出现在多条路径。
- */
-export function extractSeedanceTaskVideoUrl(queryData: unknown): string | undefined {
-    const root = asRecord(queryData)
-    if (!root) return undefined
-
-    for (const u of [
-        readTrimmedString(root.video_url),
-        readTrimmedString(root.videoUrl),
-    ]) {
-        if (u) return u
+function readArkVideoUrl(content: unknown): string | undefined {
+    const contentRecord = asRecord(content)
+    if (contentRecord && typeof contentRecord.video_url === 'string' && contentRecord.video_url.trim()) {
+        return contentRecord.video_url.trim()
     }
 
-    const outputUnknown = root.output
-    const outputRec = asRecord(outputUnknown)
-    if (outputRec) {
-        const u = readTrimmedString(outputRec.video_url) || readTrimmedString(outputRec.url)
-        if (u) return u
-    }
-    if (Array.isArray(outputUnknown) && outputUnknown.length > 0) {
-        const first = asRecord(outputUnknown[0])
-        const u = readTrimmedString(first?.video_url) || readTrimmedString(first?.url)
-        if (u) return u
-    }
-
-    const result = asRecord(root.result)
-    if (result) {
-        const u = readTrimmedString(result.video_url) || readTrimmedString(result.url)
-        if (u) return u
-    }
-
-    let contentUnknown: unknown = root.content
-    if (typeof contentUnknown === 'string') {
-        try {
-            contentUnknown = JSON.parse(contentUnknown) as unknown
-        } catch {
-            contentUnknown = undefined
+    if (!Array.isArray(content)) return undefined
+    for (const item of content) {
+        const itemRecord = asRecord(item)
+        const videoUrl = asRecord(itemRecord?.video_url)
+        if (videoUrl && typeof videoUrl.url === 'string' && videoUrl.url.trim()) {
+            return videoUrl.url.trim()
         }
     }
-
-    if (Array.isArray(contentUnknown)) {
-        for (const item of contentUnknown) {
-            const rec = asRecord(item)
-            if (!rec) continue
-            if (rec.type === 'video_url') {
-                const nested = asRecord(rec.video_url)
-                const u = readTrimmedString(nested?.url)
-                if (u) return u
-            }
-            const flat = readTrimmedString(rec.video_url) || readTrimmedString(rec.url)
-            if (flat) return flat
-        }
-        return undefined
-    }
-
-    const content = asRecord(contentUnknown)
-    if (content) {
-        const u = readTrimmedString(content.video_url) || readTrimmedString(content.url)
-        if (u) return u
-    }
-
-    const choicesUnknown = root.choices
-    if (Array.isArray(choicesUnknown) && choicesUnknown.length > 0) {
-        const firstChoice = asRecord(choicesUnknown[0])
-        const message = firstChoice ? asRecord(firstChoice.message) : null
-        const u = message ? readTrimmedString(message.video_url) : undefined
-        if (u) return u
-    }
-
     return undefined
-}
-
-export function classifyArkGenerationTaskPhase(data: unknown): 'success' | 'failure' | 'running' {
-    const root = asRecord(data)
-    const norm = normalizeUpstreamTaskStatus(root?.status)
-    if (isUpstreamTaskSucceeded(norm)) return 'success'
-    if (isUpstreamTaskFailed(norm)) return 'failure'
-    return 'running'
 }
 
 function getErrorMessage(error: unknown): string {
@@ -164,7 +70,7 @@ export async function queryBananaTaskStatus(requestId: string, apiKey: string): 
 
     try {
         const statusResponse = await fetch(
-            `https://queue.fal.run/fal-ai/nano-banana-pro/requests/${requestId}/status`,
+            buildFalQueueUrl(`fal-ai/nano-banana-pro/requests/${requestId}/status`),
             {
                 headers: { 'Authorization': `Key ${apiKey}` },
                 cache: 'no-store'
@@ -181,7 +87,7 @@ export async function queryBananaTaskStatus(requestId: string, apiKey: string): 
         if (data.status === 'COMPLETED') {
             // 获取结果
             const resultResponse = await fetch(
-                `https://queue.fal.run/fal-ai/nano-banana-pro/requests/${requestId}`,
+                buildFalQueueUrl(`fal-ai/nano-banana-pro/requests/${requestId}`),
                 {
                     headers: { 'Authorization': `Key ${apiKey}` },
                     cache: 'no-store'
@@ -391,28 +297,21 @@ export async function queryGoogleVideoStatus(operationName: string, apiKey: stri
 /**
  * 查询 Seedance 视频任务状态
  * @param taskId 任务ID
- * @param apiKey 火山引擎 API Key（或兼容网关的 sk-…）
- * @param options.baseUrl 方舟兼容网关根地址（可省略路径，将自动补 `/api/v3`）
+ * @param apiKey 火山引擎 API Key
  */
-export async function querySeedanceVideoStatus(
-    taskId: string,
-    apiKey: string,
-    options?: { baseUrl?: string },
-): Promise<TaskStatus> {
-    const token = normalizeArkApiKeyForBearer(apiKey)
-    if (!token) {
+export async function querySeedanceVideoStatus(taskId: string, apiKey: string): Promise<TaskStatus> {
+    if (!apiKey) {
         throw new Error('请配置火山引擎 API Key')
     }
 
     try {
-        const base = resolveArkOpenApiV3BaseUrl(options?.baseUrl)
         const queryResponse = await fetch(
-            `${base}/contents/generations/tasks/${taskId}`,
+            `https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/${taskId}`,
             {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${apiKey}`
                 },
                 cache: 'no-store'
             }
@@ -423,26 +322,27 @@ export async function querySeedanceVideoStatus(
             return { status: 'pending' }
         }
 
-        const queryData: unknown = await queryResponse.json()
-        const phase = classifyArkGenerationTaskPhase(queryData)
+        const queryData = await queryResponse.json()
+        const status = queryData.status
+        const actualVideoTokens = typeof queryData?.usage?.total_tokens === 'number'
+            ? queryData.usage.total_tokens
+            : undefined
 
-        if (phase === 'success') {
-            const videoUrl = extractSeedanceTaskVideoUrl(queryData)
+        if (status === 'succeeded') {
+            const videoUrl = readArkVideoUrl(queryData.content)
 
             if (videoUrl) {
-                return { status: 'completed', videoUrl }
+                return {
+                    status: 'completed',
+                    videoUrl,
+                    ...(typeof actualVideoTokens === 'number' ? { actualVideoTokens } : {}),
+                }
             }
 
-            logInternal('Seedance', 'ERROR', 'Task marked success but no video URL in response', {
-                status: asRecord(queryData)?.status,
-            })
             return { status: 'failed', error: 'No video URL in response' }
-        }
-
-        if (phase === 'failure') {
-            const root = asRecord(queryData)
-            const errorObj = root?.error && typeof root.error === 'object' ? (root.error as UnknownRecord) : {}
-            const errorMessage = typeof errorObj.message === 'string' ? errorObj.message : 'Unknown error'
+        } else if (status === 'failed') {
+            const errorObj = queryData.error || {}
+            const errorMessage = errorObj.message || 'Unknown error'
             return { status: 'failed', error: errorMessage }
         }
 

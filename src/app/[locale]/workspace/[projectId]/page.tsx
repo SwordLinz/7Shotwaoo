@@ -2,7 +2,7 @@
 import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core'
 import { apiFetch } from '@/lib/api-fetch'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
@@ -18,6 +18,7 @@ import { ModelCapabilityDropdown } from '@/components/ui/config-modals/ModelCapa
 import { AppIcon } from '@/components/ui/icons'
 import { readConfiguredAnalysisModel, shouldGuideToModelSetup } from '@/lib/workspace/model-setup'
 import { useRouter } from '@/i18n/navigation'
+import { readApiErrorMessage } from '@/lib/api/read-error-message'
 
 // 有效的stage值
 const VALID_STAGES = ['config', 'script', 'assets', 'text-storyboard', 'storyboard', 'videos', 'voice', 'editor'] as const
@@ -134,9 +135,18 @@ export default function ProjectDetailPage() {
   // 获取导入状态
   const importStatus = novelPromotionData?.importStatus
 
-  // 检测是否需要显示导入向导：无剧集或导入中
+  // 零状态：无剧集且非导入中 → 自动创建第一集
   const isZeroState = episodes.length === 0
-  const shouldShowImportWizard = isZeroState || importStatus === 'pending'
+  const shouldShowImportWizard = importStatus === 'pending' // 仅分集预览中才显示 wizard
+  const shouldAutoCreateEpisode = isZeroState && importStatus !== 'pending'
+  const autoCreateTriggered = useRef(false)
+
+  useEffect(() => {
+    if (!shouldAutoCreateEpisode || autoCreateTriggered.current || loading) return
+    autoCreateTriggered.current = true
+    void handleCreateEpisode(`${t('episode')} 1`)
+  }, [shouldAutoCreateEpisode, loading]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const shouldGateImportWizardByModel = shouldShowImportWizard && !isGlobalAssetsView
 
   useEffect(() => {
@@ -199,8 +209,7 @@ export default function ProjectDetailPage() {
     })
 
     if (!res.ok) {
-      const data = await res.json()
-      throw new Error(data.error || t('createFailed'))
+      throw new Error(await readApiErrorMessage(res, t('createFailed')))
     }
 
     const data = await res.json()
@@ -488,7 +497,7 @@ export default function ProjectDetailPage() {
                 )}
               </div>
             ) : (
-              // 零状态或导入中：显示智能导入向导
+              // 导入中（pending）：显示分集预览向导
               <SmartImportWizard
                 projectId={projectId}
                 onManualCreate={() => handleCreateEpisode(`${t('episode')} 1`)}

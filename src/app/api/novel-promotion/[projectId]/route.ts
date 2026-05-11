@@ -276,10 +276,6 @@ export const PATCH = apiHandler(async (
 
   const body = await request.json()
 
-  if (project.mode !== 'novel-promotion') {
-    throw new ApiError('INVALID_PARAMS')
-  }
-
   const currentProjectConfig = await prisma.novelPromotionProject.findUnique({
     where: { projectId },
     select: {
@@ -329,33 +325,6 @@ export const PATCH = apiHandler(async (
   const updatedNovelPromotionData = await prisma.novelPromotionProject.update({
     where: { projectId },
     data: updateData})
-
-  // 同步更新用户偏好配置（配置字段）
-  const preferenceFields = [
-    'analysisModel', 'characterModel', 'locationModel', 'storyboardModel',
-    'editModel', 'videoModel', 'audioModel', 'videoRatio', 'artStyle', 'ttsRate',
-  ] as const
-  const preferenceUpdate: Record<string, unknown> = {}
-  for (const field of preferenceFields) {
-    if (body[field] !== undefined) {
-      if ((MODEL_FIELDS as readonly string[]).includes(field)) {
-        validateModelKeyField(field as typeof MODEL_FIELDS[number], body[field])
-      }
-      if (field === 'artStyle') {
-        preferenceUpdate[field] = validateArtStyleField(body[field])
-        continue
-      }
-      preferenceUpdate[field] = body[field]
-    }
-  }
-  if (Object.keys(preferenceUpdate).length > 0) {
-    await prisma.userPreference.upsert({
-      where: { userId: session.user.id },
-      update: preferenceUpdate,
-      create: {
-        userId: session.user.id,
-        ...preferenceUpdate}})
-  }
 
   const novelPromotionDataWithSignedUrls = await attachMediaFieldsToProject(updatedNovelPromotionData)
 

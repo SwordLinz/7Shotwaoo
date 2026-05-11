@@ -28,7 +28,7 @@ async function handleConfirmProfile(
 ) {
   const suppressProgress = options.suppressProgress === true
   const characterId = readRequiredString(payload.characterId, 'characterId')
-  const project = await resolveProjectModel(job.data.projectId)
+  const project = await resolveProjectModel(job.data.projectId, job.data.userId)
 
   const character = await prisma.novelPromotionCharacter.findFirst({
     where: {
@@ -129,27 +129,50 @@ async function handleConfirmProfile(
   }
   await assertTaskActive(job, 'character_profile_confirm_persist')
 
+  const appearanceRows: Array<{
+    characterId: string
+    appearanceIndex: number
+    changeReason: string
+    description: string
+    descriptions: string
+    imageUrls: string
+    previousImageUrls: string
+  }> = []
+
   for (let appIndex = 0; appIndex < appearances.length; appIndex++) {
     const app = appearances[appIndex]
     await assertTaskActive(job, 'character_profile_confirm_create_appearance')
     const descriptions = Array.isArray(app.descriptions) ? app.descriptions : []
     const normalizedDescriptions = descriptions.map((item) => readText(item)).filter(Boolean)
-    await prisma.characterAppearance.create({
-      data: {
-        characterId: character.id,
-        appearanceIndex: appIndex,
-        changeReason: readText(app.change_reason) || '初始形象',
-        description: normalizedDescriptions[0] || '',
-        descriptions: JSON.stringify(normalizedDescriptions),
-        imageUrls: encodeImageUrls([]),
-        previousImageUrls: encodeImageUrls([]),
-      },
+    appearanceRows.push({
+      characterId: character.id,
+      appearanceIndex: appIndex,
+      changeReason: readText(app.change_reason) || '初始形象',
+      description: normalizedDescriptions[0] || '',
+      descriptions: JSON.stringify(normalizedDescriptions),
+      imageUrls: encodeImageUrls([]),
+      previousImageUrls: encodeImageUrls([]),
     })
   }
 
-  await prisma.novelPromotionCharacter.update({
-    where: { id: characterId },
-    data: { profileConfirmed: true },
+  await prisma.$transaction(async (tx) => {
+    await tx.characterAppearance.deleteMany({
+      where: { characterId: character.id },
+    })
+
+    for (const appearanceRow of appearanceRows) {
+      await tx.characterAppearance.create({
+        data: appearanceRow,
+      })
+    }
+
+    await tx.novelPromotionCharacter.update({
+      where: { id: characterId },
+      data: {
+        profileData: finalProfileData,
+        profileConfirmed: true,
+      },
+    })
   })
 
   if (!suppressProgress) {
@@ -172,7 +195,7 @@ async function handleConfirmProfile(
 }
 
 async function handleBatchConfirmProfile(job: Job<TaskJobData>) {
-  const project = await resolveProjectModel(job.data.projectId)
+  const project = await resolveProjectModel(job.data.projectId, job.data.userId)
 
   const unconfirmedCharacters = await prisma.novelPromotionCharacter.findMany({
     where: {

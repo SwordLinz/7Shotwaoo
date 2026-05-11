@@ -20,9 +20,13 @@ import { getImageGenerationCountOptions } from '@/lib/image-generation/count'
 import { useImageGenerationCount } from '@/lib/image-generation/use-image-generation-count'
 import { countGeneratedImageSlots, resolveDisplayImageSlots } from '@/lib/image-generation/slot-state'
 import { AppIcon } from '@/components/ui/icons'
+import { AI_EDIT_BUTTON_CLASS, AI_EDIT_ICON_CLASS } from '@/components/ui/ai-edit-style'
+import AISparklesIcon from '@/components/ui/icons/AISparklesIcon'
+import { canGenerateLocationBackedAsset } from './location-backed-asset'
 
 interface LocationCardProps {
   location: Location
+  assetType?: 'location' | 'prop'
   onEdit: () => void
   onDelete: () => void
   onRegenerate: (count?: number) => void
@@ -35,11 +39,12 @@ interface LocationCardProps {
   activeTaskKeys?: Set<string>
   onClearTaskKey?: (key: string) => void
   projectId: string
-  onConfirmSelection?: (locationId: string) => void
+  onConfirmSelection?: (locationId: string) => Promise<void> | void
 }
 
 export default function LocationCard({
   location,
+  assetType = 'location',
   onEdit,
   onDelete,
   onRegenerate,
@@ -56,6 +61,7 @@ export default function LocationCard({
   // 🔥 使用 mutation
   const uploadImage = useUploadProjectLocationImage(projectId)
   const t = useTranslations('assets')
+  const assetKey = assetType === 'prop' ? 'prop' : 'location'
   const { count: generationCount, setCount: setGenerationCount } = useImageGenerationCount('location')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingUploadIndex, setPendingUploadIndex] = useState<number | undefined>(undefined)
@@ -166,7 +172,7 @@ export default function LocationCard({
 
   const displaySelectionImages = resolveDisplayImageSlots(orderedImages, {
     hasRunningTask: isTaskRunning,
-    requestedCount: generationCount,
+    requestedCount: generatedImageCount > 1 ? generatedImageCount : generationCount,
   })
   const displaySlotCount = displaySelectionImages.length
   const hasMultipleImages = generatedImageCount > 1
@@ -175,6 +181,7 @@ export default function LocationCard({
   const hasPreviousVersion = location.images?.some(img => img.previousImageUrl) || false
 
   const showSelectionMode = displaySlotCount > 1
+  const singleImageAspectClassName = assetType === 'prop' ? 'aspect-[3/2]' : 'aspect-square'
 
   // 选择模式：显示名字在上，三张图片在下
   if (showSelectionMode) {
@@ -188,19 +195,24 @@ export default function LocationCard({
       <>
         <ImageGenerationInlineCountButton
           prefix={isGroupTaskRunning ? (
-            <TaskStatusInline state={displayTaskPresentation} className="[&_span]:sr-only [&_svg]:text-[var(--glass-tone-info-fg)]" />
+            <>
+              <TaskStatusInline state={displayTaskPresentation} className="[&_span]:sr-only [&_svg]:text-[var(--glass-tone-info-fg)]" />
+              <span className="text-[10px] font-medium text-[var(--glass-tone-info-fg)] ml-0.5">{t('image.regenCountPrefix')}</span>
+            </>
           ) : (
-            <AppIcon name="refresh" className="w-4 h-4 text-[var(--glass-tone-info-fg)]" />
+            <>
+              <AppIcon name="refresh" className="w-4 h-4 text-[var(--glass-tone-info-fg)]" />
+              <span className="text-[10px] font-medium text-[var(--glass-tone-info-fg)] ml-0.5">{t('image.regenCountPrefix')}</span>
+            </>
           )}
-          suffix={null}
           value={generationCount}
           options={getImageGenerationCountOptions('location')}
           onValueChange={setGenerationCount}
-          onClick={() => onRegenerate(generationCount)}
+          onClick={() => onRegenerate(generatedImageCount)}
           disabled={isTaskRunning || isAnyTaskRunning || uploadImage.isPending}
-          ariaLabel={t('image.selectCount')}
-          className="inline-flex h-6 items-center gap-0.5 rounded px-1 hover:bg-[var(--glass-tone-info-bg)] transition-colors disabled:opacity-50"
-          selectClassName="appearance-none bg-transparent border-0 pl-0 pr-3 text-[10px] font-semibold text-[var(--glass-tone-info-fg)] outline-none cursor-pointer leading-none transition-colors"
+          showCountControl={false}
+          ariaLabel={t('image.regenCountPrefix')}
+          className="inline-flex h-6 items-center justify-center rounded-md px-1.5 hover:bg-[var(--glass-tone-info-bg)] transition-colors disabled:opacity-50"
         />
         {onUndo && hasPreviousVersion && (
           <button
@@ -215,7 +227,7 @@ export default function LocationCard({
         <button
           onClick={onDelete}
           className="w-6 h-6 rounded hover:bg-[var(--glass-tone-danger-bg)] flex items-center justify-center transition-colors"
-          title={t('location.delete')}
+          title={t(`${assetKey}.delete`)}
         >
           <AppIcon name="trash" className="w-4 h-4 text-[var(--glass-tone-danger-fg)]" />
         </button>
@@ -262,7 +274,9 @@ export default function LocationCard({
           onConfirmSelection={selectedIndex !== null && onConfirmSelection
             ? () => {
               setIsConfirmingSelection(true)
-              onConfirmSelection(location.id)
+              void Promise.resolve(onConfirmSelection(location.id)).finally(() => {
+                setIsConfirmingSelection(false)
+              })
             }
             : undefined}
         />
@@ -288,11 +302,10 @@ export default function LocationCard({
       {!isTaskRunning && currentImageUrl && onImageEdit && (
         <button
           onClick={() => onImageEdit(location.id, currentImageIndex)}
-          className="w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm"
-          style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-95 ${AI_EDIT_BUTTON_CLASS}`}
           title={t('image.edit')}
         >
-          <AppIcon name="edit" className="w-4 h-4 text-white" />
+          <AISparklesIcon className={`w-4 h-4 ${AI_EDIT_ICON_CLASS}`} />
         </button>
       )}
       <button
@@ -302,7 +315,7 @@ export default function LocationCard({
           ? 'bg-[var(--glass-tone-success-fg)] hover:bg-[var(--glass-tone-success-fg)]'
           : 'bg-[var(--glass-bg-surface-strong)] hover:bg-[var(--glass-bg-surface)]'
           }`}
-        title={isTaskRunning ? t('image.regenerateStuck') : t('location.regenerateImage')}
+        title={isTaskRunning ? t('image.regenerateStuck') : t(`${assetKey}.regenerateImage`)}
       >
         {isGroupTaskRunning ? (
           <TaskStatusInline state={displayTaskPresentation} className="[&_span]:sr-only [&_svg]:text-white" />
@@ -326,25 +339,25 @@ export default function LocationCard({
   const compactHeaderActions = (
     <>
       {onCopyFromGlobal && (
-        <button
-          onClick={onCopyFromGlobal}
+          <button
+            onClick={onCopyFromGlobal}
           className="flex-shrink-0 w-5 h-5 rounded hover:bg-[var(--glass-tone-info-bg)] flex items-center justify-center transition-colors"
           title={t('character.copyFromGlobal')}
         >
-          <AppIcon name="copy" className="w-3.5 h-3.5 text-[var(--glass-tone-info-fg)]" />
+          <AppIcon name="arrowDownCircle" className="w-3.5 h-3.5 text-[var(--glass-tone-info-fg)]" />
         </button>
       )}
-      <button
-        onClick={onEdit}
+        <button
+          onClick={onEdit}
         className="flex-shrink-0 w-5 h-5 rounded hover:bg-[var(--glass-bg-muted)] flex items-center justify-center transition-colors"
-        title={t('location.edit')}
+          title={t(`${assetKey}.edit`)}
       >
         <AppIcon name="edit" className="w-3.5 h-3.5 text-[var(--glass-text-secondary)]" />
       </button>
-      <button
-        onClick={onDelete}
+        <button
+          onClick={onDelete}
         className="flex-shrink-0 w-5 h-5 rounded hover:bg-[var(--glass-tone-danger-bg)] flex items-center justify-center transition-colors"
-        title={t('location.delete')}
+          title={t(`${assetKey}.delete`)}
       >
         <AppIcon name="trash" className="w-3.5 h-3.5 text-[var(--glass-tone-danger-fg)]" />
       </button>
@@ -352,7 +365,7 @@ export default function LocationCard({
   )
 
   const firstImage = location.images?.[0]
-  const hasDescription = !!firstImage?.description
+  const canGenerate = canGenerateLocationBackedAsset(location, assetType)
 
   return (
     <div className="flex flex-col gap-2 glass-surface-elevated p-3">
@@ -367,6 +380,7 @@ export default function LocationCard({
         <LocationImageList
           mode="single"
           locationName={location.name}
+          aspectClassName={singleImageAspectClassName}
           currentImageUrl={currentImageUrl}
           selectedIndex={selectedIndex}
           hasMultipleImages={hasMultipleImages}
@@ -389,7 +403,7 @@ export default function LocationCard({
         mode="compact"
         currentImageUrl={currentImageUrl}
         isTaskRunning={isTaskRunning}
-        hasDescription={hasDescription}
+        canGenerate={canGenerate}
         generationCount={generationCount}
         onGenerationCountChange={setGenerationCount}
         onGenerate={onGenerate}

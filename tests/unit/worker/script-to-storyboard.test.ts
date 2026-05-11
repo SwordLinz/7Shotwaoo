@@ -28,13 +28,14 @@ const runScriptToStoryboardOrchestratorMock = vi.hoisted(() =>
     clipPanels: [
       {
         clipId: 'clip-1',
-        panels: [
+        clipIndex: 0,
+        finalPanels: [
           {
-            panelIndex: 1,
-            shotType: 'close-up',
-            cameraMove: 'static',
+            panel_number: 1,
+            shot_type: 'close-up',
+            camera_move: 'static',
             description: 'panel desc',
-            videoPrompt: 'panel prompt',
+            video_prompt: 'panel prompt',
             location: 'room',
             characters: ['Narrator'],
           },
@@ -47,35 +48,21 @@ const runScriptToStoryboardOrchestratorMock = vi.hoisted(() =>
     },
   })),
 )
-const graphExecutorMock = vi.hoisted(() => ({
-  executePipelineGraph: vi.fn(async (input: {
-    runId: string
-    projectId: string
-    userId: string
-    state: Record<string, unknown>
-    nodes: Array<{ key: string; run: (ctx: Record<string, unknown>) => Promise<unknown> }>
-  }) => {
-    for (const node of input.nodes) {
-      await node.run({
-        runId: input.runId,
-        projectId: input.projectId,
-        userId: input.userId,
-        nodeKey: node.key,
-        attempt: 1,
-        state: input.state,
-      })
-    }
-    return input.state
-  }),
-}))
-
 const parseVoiceLinesJsonMock = vi.hoisted(() => vi.fn())
-const persistStoryboardsAndPanelsMock = vi.hoisted(() => vi.fn())
+const persistStoryboardOutputsMock = vi.hoisted(() => vi.fn())
 const parseStoryboardRetryTargetMock = vi.hoisted(() => vi.fn())
 const runScriptToStoryboardAtomicRetryMock = vi.hoisted(() => vi.fn())
+const workflowLeaseMock = vi.hoisted(() => ({
+  assertWorkflowRunActive: vi.fn(async () => undefined),
+  withWorkflowRunLease: vi.fn(async (params: { run: () => Promise<unknown> }) => ({
+    claimed: true,
+    result: await params.run(),
+  })),
+}))
 
 const txState = vi.hoisted(() => ({
   createdRows: [] as Array<Record<string, unknown>>,
+  deletedWhereClauses: [] as Array<Record<string, unknown>>,
 }))
 
 const prismaMock = vi.hoisted(() => ({
@@ -144,10 +131,6 @@ vi.mock('@/lib/novel-promotion/script-to-storyboard/orchestrator', () => ({
     }
   },
 }))
-vi.mock('@/lib/run-runtime/graph-executor', () => ({
-  executePipelineGraph: graphExecutorMock.executePipelineGraph,
-}))
-
 vi.mock('@/lib/workers/handlers/llm-stream', () => ({
   createWorkerLLMStreamContext: vi.fn(() => ({ streamRunId: 'run-1', nextSeqByStepLane: {} })),
   createWorkerLLMStreamCallbacks: vi.fn(() => ({
@@ -176,11 +159,11 @@ vi.mock('@/lib/workers/handlers/script-to-storyboard-helpers', () => ({
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null
     return value as Record<string, unknown>
   },
-  buildStoryboardJson: vi.fn(() => '[]'),
+  buildStoryboardJsonFromClipPanels: vi.fn(() => '[]'),
   parseEffort: vi.fn(() => null),
   parseTemperature: vi.fn(() => 0.7),
   parseVoiceLinesJson: parseVoiceLinesJsonMock,
-  persistStoryboardsAndPanels: persistStoryboardsAndPanelsMock,
+  persistStoryboardOutputs: persistStoryboardOutputsMock,
   toPositiveInt: (value: unknown) => {
     if (typeof value !== 'number' || !Number.isFinite(value)) return null
     const n = Math.floor(value)
@@ -191,6 +174,7 @@ vi.mock('@/lib/workers/handlers/script-to-storyboard-atomic-retry', () => ({
   parseStoryboardRetryTarget: parseStoryboardRetryTargetMock,
   runScriptToStoryboardAtomicRetry: runScriptToStoryboardAtomicRetryMock,
 }))
+vi.mock('@/lib/run-runtime/workflow-lease', () => workflowLeaseMock)
 
 import { handleScriptToStoryboardTask } from '@/lib/workers/handlers/script-to-storyboard'
 
@@ -241,13 +225,13 @@ describe('worker script-to-storyboard behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     txState.createdRows = []
+    txState.deletedWhereClauses = []
     parseStoryboardRetryTargetMock.mockReturnValue(null)
     runScriptToStoryboardAtomicRetryMock.mockReset()
 
     prismaMock.project.findUnique.mockResolvedValue({
       id: 'project-1',
       name: 'Project One',
-      mode: 'novel-promotion',
     })
 
     prismaMock.novelPromotionProject.findUnique.mockResolvedValue({
@@ -272,30 +256,41 @@ describe('worker script-to-storyboard behavior', () => {
       ],
     })
 
-    prismaMock.$transaction.mockImplementation(async (fn: (tx: {
-      novelPromotionVoiceLine: {
-        deleteMany: (args: { where: { episodeId: string } }) => Promise<unknown>
-        create: (args: { data: Record<string, unknown>; select: { id: boolean } }) => Promise<{ id: string }>
-      }
-    }) => Promise<unknown>) => {
-      const tx = {
-        novelPromotionVoiceLine: {
-          deleteMany: async () => undefined,
-          create: async (args: { data: Record<string, unknown>; select: { id: boolean } }) => {
-            txState.createdRows.push(args.data)
-            return { id: `voice-${txState.createdRows.length}` }
-          },
-        },
-      }
-      return await fn(tx)
-    })
+    prismaMock.$transaction.mockReset()
 
-    persistStoryboardsAndPanelsMock.mockResolvedValue([
-      {
-        storyboardId: 'storyboard-1',
-        panels: [{ id: 'panel-1', panelIndex: 1 }],
-      },
-    ])
+    persistStoryboardOutputsMock.mockImplementation(async ({ voiceLineRows }: { voiceLineRows: VoiceLineInput[] | null }) => {
+      const rows = voiceLineRows || []
+      txState.createdRows = rows.map((row) => ({
+        episodeId: 'episode-1',
+        lineIndex: row.lineIndex,
+        speaker: row.speaker,
+        content: row.content,
+        emotionStrength: row.emotionStrength,
+        matchedPanelId: 'panel-1',
+        matchedStoryboardId: 'storyboard-1',
+        matchedPanelIndex: row.matchedPanel.panelIndex,
+      }))
+      txState.deletedWhereClauses = [
+        rows.length === 0
+          ? { episodeId: 'episode-1' }
+          : {
+            episodeId: 'episode-1',
+            lineIndex: {
+              notIn: rows.map((row) => row.lineIndex),
+            },
+          },
+      ]
+      return {
+        persistedStoryboards: [
+          {
+            storyboardId: 'storyboard-1',
+            clipId: 'clip-1',
+            panels: [{ id: 'panel-1', panelIndex: 1 }],
+          },
+        ],
+        voiceLineCount: rows.length,
+      }
+    })
 
     parseVoiceLinesJsonMock.mockReturnValue(baseVoiceRows())
   })
@@ -328,6 +323,12 @@ describe('worker script-to-storyboard behavior', () => {
       matchedStoryboardId: 'storyboard-1',
       matchedPanelIndex: 1,
     }))
+    expect(txState.deletedWhereClauses[0]).toEqual({
+      episodeId: 'episode-1',
+      lineIndex: {
+        notIn: [1],
+      },
+    })
   })
 
   it('voice 解析失败后会重试一次再成功', async () => {
@@ -366,9 +367,27 @@ describe('worker script-to-storyboard behavior', () => {
         stage: 'script_to_storyboard_step',
         stepId: 'voice_analyze',
         stepAttempt: 2,
-        message: '台词分析失败，准备重试 (2/5)',
+        message: '台词分析失败，准备重试 (2/2)',
       }),
     )
+  })
+
+  it('空台词数组 -> 成功完成并清空旧台词', async () => {
+    parseVoiceLinesJsonMock.mockReturnValue([])
+
+    const job = buildJob({ episodeId: 'episode-1' })
+    const result = await handleScriptToStoryboardTask(job)
+
+    expect(result).toEqual({
+      episodeId: 'episode-1',
+      storyboardCount: 1,
+      panelCount: 1,
+      voiceLineCount: 0,
+    })
+    expect(txState.createdRows).toEqual([])
+    expect(txState.deletedWhereClauses[0]).toEqual({
+      episodeId: 'episode-1',
+    })
   })
 
   it('phase 级重试: 仅执行原子 phase，不走整图重跑', async () => {
@@ -423,7 +442,7 @@ describe('worker script-to-storyboard behavior', () => {
     })
     expect(runScriptToStoryboardAtomicRetryMock).toHaveBeenCalledTimes(1)
     expect(runScriptToStoryboardOrchestratorMock).not.toHaveBeenCalled()
-    expect(persistStoryboardsAndPanelsMock).toHaveBeenCalledWith({
+    expect(persistStoryboardOutputsMock).toHaveBeenCalledWith({
       episodeId: 'episode-1',
       clipPanels: [
         {
@@ -438,6 +457,7 @@ describe('worker script-to-storyboard behavior', () => {
           ],
         },
       ],
+      voiceLineRows: null,
     })
   })
 })

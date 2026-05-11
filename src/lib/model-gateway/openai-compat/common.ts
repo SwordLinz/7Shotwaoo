@@ -1,5 +1,6 @@
 import OpenAI, { toFile } from 'openai'
 import { getProviderConfig } from '@/lib/api-config'
+import { getInternalBaseUrl } from '@/lib/env'
 import { getImageBase64Cached } from '@/lib/image-cache'
 import type { OpenAICompatClientConfig } from '../types'
 // Use relative import here because the worker runtime (tsx watch) may not resolve TS path aliases.
@@ -9,7 +10,7 @@ const OPENAI_COMPAT_TIMEOUT_MS = 120_000
 
 function toAbsoluteUrlIfNeeded(value: string): string {
   if (!value.startsWith('/')) return value
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const baseUrl = getInternalBaseUrl()
   return `${baseUrl}${value}`
 }
 

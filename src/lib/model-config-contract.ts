@@ -45,6 +45,7 @@ export interface VideoCapabilities {
   resolutionOptions?: string[]
   firstlastframe?: boolean
   supportGenerateAudio?: boolean
+  containsVideoInputOptions?: boolean[]
   /** 智能参考 / 多参考图生视频：模型是否支持同时传入多张参考图（角色+场景等） */
   supportsMultipleReferenceImages?: boolean
   fieldI18n?: CapabilityFieldI18nMap
@@ -103,6 +104,7 @@ const VIDEO_ALLOWED_FIELDS = new Set<keyof VideoCapabilities>([
   'resolutionOptions',
   'firstlastframe',
   'supportGenerateAudio',
+  'containsVideoInputOptions',
   'supportsMultipleReferenceImages',
   'fieldI18n',
 ])
@@ -322,6 +324,15 @@ function validateVideoCapabilities(issues: CapabilityValidationIssue[], raw: unk
     })
   }
 
+  const containsVideoInputOptions = raw.containsVideoInputOptions
+  if (containsVideoInputOptions !== undefined && !isBooleanArray(containsVideoInputOptions)) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.video.containsVideoInputOptions',
+      message: 'containsVideoInputOptions must be a boolean array',
+    })
+  }
+
   const durationOptions = raw.durationOptions
   if (durationOptions !== undefined && !isNumberArray(durationOptions)) {
     issues.push({
@@ -397,6 +408,7 @@ function validateVideoCapabilities(issues: CapabilityValidationIssue[], raw: unk
   validateFieldI18nMap(issues, 'video', raw.fieldI18n, {
     generationMode: isStringArray(generationModeOptions) ? generationModeOptions : undefined,
     generateAudio: isBooleanArray(generateAudioOptions) ? generateAudioOptions : undefined,
+    containsVideoInput: isBooleanArray(containsVideoInputOptions) ? containsVideoInputOptions : undefined,
     modelId: isStringArray(modelIdOptions) ? modelIdOptions : undefined,
     mode: isStringArray(modeOptions) ? modeOptions : undefined,
     duration: isNumberArray(durationOptions) ? durationOptions : undefined,

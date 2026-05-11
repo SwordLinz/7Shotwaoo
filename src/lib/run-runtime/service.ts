@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma'
+import { selectRecoverableRun } from '@/lib/run-runtime/recovery'
+import { resolveRetryInvalidationStepKeys } from '@/lib/workflow-engine/dependencies'
 import {
   RUN_EVENT_TYPE,
   RUN_STATE_MAX_BYTES,
@@ -30,6 +32,10 @@ type GraphRunRow = {
   errorCode: string | null
   errorMessage: string | null
   cancelRequestedAt: Date | null
+  leaseOwner: string | null
+  leaseExpiresAt: Date | null
+  heartbeatAt: Date | null
+  workflowVersion: number
   queuedAt: Date
   startedAt: Date | null
   finishedAt: Date | null
@@ -121,6 +127,7 @@ type GraphCheckpointModel = {
 type GraphArtifactModel = {
   upsert: (args: unknown) => Promise<GraphArtifactRow>
   findMany: (args: unknown) => Promise<GraphArtifactRow[]>
+  deleteMany: (args: unknown) => Promise<{ count: number }>
 }
 
 type GraphRuntimeTx = {
@@ -226,6 +233,10 @@ function mapRunRow(run: GraphRunRow) {
     errorCode: run.errorCode,
     errorMessage: run.errorMessage,
     cancelRequestedAt: toIso(run.cancelRequestedAt),
+    leaseOwner: run.leaseOwner,
+    leaseExpiresAt: toIso(run.leaseExpiresAt),
+    heartbeatAt: toIso(run.heartbeatAt),
+    workflowVersion: run.workflowVersion,
     queuedAt: run.queuedAt.toISOString(),
     startedAt: toIso(run.startedAt),
     finishedAt: toIso(run.finishedAt),
@@ -233,6 +244,24 @@ function mapRunRow(run: GraphRunRow) {
     createdAt: run.createdAt.toISOString(),
     updatedAt: run.updatedAt.toISOString(),
   }
+}
+
+function mapRunRowToRecoverableRecord(run: GraphRunRow) {
+  return {
+    id: run.id,
+    status: run.status,
+    createdAt: run.createdAt.toISOString(),
+    updatedAt: run.updatedAt.toISOString(),
+    leaseExpiresAt: toIso(run.leaseExpiresAt),
+    heartbeatAt: toIso(run.heartbeatAt),
+  }
+}
+
+function filterRecoverableRunRows(rows: GraphRunRow[]): GraphRunRow[] {
+  if (rows.length === 0) return []
+  const recoverableRunId = selectRecoverableRun(rows.map(mapRunRowToRecoverableRecord)).runId
+  if (!recoverableRunId) return []
+  return rows.filter((row) => row.id === recoverableRunId)
 }
 
 function mapStepRow(step: GraphStepRow) {
@@ -457,6 +486,8 @@ async function applyRunProjection(tx: GraphRuntimeTx, input: RunEventInput) {
         status: RUN_STATUS.COMPLETED,
         output: payload,
         finishedAt: now,
+        leaseOwner: null,
+        leaseExpiresAt: null,
       },
     })
     await tx.graphStep.updateMany({
@@ -482,6 +513,8 @@ async function applyRunProjection(tx: GraphRuntimeTx, input: RunEventInput) {
         errorCode: readString(payload, 'errorCode'),
         errorMessage: resolveErrorMessage(payload),
         finishedAt: now,
+        leaseOwner: null,
+        leaseExpiresAt: null,
       },
     })
     await tx.graphStep.updateMany({
@@ -507,6 +540,8 @@ async function applyRunProjection(tx: GraphRuntimeTx, input: RunEventInput) {
       data: {
         status: RUN_STATUS.CANCELED,
         finishedAt: now,
+        leaseOwner: null,
+        leaseExpiresAt: null,
       },
     })
     await tx.graphStep.updateMany({
@@ -651,6 +686,10 @@ export async function createRun(input: CreateRunInput) {
       targetId: input.targetId,
       status: RUN_STATUS.QUEUED,
       input: input.input || null,
+      leaseOwner: null,
+      leaseExpiresAt: null,
+      heartbeatAt: null,
+      workflowVersion: 1,
       queuedAt: new Date(),
       lastSeq: 0,
     },
@@ -674,6 +713,112 @@ export async function getRunById(runId: string) {
   })
   if (!row) return null
   return mapRunRow(row)
+}
+
+export async function findReusableActiveRun(params: {
+  userId: string
+  projectId: string
+  workflowType: string
+  targetType: string
+  targetId: string
+}) {
+  const rows = await runtimeClient.graphRun.findMany({
+    where: {
+      userId: params.userId,
+      projectId: params.projectId,
+      workflowType: params.workflowType,
+      targetType: params.targetType,
+      targetId: params.targetId,
+      status: {
+        in: [RUN_STATUS.QUEUED, RUN_STATUS.RUNNING, RUN_STATUS.CANCELING],
+      },
+    },
+    orderBy: [
+      { updatedAt: 'desc' },
+      { createdAt: 'desc' },
+    ],
+    take: 20,
+  })
+  const row = filterRecoverableRunRows(rows)[0] || null
+  return row ? mapRunRow(row) : null
+}
+
+export async function claimRunLease(params: {
+  runId: string
+  userId: string
+  workerId: string
+  leaseMs: number
+}) {
+  const now = new Date()
+  const leaseExpiresAt = new Date(now.getTime() + Math.max(5_000, Math.floor(params.leaseMs)))
+  const result = await runtimeClient.graphRun.updateMany({
+    where: {
+      id: params.runId,
+      userId: params.userId,
+      status: {
+        in: [RUN_STATUS.QUEUED, RUN_STATUS.RUNNING, RUN_STATUS.CANCELING],
+      },
+      OR: [
+        { leaseOwner: null },
+        { leaseOwner: params.workerId },
+        { leaseExpiresAt: null },
+        { leaseExpiresAt: { lt: now } },
+      ],
+    },
+    data: {
+      leaseOwner: params.workerId,
+      leaseExpiresAt,
+      heartbeatAt: now,
+    },
+  })
+  if (result.count === 0) {
+    return null
+  }
+  return await getRunById(params.runId)
+}
+
+export async function renewRunLease(params: {
+  runId: string
+  userId: string
+  workerId: string
+  leaseMs: number
+}) {
+  const now = new Date()
+  const leaseExpiresAt = new Date(now.getTime() + Math.max(5_000, Math.floor(params.leaseMs)))
+  const result = await runtimeClient.graphRun.updateMany({
+    where: {
+      id: params.runId,
+      userId: params.userId,
+      leaseOwner: params.workerId,
+      status: {
+        in: [RUN_STATUS.QUEUED, RUN_STATUS.RUNNING, RUN_STATUS.CANCELING],
+      },
+    },
+    data: {
+      leaseExpiresAt,
+      heartbeatAt: now,
+    },
+  })
+  if (result.count === 0) {
+    return null
+  }
+  return await getRunById(params.runId)
+}
+
+export async function releaseRunLease(params: {
+  runId: string
+  workerId: string
+}) {
+  await runtimeClient.graphRun.updateMany({
+    where: {
+      id: params.runId,
+      leaseOwner: params.workerId,
+    },
+    data: {
+      leaseOwner: null,
+      leaseExpiresAt: null,
+    },
+  })
 }
 
 export async function getRunSnapshot(runId: string) {
@@ -713,10 +858,19 @@ export async function listRuns(input: ListRunsInput) {
       ...(input.episodeId ? { episodeId: input.episodeId } : {}),
       ...(statusFilter ? { status: statusFilter } : {}),
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [
+      { updatedAt: 'desc' },
+      { createdAt: 'desc' },
+    ],
     take: safeLimit,
   })
-  return rows.map(mapRunRow)
+  const filteredRows = input.recoverableOnly
+    ? filterRecoverableRunRows(rows)
+    : rows
+  const latestRows = input.latestOnly
+    ? filteredRows.slice(0, 1)
+    : filteredRows
+  return latestRows.map(mapRunRow)
 }
 
 export async function requestRunCancel(params: {
@@ -977,8 +1131,21 @@ export async function retryFailedStep(params: {
       throw new Error('RUN_STEP_NOT_FAILED')
     }
 
+    const steps = await tx.graphStep.findMany({
+      where: { runId: params.runId },
+      orderBy: [
+        { stepIndex: 'asc' },
+        { updatedAt: 'asc' },
+      ],
+    })
     const now = new Date()
     const nextAttempt = Math.max(1, step.currentAttempt + 1)
+    const invalidatedStepKeys = resolveRetryInvalidationStepKeys({
+      workflowType: run.workflowType,
+      stepKey,
+      existingStepKeys: steps.map((item) => item.stepKey),
+    })
+
     const updatedRun = await tx.graphRun.update({
       where: { id: params.runId },
       data: {
@@ -990,6 +1157,20 @@ export async function retryFailedStep(params: {
         startedAt: run.startedAt || now,
       },
     })
+    await tx.graphStep.updateMany({
+      where: {
+        runId: params.runId,
+        stepKey: { in: invalidatedStepKeys },
+      },
+      data: {
+        status: RUN_STEP_STATUS.PENDING,
+        currentAttempt: 0,
+        startedAt: null,
+        finishedAt: null,
+        lastErrorCode: null,
+        lastErrorMessage: null,
+      },
+    })
     const updatedStep = await tx.graphStep.update({
       where: {
         runId_stepKey: {
@@ -998,12 +1179,13 @@ export async function retryFailedStep(params: {
         },
       },
       data: {
-        status: RUN_STEP_STATUS.PENDING,
         currentAttempt: nextAttempt,
-        startedAt: now,
-        finishedAt: null,
-        lastErrorCode: null,
-        lastErrorMessage: null,
+      },
+    })
+    await tx.graphArtifact.deleteMany({
+      where: {
+        runId: params.runId,
+        stepKey: { in: invalidatedStepKeys },
       },
     })
 
@@ -1011,6 +1193,7 @@ export async function retryFailedStep(params: {
       run: mapRunRow(updatedRun),
       step: mapStepRow(updatedStep),
       retryAttempt: nextAttempt,
+      invalidatedStepKeys,
     }
   })
 }

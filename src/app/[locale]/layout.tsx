@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -50,7 +52,7 @@ export default async function LocaleLayout({
     const messages = await getMessages();
 
     return (
-        <html lang={locale}>
+        <html lang={locale} suppressHydrationWarning>
             <head>
                 {process.env.NODE_ENV === "development" && (
                     <Script
@@ -61,7 +63,8 @@ export default async function LocaleLayout({
                 )}
             </head>
             <body
-                className="antialiased"
+                className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
+                suppressHydrationWarning
             >
                 <NextIntlClientProvider messages={messages}>
                     <Providers>

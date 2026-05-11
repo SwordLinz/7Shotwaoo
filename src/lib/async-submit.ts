@@ -1,6 +1,5 @@
-import { normalizeArkApiKeyForBearer } from '@/lib/ark-api'
-import { classifyArkGenerationTaskPhase, extractSeedanceTaskVideoUrl } from '@/lib/async-task-utils'
 import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core'
+import { buildFalQueueUrl } from '@/lib/providers/fal/base-url'
 /**
  * 异步任务提交工具
  * 
@@ -26,7 +25,7 @@ export async function submitFalTask(endpoint: string, input: Record<string, unkn
         throw new Error('请配置 FAL API Key')
     }
 
-    const response = await fetch(`https://queue.fal.run/${endpoint}`, {
+    const response = await fetch(buildFalQueueUrl(endpoint), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -95,7 +94,7 @@ export async function queryFalStatus(endpoint: string, requestId: string, apiKey
         _ulogInfo(`[FAL Status] 解析端点 ${endpoint} -> ${baseEndpoint} (忽略路径: ${parsed.path})`)
     }
 
-    const statusUrl = `https://queue.fal.run/${baseEndpoint}/requests/${requestId}/status?logs=0`
+    const statusUrl = buildFalQueueUrl(`${baseEndpoint}/requests/${requestId}/status?logs=0`)
 
     // FAL 状态查询使用 GET 方法
     const response = await fetch(statusUrl, {
@@ -124,7 +123,7 @@ export async function queryFalStatus(endpoint: string, requestId: string, apiKey
         // 优先使用返回的 response_url，如果没有则构建 URL
         // 注意：获取结果必须使用完整的原始端点（包括 /edit 等路径），而不是 baseEndpoint
         // 否则 FAL 会把请求当作新任务处理，导致 422 错误（缺少 image_urls 等必需参数）
-        const resultUrl = data.response_url || `https://queue.fal.run/${endpoint}/requests/${requestId}`
+        const resultUrl = data.response_url || buildFalQueueUrl(`${endpoint}/requests/${requestId}`)
         _ulogInfo(`[FAL Status] 任务已完成，获取结果: ${resultUrl}`)
 
         const resultResponse = await fetch(resultUrl, {
@@ -238,8 +237,7 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
     resultUrl?: string
     error?: string
 }> {
-    const token = normalizeArkApiKeyForBearer(apiKey)
-    if (!token) {
+    if (!apiKey) {
         throw new Error('请配置火山引擎 API Key')
     }
 
@@ -248,7 +246,7 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
         {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${apiKey}`
             }
         }
     )
@@ -261,27 +259,21 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
         }
     }
 
-    const data: unknown = await response.json()
-    const pollPhase = classifyArkGenerationTaskPhase(data)
+    const data = await response.json()
+    const status = data.status
 
-    if (pollPhase === 'success') {
+    if (status === 'succeeded') {
         return {
             status: 'succeeded',
             completed: true,
             failed: false,
-            resultUrl: extractSeedanceTaskVideoUrl(data),
+            resultUrl: data.content?.video_url
         }
     }
 
-    if (pollPhase === 'failure') {
-        const record = data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, unknown>) : {}
-        const errorObj = record.error && typeof record.error === 'object' && !Array.isArray(record.error)
-            ? (record.error as Record<string, unknown>)
-            : {}
-        let errorMessage =
-            typeof errorObj.message === 'string' && errorObj.message.trim().length > 0
-                ? errorObj.message.trim()
-                : '任务失败'
+    if (status === 'failed') {
+        const errorObj = data.error || {}
+        let errorMessage = errorObj.message || '任务失败'
 
         // 友好的错误信息
         if (errorObj.code === 'OutputVideoSensitiveContentDetected') {
@@ -298,14 +290,10 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
         }
     }
 
-    const record =
-        data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, unknown>) : {}
-    const rawStatus = typeof record.status === 'string' ? record.status : 'unknown'
-
     return {
-        status: rawStatus,
+        status,
         completed: false,
-        failed: false,
+        failed: false
     }
 }
 

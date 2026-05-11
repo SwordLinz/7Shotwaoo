@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from 'react'
 import { CharacterAppearance } from '@/types/project'
-import { useProjectAssets, type Character, type Location } from '@/lib/query/hooks'
+import { useProjectAssets, type Character, type Location, type Prop } from '@/lib/query/hooks'
 
 // 编辑弹窗状态类型
 interface EditingAppearance {
@@ -27,7 +27,16 @@ interface EditingLocation {
     description: string
 }
 
+interface EditingProp {
+    propId: string
+    propName: string
+    summary: string
+    description: string
+    variantId?: string
+}
+
 interface ImageEditModal {
+    assetType: 'location' | 'prop'
     locationId: string
     imageIndex: number
     locationName: string
@@ -51,6 +60,7 @@ export function useAssetModals({
     const { data: assets } = useProjectAssets(projectId)
     const characters = assets?.characters ?? []
     const locations = assets?.locations ?? []
+    const props = assets?.props ?? []
 
     // 获取形象列表（内置实现）
     const getAppearances = useCallback((character: Character): CharacterAppearance[] => {
@@ -61,9 +71,11 @@ export function useAssetModals({
     const [editingAppearance, setEditingAppearance] = useState<EditingAppearance | null>(null)
     // 场景编辑弹窗
     const [editingLocation, setEditingLocation] = useState<EditingLocation | null>(null)
+    const [editingProp, setEditingProp] = useState<EditingProp | null>(null)
     // 新增弹窗
     const [showAddCharacter, setShowAddCharacter] = useState(false)
     const [showAddLocation, setShowAddLocation] = useState(false)
+    const [showAddProp, setShowAddProp] = useState(false)
     // 图片编辑弹窗
     const [imageEditModal, setImageEditModal] = useState<ImageEditModal | null>(null)
     const [characterImageEditModal, setCharacterImageEditModal] = useState<CharacterImageEditModal | null>(null)
@@ -126,12 +138,25 @@ export function useAssetModals({
         })
     }
 
+    const handleEditProp = (prop: Prop) => {
+        const firstImage = prop.images?.[0]
+        setEditingProp({
+            propId: prop.id,
+            propName: prop.name,
+            summary: prop.summary || '',
+            description: firstImage?.description || prop.summary || '',
+            variantId: firstImage?.id,
+        })
+    }
+
     // 打开场景图片编辑弹窗
-    const handleOpenLocationImageEdit = (locationId: string, imageIndex: number) => {
-        const location = locations.find(l => l.id === locationId)
+    const handleOpenLocationImageEdit = (locationId: string, imageIndex: number, assetType: 'location' | 'prop' = 'location') => {
+        const assetsOfType = assetType === 'prop' ? props : locations
+        const location = assetsOfType.find(l => l.id === locationId)
         if (!location) return
 
         setImageEditModal({
+            assetType,
             locationId,
             imageIndex,
             locationName: location.name
@@ -151,8 +176,10 @@ export function useAssetModals({
     // 关闭所有弹窗
     const closeEditingAppearance = () => setEditingAppearance(null)
     const closeEditingLocation = () => setEditingLocation(null)
+    const closeEditingProp = () => setEditingProp(null)
     const closeAddCharacter = () => setShowAddCharacter(false)
     const closeAddLocation = () => setShowAddLocation(false)
+    const closeAddProp = () => setShowAddProp(false)
     const closeImageEditModal = () => setImageEditModal(null)
     const closeCharacterImageEditModal = () => setCharacterImageEditModal(null)
     const closeAssetSettingModal = () => setShowAssetSettingModal(false)
@@ -161,20 +188,25 @@ export function useAssetModals({
         // 🔥 暴露数据供组件使用
         characters,
         locations,
+        props,
         getAppearances,
         // 状态
         editingAppearance,
         editingLocation,
+        editingProp,
         showAddCharacter,
         showAddLocation,
+        showAddProp,
         imageEditModal,
         characterImageEditModal,
         showAssetSettingModal,
         // Setters
         setEditingAppearance,
         setEditingLocation,
+        setEditingProp,
         setShowAddCharacter,
         setShowAddLocation,
+        setShowAddProp,
         setImageEditModal,
         setCharacterImageEditModal,
         setShowAssetSettingModal,
@@ -183,13 +215,16 @@ export function useAssetModals({
         handleEditLocationDescription,
         handleEditAppearance,
         handleEditLocation,
+        handleEditProp,
         handleOpenLocationImageEdit,
         handleOpenCharacterImageEdit,
         // Close helpers
         closeEditingAppearance,
         closeEditingLocation,
+        closeEditingProp,
         closeAddCharacter,
         closeAddLocation,
+        closeAddProp,
         closeImageEditModal,
         closeCharacterImageEditModal,
         closeAssetSettingModal

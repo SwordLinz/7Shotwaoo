@@ -69,6 +69,13 @@ export type CreateRunInput = {
   input?: Record<string, unknown> | null
 }
 
+export type RunLeaseState = {
+  leaseOwner?: string | null
+  leaseExpiresAt?: string | null
+  heartbeatAt?: string | null
+  workflowVersion?: number
+}
+
 export type ListRunsInput = {
   userId: string
   projectId?: string
@@ -78,6 +85,8 @@ export type ListRunsInput = {
   episodeId?: string
   statuses?: RunStatus[]
   limit?: number
+  recoverableOnly?: boolean
+  latestOnly?: boolean
 }
 
 export type StateRef = {

@@ -8,6 +8,7 @@ import {
   type CharacterAsset,
   type ClipCharacterRef,
   type LocationAsset,
+  type PropAsset,
   type PhotographyRule,
   type StoryboardPanel,
   formatClipId,
@@ -15,6 +16,10 @@ import {
   getFilteredFullDescription,
   getFilteredLocationsDescription,
 } from '@/lib/storyboard-phases'
+import {
+  buildPromptAssetContext,
+  compileAssetPromptFragments,
+} from '@/lib/assets/services/asset-prompt-context'
 import {
   DEFAULT_ANALYSIS_WORKFLOW_CONCURRENCY,
   normalizeWorkflowConcurrencyValue,
@@ -46,6 +51,7 @@ type ClipInput = {
   content: string | null
   characters: string | null
   location: string | null
+  props?: string | null
   screenplay: string | null
 }
 
@@ -64,10 +70,12 @@ export type ClipStoryboardPanels = {
 
 export type ScriptToStoryboardOrchestratorInput = {
   concurrency?: number
+  locale?: 'zh' | 'en'
   clips: ClipInput[]
   novelPromotionData: {
     characters: CharacterAsset[]
     locations: LocationAsset[]
+    props?: PropAsset[]
   }
   promptTemplates: ScriptToStoryboardPromptTemplates
   runStep: (
@@ -120,6 +128,19 @@ function parseClipCharacters(raw: string | null): ClipCharacterRef[] {
     return parsed as ClipCharacterRef[]
   } catch (error) {
     throw new Error(`Invalid clip characters JSON: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+function parseClipProps(raw: string | null): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      throw new Error('props field must be JSON array')
+    }
+    return parsed.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean)
+  } catch (error) {
+    throw new Error(`Invalid clip props JSON: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -283,24 +304,40 @@ export async function runScriptToStoryboardOrchestrator(
   const phase2ActingByClipId = new Map<string, ActingDirection[]>()
   const phase3PanelsByClipId = new Map<string, StoryboardPanel[]>()
 
-  const phase1Results = await mapWithConcurrency(
+  const clipPanels = await mapWithConcurrency(
     clips,
     concurrency,
-    async (clip, i) => {
-      const clipIndex = i + 1
+    async (clip, index): Promise<ClipStoryboardPanels> => {
+      const clipIndex = index + 1
       const clipContent = typeof clip.content === 'string' ? clip.content.trim() : ''
       if (!clipContent) {
         throw new Error(`Clip ${formatClipId(clip)} content is empty`)
       }
       const clipCharacters = parseClipCharacters(clip.characters)
+      const clipLocation = clip.location || null
+      const clipProps = parseClipProps(clip.props ?? null)
       const filteredAppearanceList = getFilteredAppearanceList(novelPromotionData.characters || [], clipCharacters)
       const filteredFullDescription = getFilteredFullDescription(novelPromotionData.characters || [], clipCharacters)
+      const filteredLocationsDescription = getFilteredLocationsDescription(
+        novelPromotionData.locations || [],
+        clipLocation,
+        input.locale ?? 'zh',
+      )
+      const filteredPropsDescription = compileAssetPromptFragments(buildPromptAssetContext({
+        characters: [],
+        locations: [],
+        props: novelPromotionData.props || [],
+        clipCharacters: [],
+        clipLocation: null,
+        clipProps,
+      })).propsDescriptionText
       const clipJson = JSON.stringify(
         {
           id: clip.id,
           content: clipContent,
           characters: clipCharacters,
           location: clip.location || null,
+          props: clipProps,
         },
         null,
         2,
@@ -312,6 +349,7 @@ export async function runScriptToStoryboardOrchestrator(
         .replace('{characters_introduction}', charactersIntroduction)
         .replace('{characters_appearance_list}', filteredAppearanceList)
         .replace('{characters_full_description}', filteredFullDescription)
+        .replace('{props_description}', filteredPropsDescription)
         .replace('{clip_json}', clipJson)
 
       const screenplay = parseScreenplay(clip.screenplay)
@@ -342,35 +380,7 @@ export async function runScriptToStoryboardOrchestrator(
           return panels
         },
       )
-
-      return {
-        clipId: clip.id,
-        planPanels,
-      }
-    },
-  )
-
-  for (const result of phase1Results) {
-    phase1PanelsByClipId.set(result.clipId, result.planPanels)
-  }
-
-  const clipPanels = await mapWithConcurrency(
-    clips,
-    concurrency,
-    async (clip, index): Promise<ClipStoryboardPanels> => {
-      const clipIndex = index + 1
-      const clipCharacters = parseClipCharacters(clip.characters)
-      const clipLocation = clip.location || null
-      const planPanels = phase1PanelsByClipId.get(clip.id) || []
-      if (planPanels.length === 0) {
-        throw new Error(`Missing phase1 result for clip ${formatClipId(clip)}`)
-      }
-
-      const filteredFullDescription = getFilteredFullDescription(novelPromotionData.characters || [], clipCharacters)
-      const filteredLocationsDescription = getFilteredLocationsDescription(
-        novelPromotionData.locations || [],
-        clipLocation,
-      )
+      phase1PanelsByClipId.set(clip.id, planPanels)
 
       const phase2Meta = withStepMeta(
         `clip_${clip.id}_phase2_cinematography`,
@@ -417,6 +427,7 @@ export async function runScriptToStoryboardOrchestrator(
         .replace(/\{panel_count\}/g, String(planPanels.length))
         .replace('{locations_description}', filteredLocationsDescription)
         .replace('{characters_info}', filteredFullDescription)
+        .replace('{props_description}', filteredPropsDescription)
 
       const phase2ActingPrompt = promptTemplates.phase2ActingTemplate
         .replace('{panels_json}', JSON.stringify(planPanels, null, 2))
@@ -427,6 +438,7 @@ export async function runScriptToStoryboardOrchestrator(
         .replace('{panels_json}', JSON.stringify(planPanels, null, 2))
         .replace('{characters_age_gender}', filteredFullDescription)
         .replace('{locations_description}', filteredLocationsDescription)
+        .replace('{props_description}', filteredPropsDescription)
 
       const [
         { parsed: photographyRules },

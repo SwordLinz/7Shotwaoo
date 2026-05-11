@@ -21,6 +21,9 @@ import {
   resolveNovelData,
 } from './image-task-handler-shared'
 import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import {
+  parseLocationAvailableSlots,
+} from '@/lib/location-available-slots'
 
 function parseJsonUnknown(raw: string | null | undefined): unknown | null {
   if (!raw) return null
@@ -65,6 +68,7 @@ function buildPanelPromptContext(params: {
     shotType: string | null
     cameraMove: string | null
     description: string | null
+    imagePrompt: string | null
     videoPrompt: string | null
     location: string | null
     characters: string | null
@@ -95,6 +99,7 @@ function buildPanelPromptContext(params: {
       name: character.name,
       appearance: matchedAppearance?.changeReason || null,
       description: matchedAppearance ? pickAppearanceDescription(matchedAppearance) : '无角色外貌数据',
+      slot: reference.slot || null,
     }
   })
 
@@ -108,6 +113,7 @@ function buildPanelPromptContext(params: {
     return {
       name: matchedLocation.name,
       description: selectedImage?.description || null,
+      available_slots: parseLocationAvailableSlots(selectedImage?.availableSlots),
     }
   })()
 
@@ -117,6 +123,7 @@ function buildPanelPromptContext(params: {
       shot_type: params.panel.shotType || '',
       camera_move: params.panel.cameraMove || '',
       description: params.panel.description || '',
+      image_prompt: params.panel.imagePrompt || '',
       video_prompt: params.panel.videoPrompt || '',
       location: params.panel.location || '',
       characters: panelCharacters,
@@ -203,6 +210,7 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
       shotType: panel.shotType,
       cameraMove: panel.cameraMove,
       description: panel.description,
+      imagePrompt: panel.imagePrompt,
       videoPrompt: panel.videoPrompt,
       location: panel.location,
       characters: panel.characters,

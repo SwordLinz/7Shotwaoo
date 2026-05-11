@@ -12,8 +12,11 @@ const CAPABILITY_NAMESPACE_ALLOWED_FIELDS = {
     'durationOptions',
     'fpsOptions',
     'resolutionOptions',
+    'modeOptions',
     'firstlastframe',
     'supportGenerateAudio',
+    'supportsMultipleReferenceImages',
+    'containsVideoInputOptions',
     'fieldI18n',
   ]),
   audio: new Set(['voiceOptions', 'rateOptions', 'fieldI18n']),
@@ -211,6 +214,12 @@ function validateCapabilitiesForModelType(issues, file, index, modelType, capabi
       if (video.generateAudioOptions !== undefined && !isBooleanArray(video.generateAudioOptions)) {
         pushIssue(issues, file, index, 'capabilities.video.generateAudioOptions', 'must be boolean array')
       }
+      if (video.containsVideoInputOptions !== undefined && !isBooleanArray(video.containsVideoInputOptions)) {
+        pushIssue(issues, file, index, 'capabilities.video.containsVideoInputOptions', 'must be boolean array')
+      }
+      if (video.modeOptions !== undefined && !isStringArray(video.modeOptions)) {
+        pushIssue(issues, file, index, 'capabilities.video.modeOptions', 'must be string array')
+      }
       if (video.durationOptions !== undefined && !isNumberArray(video.durationOptions)) {
         pushIssue(issues, file, index, 'capabilities.video.durationOptions', 'must be number array')
       }
@@ -225,6 +234,12 @@ function validateCapabilitiesForModelType(issues, file, index, modelType, capabi
       }
       if (video.firstlastframe !== undefined && typeof video.firstlastframe !== 'boolean') {
         pushIssue(issues, file, index, 'capabilities.video.firstlastframe', 'must be boolean')
+      }
+      if (
+        video.supportsMultipleReferenceImages !== undefined
+        && typeof video.supportsMultipleReferenceImages !== 'boolean'
+      ) {
+        pushIssue(issues, file, index, 'capabilities.video.supportsMultipleReferenceImages', 'must be boolean')
       }
       validateFieldI18nMap(issues, file, index, 'video', video)
     }

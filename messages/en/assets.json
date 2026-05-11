@@ -3,6 +3,7 @@
         "title": "Assets Confirmation",
         "characters": "Characters",
         "locations": "Locations",
+        "props": "Props",
         "analyze": "Analyze Assets",
         "analyzing": "Analyzing...",
         "generateAll": "Generate All",
@@ -11,11 +12,15 @@
         "confirmProfiles": "Character Profiles to Confirm",
         "confirmHint": "Please confirm these profiles before generating descriptions",
         "confirmAll": "Confirm All ({count})",
+        "pendingProfilesBanner": "AI Casting Complete",
+        "pendingProfilesHint": "Confirm profiles to auto-generate character visuals",
         "assetsTitle": "Asset Analysis",
         "characterAssets": "Character Assets",
         "locationAssets": "Location Assets",
+        "propAssets": "Prop Assets",
         "counts": "{characterCount} Characters, {appearanceCount} Appearances",
         "locationCounts": "{count} Locations",
+        "propCounts": "{count} Props",
         "undoFailed": "Undo failed",
         "undoFailedError": "Undo failed: {error}",
         "undoSuccess": "Reverted to previous version",
@@ -53,7 +58,7 @@
         "characterCount": "{count} Characters",
         "updateFailed": "Update description failed",
         "addFailed": "Add character failed",
-        "copyFromGlobal": "Copy from Asset Hub"
+        "copyFromGlobal": "Import from Asset Hub"
     },
     "location": {
         "add": "Add Location",
@@ -70,6 +75,20 @@
         "updateFailed": "Update description failed",
         "addFailed": "Add location failed"
     },
+    "prop": {
+        "add": "Add Prop",
+        "edit": "Edit Prop",
+        "delete": "Delete Prop",
+        "deleteConfirm": "Delete this prop?",
+        "deleteFailed": "Delete failed: {error}",
+        "name": "Prop Name",
+        "summary": "Summary",
+        "summaryPlaceholder": "One-line human summary of the prop, without plot usage",
+        "description": "Image Description",
+        "descriptionPlaceholder": "Describe only the prop itself: material, color, structure, and decoration",
+        "regenerateImage": "Regenerate",
+        "addFailed": "Add prop failed"
+    },
     "image": {
         "upload": "Upload Image",
         "uploadReplace": "Upload Replacement",
@@ -85,6 +104,9 @@
         "selectCount": "Select generation count",
         "generateCountPrefix": "Generate",
         "generateCountSuffix": "images",
+        "regenCountPrefix": "Regenerate",
+        "regenCountSuffix": "",
+        "regenCountAriaLabel": "Select regeneration count",
         "generatedProgress": "Generated {generated}/{total}",
         "generating": "Generating",
         "regenerating": "Regenerating",
@@ -151,12 +173,15 @@
         "scenePrompt": "Scene Description Prompt",
         "appearancePrompt": "Appearance Description Prompt",
         "smartModify": "Smart Modify",
+        "modifyDescription": "AI Modify Description",
         "modifyPlaceholder": "e.g.: Change to night, add moonlight, add curtains...",
         "modifyPlaceholderCharacter": "e.g.: Change hair to blonde, height to 180cm, wear black suit...",
+        "modifyPlaceholderProp": "e.g.: change to brushed silver, add carvings to the handle, remove ruby decoration...",
         "modifying": "Smart modifying...",
         "modifyFailed": "Modification failed",
         "editCharacter": "Edit Character",
         "editLocation": "Edit Location",
+        "editProp": "Edit Prop",
         "saveAndGenerate": "Save and Generate",
         "generatingAutoClose": "Generating image, will close automatically when done...",
         "aiLocationTip": "Enter what you want to modify, AI will adjust the scene description",
@@ -174,7 +199,7 @@
         "showGenerated": "Generated",
         "showPending": "Pending",
         "assetManagement": "Asset Management",
-        "assetCount": "{total} assets ({appearances} character appearances + {locations} locations)",
+        "assetCount": "{total} assets ({appearances} character appearances + {locations} locations + {props} props)",
         "globalAnalyze": "Global Analysis",
         "globalAnalyzing": "Performing global asset analysis...",
         "globalAnalyzingHint": "Please don't refresh. Results will appear automatically when complete",
@@ -188,7 +213,8 @@
         "regenerateAll": "Regenerate All",
         "regenerateAllConfirm": "Regenerate images for all assets? This will overwrite existing images.",
         "noAssetsToGenerate": "No assets available for generation",
-        "regenerateAllHint": "Regenerate all asset images (overwrite existing)"
+        "regenerateAllHint": "Regenerate all asset images (overwrite existing)",
+        "downloadAll": "Download all images as ZIP"
     },
     "common": {
         "actions": "Actions",
@@ -235,30 +261,21 @@
         "aiDesignFailed": "AI design failed",
         "createFailed": "Creation failed"
     },
-    "referenceAsset": {
-        "title": "Reference Assets",
-        "count": "{count} references",
-        "add": "Add Reference",
-        "upload": "Upload Image",
-        "delete": "Delete",
-        "deleteConfirm": "Delete this reference asset?",
-        "deleteFailed": "Delete failed: {error}",
-        "noAssets": "No reference assets",
-        "noAssetsHint": "Save reference images from ComfyUI outputs or upload manually",
-        "sourceType": {
-            "comfyui-output": "ComfyUI Output",
-            "manual-upload": "Manual Upload"
-        },
-        "saveFailed": "Save reference asset failed: {error}",
-        "saveSuccess": "Reference asset saved"
+    "filterBar": {
+        "all": "All",
+        "allEpisodes": "All Episodes",
+        "episodeLabel": "Ep.{number} · {name}"
     },
     "assetLibrary": {
         "button": "Asset Library",
         "title": "Asset Library",
         "copySuccessCharacter": "Character appearance copied successfully",
         "copySuccessLocation": "Location image copied successfully",
+        "copySuccessProp": "Prop image copied successfully",
         "copySuccessVoice": "Voice copied successfully",
-        "copyFailed": "Copy failed: {error}"
+        "copyFailed": "Copy failed: {error}",
+        "downloadEmpty": "No image assets to download",
+        "downloadFailed": "Download failed"
     },
     "tts": {
         "voiceDesignSaved": "AI-designed voice has been set for {name}",
@@ -331,16 +348,32 @@
     "imageEdit": {
         "editCharacterImage": "Edit Character Image",
         "editLocationImage": "Edit Location Image",
+        "editPropImage": "Edit Prop Image",
         "characterLabel": "Character: {name}",
         "locationLabel": "Location: {name}",
+        "propLabel": "Prop: {name}",
         "editInstruction": "Edit Instruction",
         "subtitle": "Enter an edit instruction and optionally upload reference images",
         "characterPlaceholder": "Describe what you want to change, e.g.: Change hair to blonde, add glasses, change to casual clothes...",
         "locationPlaceholder": "Describe what you want to change, e.g.: Add more trees, change to night scene...",
+        "propPlaceholder": "Describe what you want to change, e.g.: change to brushed silver metal, add carved patterns to the handle, remove gem decoration...",
         "storyboardPlaceholder": "Describe what you want to change, e.g.: Change background color, adjust character expression...",
         "noAssetHint": "No assets, click \"Add Asset\" to select",
         "referenceImages": "Reference Images",
         "referenceImagesHint": "(optional, paste supported)",
         "startEditing": "Start Editing"
+    },
+    "referenceAsset": {
+        "title": "Reference Assets",
+        "count": "{count}",
+        "add": "Add Reference",
+        "noAssets": "No reference assets yet",
+        "noAssetsHint": "Upload images to use as references for later generation",
+        "deleteConfirm": "Delete this reference image?",
+        "sourceType": {
+            "pose-screenshot": "Pose Screenshot",
+            "comfyui-output": "ComfyUI Output",
+            "manual-upload": "Manual Upload"
+        }
     }
 }

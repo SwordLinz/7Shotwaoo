@@ -6,7 +6,6 @@ import type { TaskPresentationState } from '@/lib/task/presentation'
 import type { BatchVideoGenerationParams, VideoGenerationOptions } from '../components/video'
 import type { CapabilitySelections } from '@/lib/model-config-contract'
 import type { VideoPricingTier } from '@/lib/model-pricing/video-tier'
-import type { WorkflowMode } from '@/types/project'
 import type {
   useScriptToStoryboardRunStream,
   useStoryToScriptRunStream,
@@ -65,7 +64,6 @@ interface BuildWorkspaceControllerViewModelParams {
   }
   stageNavState: {
     currentStage: string
-    workflowMode: WorkflowMode
     capsuleNavItems: Array<{
       id: string
       label: string
