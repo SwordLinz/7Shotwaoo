@@ -17,10 +17,14 @@ const CAPABILITY_NAMESPACE_ALLOWED_FIELDS = {
   image: new Set(['resolutionOptions', 'fieldI18n']),
   video: new Set([
     'durationOptions',
+    'generationModeOptions',
+    'generateAudioOptions',
     'fpsOptions',
     'resolutionOptions',
+    'modeOptions',
     'firstlastframe',
     'supportGenerateAudio',
+    'supportsMultipleReferenceImages',
     'fieldI18n',
   ]),
   audio: new Set(['voiceOptions', 'rateOptions', 'fieldI18n']),
@@ -62,6 +66,10 @@ function isStringArray(value) {
 
 function isNumberArray(value) {
   return Array.isArray(value) && value.every((item) => typeof item === 'number' && Number.isFinite(item))
+}
+
+function isBooleanArray(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === 'boolean')
 }
 
 function parseModelKeyStrict(value) {
@@ -236,6 +244,15 @@ function validateCapabilities(modelType, capabilities) {
       pushIssue(issues, 'capabilities.video', 'video capabilities must be an object')
     } else {
       validateAllowedFields(issues, 'video', video)
+      if (video.generationModeOptions !== undefined && !isStringArray(video.generationModeOptions)) {
+        pushIssue(issues, 'capabilities.video.generationModeOptions', 'must be string array')
+      }
+      if (video.generateAudioOptions !== undefined && !isBooleanArray(video.generateAudioOptions)) {
+        pushIssue(issues, 'capabilities.video.generateAudioOptions', 'must be boolean array')
+      }
+      if (video.modeOptions !== undefined && !isStringArray(video.modeOptions)) {
+        pushIssue(issues, 'capabilities.video.modeOptions', 'must be string array')
+      }
       if (video.durationOptions !== undefined && !isNumberArray(video.durationOptions)) {
         pushIssue(issues, 'capabilities.video.durationOptions', 'must be number array')
       }
@@ -250,6 +267,12 @@ function validateCapabilities(modelType, capabilities) {
       }
       if (video.firstlastframe !== undefined && typeof video.firstlastframe !== 'boolean') {
         pushIssue(issues, 'capabilities.video.firstlastframe', 'must be boolean')
+      }
+      if (
+        video.supportsMultipleReferenceImages !== undefined
+        && typeof video.supportsMultipleReferenceImages !== 'boolean'
+      ) {
+        pushIssue(issues, 'capabilities.video.supportsMultipleReferenceImages', 'must be boolean')
       }
       validateFieldI18nMap(issues, 'video', video)
     }
