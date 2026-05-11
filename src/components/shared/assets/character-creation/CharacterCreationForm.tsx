@@ -28,6 +28,7 @@ interface CharacterCreationFormProps {
   artStyle: string
   setArtStyle: (value: string) => void
   referenceImagesBase64: string[]
+  threeViewImagesBase64: string[]
   referenceSubMode: 'direct' | 'extract'
   setReferenceSubMode: (mode: 'direct' | 'extract') => void
   isSubAppearance: boolean
@@ -38,9 +39,12 @@ interface CharacterCreationFormProps {
   setChangeReason: (value: string) => void
   availableCharacters: AvailableCharacter[]
   fileInputRef: RefObject<HTMLInputElement | null>
-  handleDrop: (event: DragEvent<HTMLDivElement>) => void
-  handleFileSelect: (files: FileList) => void
+  handleReferenceDrop: (event: DragEvent<HTMLDivElement>) => void
+  handleReferenceFileSelect: (files: FileList) => void
   handleClearReference: (index?: number) => void
+  handleThreeViewDrop: (event: DragEvent<HTMLDivElement>) => void
+  handleThreeViewFileSelect: (files: FileList) => void
+  handleClearThreeView: (index?: number) => void
   handleExtractDescription: () => void
   handleAiDesign: () => void
   isSubmitting: boolean
@@ -69,6 +73,7 @@ export default function CharacterCreationForm({
   artStyle,
   setArtStyle,
   referenceImagesBase64,
+  threeViewImagesBase64,
   referenceSubMode,
   setReferenceSubMode,
   isSubAppearance,
@@ -79,24 +84,47 @@ export default function CharacterCreationForm({
   setChangeReason,
   availableCharacters,
   fileInputRef,
-  handleDrop,
-  handleFileSelect,
+  handleReferenceDrop,
+  handleReferenceFileSelect,
   handleClearReference,
+  handleThreeViewDrop,
+  handleThreeViewFileSelect,
+  handleClearThreeView,
   handleExtractDescription,
   handleAiDesign,
-  isSubmitting,
   isAiDesigning,
   isExtracting,
 }: CharacterCreationFormProps) {
   const t = useTranslations('assetModal')
+  const isAssetHub = mode === 'asset-hub'
+  const showDescriptionReferencePanel = isAssetHub && createMode === 'description' && !isSubAppearance
+  const showLegacyReferencePanel = createMode === 'reference' && !isAssetHub
+  const showReferenceGenerationPanel = showDescriptionReferencePanel || showLegacyReferencePanel
+  const showThreeViewPanel = isAssetHub && createMode === 'reference'
 
   return (
     <div className="space-y-5">
       <div className="mb-5">
         <SegmentedControl
           options={[
-            { value: 'description', label: <><SparklesIcon className="w-4 h-4" /><span>{t('character.modeDescription')}</span></> },
-            { value: 'reference', label: <><PhotoIcon className="w-4 h-4" /><span>{t('character.modeReference')}</span></> },
+            {
+              value: 'description',
+              label: (
+                <>
+                  <SparklesIcon className="w-4 h-4" />
+                  <span>{t('character.modeDescription')}</span>
+                </>
+              ),
+            },
+            {
+              value: 'reference',
+              label: (
+                <>
+                  <PhotoIcon className="w-4 h-4" />
+                  <span>{t('character.modeReference')}</span>
+                </>
+              ),
+            },
           ]}
           value={createMode}
           onChange={(val) => setCreateMode(val as 'reference' | 'description')}
@@ -171,19 +199,18 @@ export default function CharacterCreationForm({
 
       {mode === 'asset-hub' && !isSubAppearance && (
         <div className="space-y-2">
-          <label className="glass-field-label block">
-            {t('artStyle.title')}
-          </label>
+          <label className="glass-field-label block">{t('artStyle.title')}</label>
           <div className="grid grid-cols-2 gap-2">
             {ART_STYLES.map((style) => (
               <button
                 key={style.value}
                 type="button"
                 onClick={() => setArtStyle(style.value)}
-                className={`glass-btn-base px-3 py-2 rounded-lg text-sm border transition-all justify-start ${artStyle === style.value
-                  ? 'glass-btn-tone-info border-[var(--glass-stroke-focus)]'
-                  : 'glass-btn-soft border-[var(--glass-stroke-base)] text-[var(--glass-text-secondary)]'
-                  }`}
+                className={`glass-btn-base px-3 py-2 rounded-lg text-sm border transition-all justify-start ${
+                  artStyle === style.value
+                    ? 'glass-btn-tone-info border-[var(--glass-stroke-focus)]'
+                    : 'glass-btn-soft border-[var(--glass-stroke-base)] text-[var(--glass-text-secondary)]'
+                }`}
               >
                 <span>{style.label}</span>
               </button>
@@ -192,18 +219,24 @@ export default function CharacterCreationForm({
         </div>
       )}
 
-      {createMode === 'reference' && (
+      {showReferenceGenerationPanel && (
         <div className="glass-surface-soft rounded-xl p-4 space-y-3 border border-[var(--glass-stroke-base)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-medium text-[var(--glass-tone-info-fg)]">
               <PhotoIcon className="w-4 h-4" />
-              <span>{t('character.uploadReference')}</span>
+              <span>
+                {showDescriptionReferencePanel
+                  ? t('character.uploadCharacterImage')
+                  : t('character.uploadReference')}
+              </span>
             </div>
             <span className="text-xs text-[var(--glass-text-tertiary)]">{t('character.pasteHint')}</span>
           </div>
 
           <div className="glass-surface flex items-center gap-2 p-2 rounded-lg">
-            <span className="text-xs text-[var(--glass-text-secondary)] shrink-0">{t('character.generationMode')}：</span>
+            <span className="text-xs text-[var(--glass-text-secondary)] shrink-0">
+              {t('character.generationMode')}:
+            </span>
             <SegmentedControl
               className="flex-1"
               options={[
@@ -226,13 +259,36 @@ export default function CharacterCreationForm({
           )}
 
           <CharacterCreationPreview
-            referenceImagesBase64={referenceImagesBase64}
+            imagesBase64={referenceImagesBase64}
             fileInputRef={fileInputRef}
-            onDrop={handleDrop}
-            onFileSelect={handleFileSelect}
-            onClearReference={handleClearReference}
+            onDrop={handleReferenceDrop}
+            onFileSelect={handleReferenceFileSelect}
+            onClearImage={handleClearReference}
+            helperText={t('character.maxReferenceImages')}
+            selectedCountText={t('character.selectedCount', { count: referenceImagesBase64.length })}
           />
+        </div>
+      )}
 
+      {showThreeViewPanel && (
+        <div className="glass-surface-soft rounded-xl p-4 space-y-3 border border-[var(--glass-stroke-base)]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--glass-tone-info-fg)]">
+              <PhotoIcon className="w-4 h-4" />
+              <span>{t('character.uploadThreeView')}</span>
+            </div>
+            <span className="text-xs text-[var(--glass-text-tertiary)]">{t('character.pasteHint')}</span>
+          </div>
+
+          <CharacterCreationPreview
+            imagesBase64={threeViewImagesBase64}
+            fileInputRef={fileInputRef}
+            onDrop={handleThreeViewDrop}
+            onFileSelect={handleThreeViewFileSelect}
+            onClearImage={handleClearThreeView}
+            helperText={t('character.maxThreeViewImages')}
+            selectedCountText={t('character.selectedThreeViewCount', { count: threeViewImagesBase64.length })}
+          />
         </div>
       )}
 
@@ -272,15 +328,18 @@ export default function CharacterCreationForm({
 
           <div className="space-y-2">
             <label className="glass-field-label block">
-              {isSubAppearance ? t('character.modifyDescription') : t('character.description')} <span className="text-[var(--glass-tone-danger-fg)]">*</span>
+              {isSubAppearance ? t('character.modifyDescription') : t('character.description')}{' '}
+              <span className="text-[var(--glass-tone-danger-fg)]">*</span>
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
-              placeholder={isSubAppearance
-                ? t('character.modifyDescriptionPlaceholder')
-                : t('character.descPlaceholder')}
+              placeholder={
+                isSubAppearance
+                  ? t('character.modifyDescriptionPlaceholder')
+                  : t('character.descPlaceholder')
+              }
               className="glass-textarea-base w-full px-3 py-2 text-sm resize-none"
             />
           </div>

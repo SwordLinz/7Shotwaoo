@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent, MouseEvent } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { useTranslations } from 'next-intl'
 import { useProjectAssets } from '@/lib/query/hooks'
 import CharacterCreationForm from './character-creation/CharacterCreationForm'
@@ -37,6 +38,7 @@ export function CharacterCreationModal({
   const [aiInstruction, setAiInstruction] = useState('')
   const [artStyle, setArtStyle] = useState('american-comic')
   const [referenceImagesBase64, setReferenceImagesBase64] = useState<string[]>([])
+  const [threeViewImagesBase64, setThreeViewImagesBase64] = useState<string[]>([])
   const [referenceSubMode, setReferenceSubMode] = useState<'direct' | 'extract'>('direct')
   const [isSubAppearance, setIsSubAppearance] = useState(false)
   const [selectedCharacterId, setSelectedCharacterId] = useState('')
@@ -65,6 +67,7 @@ export function CharacterCreationModal({
     setReferenceCharacterGenerationCount,
     handleExtractDescription,
     handleCreateWithReference,
+    handleCreateWithThreeView,
     handleAiDesign,
     handleSubmit,
     handleSubmitAndGenerate,
@@ -77,6 +80,7 @@ export function CharacterCreationModal({
     aiInstruction,
     artStyle,
     referenceImagesBase64,
+    threeViewImagesBase64,
     referenceSubMode,
     isSubAppearance,
     selectedCharacterId,
@@ -87,26 +91,43 @@ export function CharacterCreationModal({
     onClose,
   })
 
-  const handleFileSelect = useCallback(async (files: FileList | File[]) => {
-    const fileArray = Array.from(files).filter((f) => f.type.startsWith('image/'))
-    if (fileArray.length === 0) return
+  const appendImages = useCallback(
+    (files: FileList | File[], maxCount: number, currentLength: number, setImages: Dispatch<SetStateAction<string[]>>) => {
+      const fileArray = Array.from(files).filter((file) => file.type.startsWith('image/'))
+      if (fileArray.length === 0) return
 
-    const remaining = 5 - referenceImagesBase64.length
-    const toAdd = fileArray.slice(0, remaining)
+      const remaining = maxCount - currentLength
+      const toAdd = fileArray.slice(0, Math.max(remaining, 0))
 
-    for (const file of toAdd) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const base64 = e.target?.result as string
-        setReferenceImagesBase64((prev) => {
-          if (prev.length >= 5) return prev
-          if (prev.includes(base64)) return prev
-          return [...prev, base64]
-        })
-      }
-      reader.readAsDataURL(file)
-    }
-  }, [referenceImagesBase64.length])
+      toAdd.forEach((file) => {
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          const base64 = event.target?.result as string
+          setImages((prev) => {
+            if (prev.length >= maxCount) return prev
+            if (prev.includes(base64)) return prev
+            return [...prev, base64]
+          })
+        }
+        reader.readAsDataURL(file)
+      })
+    },
+    [],
+  )
+
+  const handleReferenceFileSelect = useCallback(
+    (files: FileList | File[]) => {
+      appendImages(files, 5, referenceImagesBase64.length, setReferenceImagesBase64)
+    },
+    [appendImages, referenceImagesBase64.length],
+  )
+
+  const handleThreeViewFileSelect = useCallback(
+    (files: FileList | File[]) => {
+      appendImages(files, 3, threeViewImagesBase64.length, setThreeViewImagesBase64)
+    },
+    [appendImages, threeViewImagesBase64.length],
+  )
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -120,49 +141,79 @@ export function CharacterCreationModal({
 
   useEffect(() => {
     const handleGlobalPaste = (e: ClipboardEvent) => {
-      if (createMode !== 'reference') return
-
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
 
       const items = e.clipboardData?.items
       if (!items) return
 
+      const activeUploadTarget = mode === 'asset-hub'
+        ? (createMode === 'description' ? 'reference' : createMode === 'reference' ? 'three-view' : null)
+        : (createMode === 'reference' ? 'reference' : null)
+
+      if (!activeUploadTarget) return
+
       for (let i = 0; i < items.length; i++) {
         if (!items[i].type.startsWith('image/')) continue
         const file = items[i].getAsFile()
         if (!file) continue
         e.preventDefault()
-        void handleFileSelect([file])
+        if (activeUploadTarget === 'three-view') {
+          handleThreeViewFileSelect([file])
+        } else {
+          handleReferenceFileSelect([file])
+        }
         break
       }
     }
 
     document.addEventListener('paste', handleGlobalPaste)
     return () => document.removeEventListener('paste', handleGlobalPaste)
-  }, [createMode, handleFileSelect])
+  }, [createMode, handleReferenceFileSelect, handleThreeViewFileSelect, mode])
 
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+  const handleReferenceDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     if (e.dataTransfer.files.length > 0) {
-      void handleFileSelect(e.dataTransfer.files)
+      handleReferenceFileSelect(e.dataTransfer.files)
     }
-  }
+  }, [handleReferenceFileSelect])
 
-  const handleClearReference = (index?: number) => {
+  const handleThreeViewDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.dataTransfer.files.length > 0) {
+      handleThreeViewFileSelect(e.dataTransfer.files)
+    }
+  }, [handleThreeViewFileSelect])
+
+  const handleClearReference = useCallback((index?: number) => {
     if (typeof index === 'number') {
-      setReferenceImagesBase64((prev) => prev.filter((_, i) => i !== index))
+      setReferenceImagesBase64((prev) => prev.filter((_, currentIndex) => currentIndex !== index))
       return
     }
     setReferenceImagesBase64([])
-  }
+  }, [])
+
+  const handleClearThreeView = useCallback((index?: number) => {
+    if (typeof index === 'number') {
+      setThreeViewImagesBase64((prev) => prev.filter((_, currentIndex) => currentIndex !== index))
+      return
+    }
+    setThreeViewImagesBase64([])
+  }, [])
 
   const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget && !isSubmitting && !isAiDesigning) {
       onClose()
     }
   }
+
+  const isAssetHubDescriptionReferenceFlow =
+    mode === 'asset-hub' &&
+    createMode === 'description' &&
+    !isSubAppearance &&
+    referenceImagesBase64.length > 0
 
   return (
     <div
@@ -196,6 +247,7 @@ export function CharacterCreationModal({
             artStyle={artStyle}
             setArtStyle={(value) => setArtStyle(value)}
             referenceImagesBase64={referenceImagesBase64}
+            threeViewImagesBase64={threeViewImagesBase64}
             referenceSubMode={referenceSubMode}
             setReferenceSubMode={(value) => setReferenceSubMode(value)}
             isSubAppearance={isSubAppearance}
@@ -206,11 +258,18 @@ export function CharacterCreationModal({
             setChangeReason={(value) => setChangeReason(value)}
             availableCharacters={availableCharacters}
             fileInputRef={fileInputRef}
-            handleDrop={handleDrop}
-            handleFileSelect={(files) => void handleFileSelect(files)}
+            handleReferenceDrop={handleReferenceDrop}
+            handleReferenceFileSelect={(files) => handleReferenceFileSelect(files)}
             handleClearReference={handleClearReference}
-            handleExtractDescription={() => { void handleExtractDescription() }}
-            handleAiDesign={() => { void handleAiDesign() }}
+            handleThreeViewDrop={handleThreeViewDrop}
+            handleThreeViewFileSelect={(files) => handleThreeViewFileSelect(files)}
+            handleClearThreeView={handleClearThreeView}
+            handleExtractDescription={() => {
+              void handleExtractDescription()
+            }}
+            handleAiDesign={() => {
+              void handleAiDesign()
+            }}
             isSubmitting={isSubmitting}
             isAiDesigning={isAiDesigning}
             isExtracting={isExtracting}
@@ -225,23 +284,37 @@ export function CharacterCreationModal({
           >
             {t('common.cancel')}
           </button>
-          {createMode === 'reference' ? (
+          {createMode === 'reference' && mode === 'project' ? (
             <ImageGenerationInlineCountButton
               prefix={<span>{t('character.useReferenceGeneratePrefix')}</span>}
               suffix={<span>{t('character.generateCountSuffix')}</span>}
               value={referenceCharacterGenerationCount}
               options={getImageGenerationCountOptions('reference-to-character')}
               onValueChange={setReferenceCharacterGenerationCount}
-              onClick={() => { void handleCreateWithReference() }}
+              onClick={() => {
+                void handleCreateWithReference()
+              }}
               actionDisabled={!name.trim() || referenceImagesBase64.length === 0}
               selectDisabled={isSubmitting}
               ariaLabel={t('character.selectReferenceGenerateCount')}
               className="glass-btn-base glass-btn-primary flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
               selectClassName="appearance-none bg-transparent border-0 pl-0 pr-3 text-sm font-semibold text-current outline-none cursor-pointer leading-none transition-colors"
             />
+          ) : createMode === 'reference' ? (
+            <button
+              onClick={() => {
+                void handleCreateWithThreeView()
+              }}
+              disabled={isSubmitting || !name.trim() || threeViewImagesBase64.length === 0}
+              className="glass-btn-base glass-btn-primary px-4 py-2 rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? t('common.adding') : t('common.saveToAssetHub')}
+            </button>
           ) : isSubAppearance ? (
             <button
-              onClick={() => { void handleSubmit() }}
+              onClick={() => {
+                void handleSubmit()
+              }}
               disabled={isSubmitting || !selectedCharacterId.trim() || !changeReason.trim() || !description.trim()}
               className="glass-btn-base glass-btn-primary px-4 py-2 rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -250,25 +323,51 @@ export function CharacterCreationModal({
           ) : (
             <>
               <button
-                onClick={() => { void handleSubmit() }}
+                onClick={() => {
+                  void handleSubmit()
+                }}
                 disabled={isSubmitting || !name.trim() || !description.trim()}
                 className="glass-btn-base glass-btn-secondary px-4 py-2 rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? t('common.adding') : (mode === 'asset-hub' ? t('common.addOnlyToAssetHub') : t('common.addOnly'))}
+                {isSubmitting
+                  ? t('common.adding')
+                  : mode === 'asset-hub'
+                    ? t('common.addOnlyToAssetHub')
+                    : t('common.addOnly')}
               </button>
-              <ImageGenerationInlineCountButton
-                prefix={<span>{t('common.addAndGeneratePrefix')}</span>}
-                suffix={<span>{t('common.generateCountSuffix')}</span>}
-                value={characterGenerationCount}
-                options={getImageGenerationCountOptions('character')}
-                onValueChange={setCharacterGenerationCount}
-                onClick={() => { void handleSubmitAndGenerate() }}
-                actionDisabled={!name.trim() || !description.trim()}
-                selectDisabled={isSubmitting}
-                ariaLabel={t('common.selectGenerateCount')}
-                className="glass-btn-base glass-btn-primary flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                selectClassName="appearance-none bg-transparent border-0 pl-0 pr-3 text-sm font-semibold text-current outline-none cursor-pointer leading-none transition-colors"
-              />
+              {isAssetHubDescriptionReferenceFlow ? (
+                <ImageGenerationInlineCountButton
+                  prefix={<span>{t('character.useReferenceGeneratePrefix')}</span>}
+                  suffix={<span>{t('character.generateCountSuffix')}</span>}
+                  value={referenceCharacterGenerationCount}
+                  options={getImageGenerationCountOptions('reference-to-character')}
+                  onValueChange={setReferenceCharacterGenerationCount}
+                  onClick={() => {
+                    void handleCreateWithReference()
+                  }}
+                  actionDisabled={!name.trim() || referenceImagesBase64.length === 0}
+                  selectDisabled={isSubmitting}
+                  ariaLabel={t('character.selectReferenceGenerateCount')}
+                  className="glass-btn-base glass-btn-primary flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                  selectClassName="appearance-none bg-transparent border-0 pl-0 pr-3 text-sm font-semibold text-current outline-none cursor-pointer leading-none transition-colors"
+                />
+              ) : (
+                <ImageGenerationInlineCountButton
+                  prefix={<span>{t('common.addAndGeneratePrefix')}</span>}
+                  suffix={<span>{t('common.generateCountSuffix')}</span>}
+                  value={characterGenerationCount}
+                  options={getImageGenerationCountOptions('character')}
+                  onValueChange={setCharacterGenerationCount}
+                  onClick={() => {
+                    void handleSubmitAndGenerate()
+                  }}
+                  actionDisabled={!name.trim() || !description.trim()}
+                  selectDisabled={isSubmitting}
+                  ariaLabel={t('common.selectGenerateCount')}
+                  className="glass-btn-base glass-btn-primary flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                  selectClassName="appearance-none bg-transparent border-0 pl-0 pr-3 text-sm font-semibold text-current outline-none cursor-pointer leading-none transition-colors"
+                />
+              )}
             </>
           )}
         </div>

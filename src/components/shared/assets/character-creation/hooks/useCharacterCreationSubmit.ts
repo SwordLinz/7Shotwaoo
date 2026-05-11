@@ -29,6 +29,7 @@ interface UseCharacterCreationSubmitParams {
   aiInstruction: string
   artStyle: string
   referenceImagesBase64: string[]
+  threeViewImagesBase64: string[]
   referenceSubMode: 'direct' | 'extract'
   isSubAppearance: boolean
   selectedCharacterId: string
@@ -53,6 +54,7 @@ export function useCharacterCreationSubmit({
   aiInstruction,
   artStyle,
   referenceImagesBase64,
+  threeViewImagesBase64,
   referenceSubMode,
   isSubAppearance,
   selectedCharacterId,
@@ -97,23 +99,23 @@ export function useCharacterCreationSubmit({
     }
   }
 
-  const uploadReferenceImages = useCallback(async () => {
+  const uploadImages = useCallback(async (imagesBase64: string[]) => {
     const uploadMutation = mode === 'asset-hub' ? uploadAssetHubTemp : uploadProjectTemp
     return Promise.all(
-      referenceImagesBase64.map(async (base64) => {
+      imagesBase64.map(async (base64) => {
         const data = await uploadMutation.mutateAsync({ imageBase64: base64 })
         if (!data.url) throw new Error(t('errors.uploadFailed'))
         return data.url
       }),
     )
-  }, [mode, referenceImagesBase64, t, uploadAssetHubTemp, uploadProjectTemp])
+  }, [mode, t, uploadAssetHubTemp, uploadProjectTemp])
 
   const handleExtractDescription = useCallback(async () => {
     if (referenceImagesBase64.length === 0) return
 
     try {
       setIsExtracting(true)
-      const referenceImageUrls = await uploadReferenceImages()
+      const referenceImageUrls = await uploadImages(referenceImagesBase64)
       const result = mode === 'asset-hub'
         ? await extractAssetHubDescription.mutateAsync(referenceImageUrls)
         : await extractProjectDescription.mutateAsync(referenceImageUrls)
@@ -131,10 +133,10 @@ export function useCharacterCreationSubmit({
     extractAssetHubDescription,
     extractProjectDescription,
     mode,
-    referenceImagesBase64.length,
+    referenceImagesBase64,
     setDescription,
     t,
-    uploadReferenceImages,
+    uploadImages,
   ])
 
   const handleCreateWithReference = useCallback(async () => {
@@ -142,7 +144,7 @@ export function useCharacterCreationSubmit({
 
     try {
       setIsSubmitting(true)
-      const referenceImageUrls = await uploadReferenceImages()
+      const referenceImageUrls = await uploadImages(referenceImagesBase64)
 
       let finalDescription = description.trim()
       if (referenceSubMode === 'extract') {
@@ -195,10 +197,47 @@ export function useCharacterCreationSubmit({
     name,
     onClose,
     onSuccess,
-    referenceImagesBase64.length,
+    referenceCharacterGenerationCount,
+    referenceImagesBase64,
     referenceSubMode,
     t,
-    uploadReferenceImages,
+    uploadImages,
+  ])
+
+  const handleCreateWithThreeView = useCallback(async () => {
+    if (mode !== 'asset-hub' || !name.trim() || threeViewImagesBase64.length === 0) return
+
+    try {
+      setIsSubmitting(true)
+      const initialImageUrls = await uploadImages(threeViewImagesBase64)
+      await createAssetHubCharacter.mutateAsync({
+        name: name.trim(),
+        description: description.trim() || t('character.defaultDescription', { name: name.trim() }),
+        folderId: folderId ?? null,
+        artStyle,
+        initialImageUrls,
+      })
+      onSuccess()
+      onClose()
+    } catch (error: unknown) {
+      if (shouldShowError(error)) {
+        alert(getErrorMessage(error, t('errors.createFailed')))
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [
+    artStyle,
+    createAssetHubCharacter,
+    description,
+    folderId,
+    mode,
+    name,
+    onClose,
+    onSuccess,
+    t,
+    threeViewImagesBase64,
+    uploadImages,
   ])
 
   const handleAiDesign = useCallback(async () => {
@@ -370,6 +409,7 @@ export function useCharacterCreationSubmit({
     setReferenceCharacterGenerationCount,
     handleExtractDescription,
     handleCreateWithReference,
+    handleCreateWithThreeView,
     handleAiDesign,
     handleSubmit,
     handleSubmitAndGenerate,

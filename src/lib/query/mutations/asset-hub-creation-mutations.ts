@@ -112,6 +112,8 @@ export function useCreateAssetHubCharacter() {
       description: string
       folderId?: string | null
       artStyle: string
+      initialImageUrl?: string
+      initialImageUrls?: string[]
       generateFromReference?: boolean
       referenceImageUrls?: string[]
       customDescription?: string
