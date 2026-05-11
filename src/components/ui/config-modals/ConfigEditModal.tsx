@@ -4,15 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
     ART_STYLES,
-    VIDEO_RATIOS_SAFE,
+    VIDEO_RATIOS,
 } from '@/lib/constants'
 import type {
     CapabilitySelections,
     CapabilityValue,
     ModelCapabilities,
 } from '@/lib/model-config-contract'
-import { resolveVideoModelOptionsForWorkflow } from '@/lib/model-capabilities/video-model-options'
-import type { WorkflowMode } from '@/types/project'
+import { filterNormalVideoModelOptions } from '@/lib/model-capabilities/video-model-options'
 import { RatioSelector, StyleSelector } from './config-modal-selectors'
 import { ModelCapabilityDropdown } from './ModelCapabilityDropdown'
 import { AppIcon } from '@/components/ui/icons'
@@ -67,8 +66,6 @@ interface SettingsModalProps {
     onVideoRatioChange?: (value: string) => void
     onCapabilityOverridesChange?: (value: CapabilitySelections) => void
     onTTSRateChange?: (value: string) => void
-    /** 预留：与工作流区分视频列表（当前各模式列表一致） */
-    workflowMode?: WorkflowMode
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -152,7 +149,6 @@ export function SettingsModal({
     onVideoRatioChange,
     onCapabilityOverridesChange,
     onTTSRateChange,
-    workflowMode,
 }: SettingsModalProps) {
     const t = useTranslations('configModal')
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle')
@@ -162,16 +158,15 @@ export function SettingsModal({
         video: Array.isArray(availableModels?.video) ? availableModels.video : [],
         audio: Array.isArray(availableModels?.audio) ? availableModels.audio : [],
     }), [availableModels])
-    const resolvedVideoModels = useMemo<ModelOption[]>(
-        () => resolveVideoModelOptionsForWorkflow(userModels.video, workflowMode),
-        [userModels.video, workflowMode],
+    const normalVideoModels = useMemo<ModelOption[]>(
+        () => filterNormalVideoModelOptions(userModels.video),
+        [userModels.video],
     )
 
     const selectedVideoModelOption = useMemo(
-        () => resolvedVideoModels.find((model) => model.value === videoModel) || null,
-        [resolvedVideoModels, videoModel],
+        () => normalVideoModels.find((model) => model.value === videoModel) || null,
+        [normalVideoModels, videoModel],
     )
-
     const selectedAnalysisModelOption = useMemo(
         () => userModels.llm.find((model) => model.value === analysisModel) || null,
         [userModels.llm, analysisModel],
@@ -369,15 +364,26 @@ export function SettingsModal({
                     </div>
                 </div>
                 <p className="text-[12px] text-[var(--glass-text-tertiary)] mb-6">{t('subtitle')}</p>
-                <div className="space-y-5 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                <div className="space-y-5 flex-1 min-h-0 overflow-y-auto app-scrollbar">
                     <div className="glass-surface-soft p-5 sm:p-6 space-y-4">
-                        <h3 className="text-sm font-semibold text-[var(--glass-text-tertiary)]">{t('visualStyle')}</h3>
-                        <div className="max-w-xs">
-                            <StyleSelector
-                                value={artStyle}
-                                onChange={(value) => handleChange(onArtStyleChange)(value)}
-                                options={ART_STYLES}
-                            />
+                        <h3 className="text-sm font-semibold text-[var(--glass-text-tertiary)]">{t('visualSettings')}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-[var(--glass-text-secondary)]">{t('visualStyle')}</label>
+                                <StyleSelector
+                                    value={artStyle}
+                                    onChange={(value) => handleChange(onArtStyleChange)(value)}
+                                    options={ART_STYLES}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-[var(--glass-text-secondary)]">{t('aspectRatio')}</label>
+                                <RatioSelector
+                                    value={videoRatio}
+                                    onChange={(value) => { handleChange(onVideoRatioChange)(value) }}
+                                    options={VIDEO_RATIOS}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -466,9 +472,9 @@ export function SettingsModal({
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-[var(--glass-text-secondary)]">{t('videoModel')}</label>
                                 <ModelCapabilityDropdown
-                                    models={resolvedVideoModels}
+                                    models={normalVideoModels}
                                     value={videoModel}
-                                    onModelChange={(v) => handleModelChange(v, resolvedVideoModels, 'video', onVideoModelChange)}
+                                    onModelChange={(v) => handleModelChange(v, normalVideoModels, 'video', onVideoModelChange)}
                                     capabilityFields={videoCapabilityFields}
                                     placementMode="downward"
                                     capabilityOverrides={selectedVideoOverrides}
@@ -496,16 +502,7 @@ export function SettingsModal({
                         </div>
                     </div>
 
-                    <div className="glass-surface-soft p-5 sm:p-6 space-y-4">
-                        <h3 className="text-sm font-semibold text-[var(--glass-text-tertiary)]">{t('aspectRatio')}</h3>
-                        <div className="max-w-xs">
-                            <RatioSelector
-                                value={videoRatio}
-                                onChange={(value) => { handleChange(onVideoRatioChange)(value) }}
-                                options={VIDEO_RATIOS_SAFE}
-                            />
-                        </div>
-                    </div>
+
                 </div>
             </div>
         </div>

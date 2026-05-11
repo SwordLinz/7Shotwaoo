@@ -515,6 +515,50 @@
   {
     "apiType": "video",
     "provider": "ark",
+    "modelId": "doubao-seedance-2-0-260128",
+    "pricing": {
+      "mode": "capability",
+      "tiers": [
+        {
+          "when": {
+            "containsVideoInput": false
+          },
+          "amount": 46
+        },
+        {
+          "when": {
+            "containsVideoInput": true
+          },
+          "amount": 28
+        }
+      ]
+    }
+  },
+  {
+    "apiType": "video",
+    "provider": "ark",
+    "modelId": "doubao-seedance-2-0-fast-260128",
+    "pricing": {
+      "mode": "capability",
+      "tiers": [
+        {
+          "when": {
+            "containsVideoInput": false
+          },
+          "amount": 37
+        },
+        {
+          "when": {
+            "containsVideoInput": true
+          },
+          "amount": 22
+        }
+      ]
+    }
+  },
+  {
+    "apiType": "video",
+    "provider": "ark",
     "modelId": "doubao-seedance-1-0-pro-fast-251015",
     "pricing": {
       "mode": "capability",
@@ -816,34 +860,6 @@
     "apiType": "video",
     "provider": "ark",
     "modelId": "doubao-seedance-2-0",
-    "pricing": {
-      "mode": "capability",
-      "tiers": [
-        {
-          "when": {
-            "resolution": "480p"
-          },
-          "amount": 0.73
-        },
-        {
-          "when": {
-            "resolution": "720p"
-          },
-          "amount": 1.54
-        },
-        {
-          "when": {
-            "resolution": "1080p"
-          },
-          "amount": 2.08
-        }
-      ]
-    }
-  },
-  {
-    "apiType": "video",
-    "provider": "ark",
-    "modelId": "doubao-seedance-2-0-260128",
     "pricing": {
       "mode": "capability",
       "tiers": [
@@ -6019,34 +6035,6 @@
     "pricing": {
       "mode": "flat",
       "flatAmount": 0
-    }
-  },
-  {
-    "apiType": "video",
-    "provider": "ark",
-    "modelId": "doubao-seedance-2-0-fast-260128",
-    "pricing": {
-      "mode": "capability",
-      "tiers": [
-        {
-          "when": {
-            "resolution": "480p"
-          },
-          "amount": 0.2
-        },
-        {
-          "when": {
-            "resolution": "720p"
-          },
-          "amount": 0.43
-        },
-        {
-          "when": {
-            "resolution": "1080p"
-          },
-          "amount": 0.58
-        }
-      ]
     }
   },
   {

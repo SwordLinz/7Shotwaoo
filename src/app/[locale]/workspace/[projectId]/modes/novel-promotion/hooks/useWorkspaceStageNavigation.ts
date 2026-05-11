@@ -1,15 +1,6 @@
 'use client'
 
-import type { NovelPromotionPanel, WorkflowMode } from '@/types/project'
-
-interface EpisodeLike {
-  novelText?: string | null
-  voiceLines?: unknown[] | null
-}
-
-interface StoryboardLike {
-  panels?: NovelPromotionPanel[] | null
-}
+import type { StageArtifactReadiness } from '@/lib/novel-promotion/stage-readiness'
 
 interface CapsuleNavItem {
   id: string
@@ -22,54 +13,33 @@ interface CapsuleNavItem {
 
 interface UseWorkspaceStageNavigationParams {
   isAnyOperationRunning: boolean
-  episode?: EpisodeLike | null
-  projectCharacterCount: number
-  episodeStoryboards: StoryboardLike[]
-  workflowMode: WorkflowMode
+  stageArtifacts: StageArtifactReadiness
   t: (key: string) => string
 }
 
 export function useWorkspaceStageNavigation({
   isAnyOperationRunning,
-  episode,
-  projectCharacterCount,
-  episodeStoryboards,
-  workflowMode,
+  stageArtifacts,
   t,
 }: UseWorkspaceStageNavigationParams): CapsuleNavItem[] {
-  const isSmartRef = workflowMode === 'smart-reference'
-
   const getStageStatus = (stageId: string): 'empty' | 'active' | 'processing' | 'ready' => {
     if (isAnyOperationRunning) return 'processing'
 
     switch (stageId) {
       case 'config':
-        return episode?.novelText ? 'ready' : 'active'
+        return stageArtifacts.hasStory ? 'ready' : 'active'
       case 'assets':
-        return projectCharacterCount > 0 ? 'ready' : 'empty'
+        return stageArtifacts.hasScript ? 'ready' : 'empty'
       case 'storyboard':
-        return episodeStoryboards.some((sb) => sb.panels?.length) ? 'ready' : 'empty'
+        return stageArtifacts.hasStoryboard ? 'ready' : 'empty'
       case 'videos':
       case 'editor':
-        if (isSmartRef) {
-          return episodeStoryboards.some((sb) => sb.panels?.some((panel) => panel.videoUrl)) ? 'ready'
-            : projectCharacterCount > 0 ? 'active' : 'empty'
-        }
-        return episodeStoryboards.some((sb) => sb.panels?.some((panel) => panel.videoUrl)) ? 'ready' : 'empty'
+        return stageArtifacts.hasVideo ? 'ready' : 'empty'
       case 'voice':
-        return (episode?.voiceLines?.length || 0) > 0 ? 'ready' : 'empty'
+        return stageArtifacts.hasVoice ? 'ready' : 'empty'
       default:
         return 'empty'
     }
-  }
-
-  if (isSmartRef) {
-    return [
-      { id: 'config', icon: 'S', label: t('stages.story'), status: getStageStatus('config') },
-      { id: 'script', icon: 'A', label: t('stages.script'), status: getStageStatus('assets') },
-      { id: 'videos', icon: 'V', label: t('stages.smartRefVideo'), status: getStageStatus('videos') },
-      { id: 'editor', icon: 'E', label: t('stages.editor'), status: getStageStatus('editor') },
-    ]
   }
 
   return [
@@ -77,6 +47,13 @@ export function useWorkspaceStageNavigation({
     { id: 'script', icon: 'A', label: t('stages.script'), status: getStageStatus('assets') },
     { id: 'storyboard', icon: 'B', label: t('stages.storyboard'), status: getStageStatus('storyboard') },
     { id: 'videos', icon: 'V', label: t('stages.video'), status: getStageStatus('videos') },
-    { id: 'editor', icon: 'E', label: t('stages.editor'), status: getStageStatus('editor') },
+    {
+      id: 'editor',
+      icon: 'E',
+      label: t('stages.editor'),
+      status: 'empty',
+      disabled: true,
+      disabledLabel: t('stages.editorComingSoon'),
+    },
   ]
 }

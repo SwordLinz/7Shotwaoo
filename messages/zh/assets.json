@@ -3,6 +3,7 @@
         "title": "资产确认",
         "characters": "角色",
         "locations": "场景",
+        "props": "道具",
         "analyze": "分析资产",
         "analyzing": "分析中...",
         "generateAll": "批量生成全部",
@@ -11,11 +12,15 @@
         "confirmProfiles": "角色档案待确认",
         "confirmHint": "请确认以下角色档案后生成外貌描述",
         "confirmAll": "全部确认 ({count})",
+        "pendingProfilesBanner": "AI 选角完成",
+        "pendingProfilesHint": "确认档案后自动生成角色形象",
         "assetsTitle": "资产分析",
         "characterAssets": "角色资产",
         "locationAssets": "场景资产",
+        "propAssets": "道具资产",
         "counts": "{characterCount} 个角色，{appearanceCount} 个形象",
         "locationCounts": "{count} 个场景",
+        "propCounts": "{count} 个道具",
         "undoFailed": "撤回失败",
         "undoFailedError": "撤回失败: {error}",
         "undoSuccess": "已撤回到上一版本",
@@ -53,7 +58,7 @@
         "characterCount": "{count} 个角色",
         "updateFailed": "更新描述失败",
         "addFailed": "添加角色失败",
-        "copyFromGlobal": "从资产中心复制"
+        "copyFromGlobal": "从资产中心导入"
     },
     "location": {
         "add": "添加场景",
@@ -70,6 +75,20 @@
         "updateFailed": "更新描述失败",
         "addFailed": "添加场景失败"
     },
+    "prop": {
+        "add": "添加道具",
+        "edit": "编辑道具",
+        "delete": "删除道具",
+        "deleteConfirm": "确定要删除这个道具吗？",
+        "deleteFailed": "删除失败: {error}",
+        "name": "道具名",
+        "summary": "简要说明",
+        "summaryPlaceholder": "一句话说明这是什么道具，不写剧情用途",
+        "description": "图片描述",
+        "descriptionPlaceholder": "只写道具本体的材质、颜色、结构和装饰细节",
+        "regenerateImage": "重新生成",
+        "addFailed": "添加道具失败"
+    },
     "image": {
         "upload": "上传图片",
         "uploadReplace": "上传替换图片",
@@ -85,6 +104,9 @@
         "selectCount": "选择生成数量",
         "generateCountPrefix": "生成",
         "generateCountSuffix": "张图像",
+        "regenCountPrefix": "重新生成",
+        "regenCountSuffix": "张",
+        "regenCountAriaLabel": "选择重新生成张数",
         "generatedProgress": "已生成 {generated}/{total}",
         "generating": "生成中",
         "regenerating": "重新生成中",
@@ -151,12 +173,15 @@
         "scenePrompt": "场景描述提示词",
         "appearancePrompt": "形象描述提示词",
         "smartModify": "智能修改",
+        "modifyDescription": "AI修改描述",
         "modifyPlaceholder": "例如：改成夜晚，添加月光，增加窗帘...",
         "modifyPlaceholderCharacter": "例如：把头发改成金色、身高改为180cm、穿黑色西装...",
+        "modifyPlaceholderProp": "例如：改成磨砂银质、手柄增加雕花、去掉红宝石装饰...",
         "modifying": "智能修改中...",
         "modifyFailed": "修改失败",
         "editCharacter": "编辑角色",
         "editLocation": "编辑场景",
+        "editProp": "编辑道具",
         "saveAndGenerate": "保存并生成",
         "generatingAutoClose": "正在生成图片，完成后将自动关闭...",
         "aiLocationTip": "输入你想修改的内容，AI会自动调整场景描述",
@@ -174,7 +199,7 @@
         "showGenerated": "已生成",
         "showPending": "待生成",
         "assetManagement": "资产管理",
-        "assetCount": "共 {total} 个资产（{appearances} 角色形象 + {locations} 场景）",
+        "assetCount": "共 {total} 个资产（{appearances} 角色形象 + {locations} 场景 + {props} 道具）",
         "globalAnalyze": "全局分析",
         "globalAnalyzing": "正在执行全局资产分析...",
         "globalAnalyzingHint": "请勿刷新页面，分析完成后将自动显示结果",
@@ -188,7 +213,8 @@
         "regenerateAll": "重新生成全部",
         "regenerateAllConfirm": "确定要重新生成所有资产的图片吗？这将覆盖现有图片。",
         "noAssetsToGenerate": "没有可生成的资产",
-        "regenerateAllHint": "重新生成所有资产图片（覆盖现有）"
+        "regenerateAllHint": "重新生成所有资产图片（覆盖现有）",
+        "downloadAll": "打包下载全部图片"
     },
     "common": {
         "actions": "操作",
@@ -235,30 +261,21 @@
         "aiDesignFailed": "AI 设计失败",
         "createFailed": "创建失败"
     },
-    "referenceAsset": {
-        "title": "参考资产",
-        "count": "{count} 个参考",
-        "add": "添加参考",
-        "upload": "上传图片",
-        "delete": "删除",
-        "deleteConfirm": "确定要删除这个参考资产吗？",
-        "deleteFailed": "删除失败: {error}",
-        "noAssets": "暂无参考资产",
-        "noAssetsHint": "从 ComfyUI 输出保存参考图片，或手动上传",
-        "sourceType": {
-            "comfyui-output": "ComfyUI 输出",
-            "manual-upload": "手动上传"
-        },
-        "saveFailed": "保存参考资产失败: {error}",
-        "saveSuccess": "参考资产已保存"
+    "filterBar": {
+        "all": "全部",
+        "allEpisodes": "全部集数",
+        "episodeLabel": "第{number}集 · {name}"
     },
     "assetLibrary": {
         "button": "资产库",
         "title": "资产库",
         "copySuccessCharacter": "角色形象复制成功",
         "copySuccessLocation": "场景图片复制成功",
+        "copySuccessProp": "道具图片复制成功",
         "copySuccessVoice": "音色复制成功",
-        "copyFailed": "复制失败: {error}"
+        "copyFailed": "复制失败: {error}",
+        "downloadEmpty": "当前没有可下载的图片资产",
+        "downloadFailed": "打包下载失败"
     },
     "tts": {
         "voiceDesignSaved": "已为 {name} 设置 AI 设计的声音",
@@ -331,12 +348,15 @@
     "imageEdit": {
         "editCharacterImage": "编辑人物图片",
         "editLocationImage": "编辑场景图片",
+        "editPropImage": "编辑道具图片",
         "characterLabel": "人物: {name}",
         "locationLabel": "场景: {name}",
+        "propLabel": "道具: {name}",
         "editInstruction": "修改指令",
         "subtitle": "输入修改指令，可选择上传参考图片",
         "characterPlaceholder": "描述你想要修改的内容，例如：把头发改成金色、添加眼镜、换成休闲装...",
         "locationPlaceholder": "描述你想要修改的内容，例如：添加更多树木、改成夜晚场景...",
+        "propPlaceholder": "描述你想要修改的内容，例如：改成银色金属材质、刀柄增加雕纹、去掉宝石装饰...",
         "storyboardPlaceholder": "描述你想要修改的内容，例如：改变背景颜色、调整人物表情...",
         "noAssetHint": "暂无资产，点击\"添加资产\"选择",
         "referenceImages": "参考图片",

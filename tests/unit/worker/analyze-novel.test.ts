@@ -11,7 +11,10 @@ const prismaMock = vi.hoisted(() => ({
   novelPromotionEpisode: { findFirst: vi.fn() },
   novelPromotionCharacter: { create: vi.fn(async () => ({ id: 'char-new-1' })) },
   novelPromotionLocation: { create: vi.fn(async () => ({ id: 'loc-new-1' })) },
-  locationImage: { create: vi.fn(async () => ({})) },
+  locationImage: {
+    create: vi.fn(async () => ({})),
+    createMany: vi.fn(async () => ({ count: 1 })),
+  },
 }))
 
 const llmMock = vi.hoisted(() => ({
@@ -29,10 +32,15 @@ vi.mock('@/lib/llm-client', () => llmMock)
 vi.mock('@/lib/llm-observe/internal-stream-context', () => ({
   withInternalLLMStreamCallbacks: vi.fn(async (_callbacks: unknown, fn: () => Promise<unknown>) => await fn()),
 }))
-vi.mock('@/lib/constants', () => ({
-  getArtStylePrompt: vi.fn(() => 'cinematic style'),
-  removeLocationPromptSuffix: vi.fn((text: string) => text.replace(' [SUFFIX]', '')),
-}))
+vi.mock('@/lib/constants', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/constants')>()
+  return {
+    ...actual,
+    getArtStylePrompt: vi.fn(() => 'cinematic style'),
+    removeLocationPromptSuffix: vi.fn((text: string) => text.replace(' [SUFFIX]', '')),
+    removePropPromptSuffix: vi.fn((text: string) => text),
+  }
+})
 vi.mock('@/lib/workers/shared', () => ({ reportTaskProgress: workerMock.reportTaskProgress }))
 vi.mock('@/lib/workers/utils', () => ({ assertTaskActive: workerMock.assertTaskActive }))
 vi.mock('@/lib/workers/handlers/llm-stream', () => ({
@@ -49,6 +57,7 @@ vi.mock('@/lib/prompt-i18n', () => ({
   PROMPT_IDS: {
     NP_AGENT_CHARACTER_PROFILE: 'char',
     NP_SELECT_LOCATION: 'loc',
+    NP_SELECT_PROP: 'prop',
   },
   buildPrompt: vi.fn(() => 'analysis-prompt'),
 }))
@@ -75,9 +84,12 @@ describe('worker analyze-novel behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
+    prismaMock.novelPromotionLocation.create
+      .mockResolvedValueOnce({ id: 'loc-new-1' })
+      .mockResolvedValueOnce({ id: 'prop-new-1' })
+
     prismaMock.project.findUnique.mockResolvedValue({
       id: 'project-1',
-      mode: 'novel-promotion',
     })
 
     prismaMock.novelPromotionProject.findUnique.mockResolvedValue({
@@ -114,6 +126,15 @@ describe('worker analyze-novel behavior', () => {
           },
         ],
       }))
+      .mockReturnValueOnce(JSON.stringify({
+        props: [
+          {
+            name: '金箍棒',
+            summary: '孙悟空随身铁棍法器',
+            description: '一根黑铁长棍，两端包裹金色金属箍，表面磨损发亮，杆身笔直厚重',
+          },
+        ],
+      }))
   })
 
   it('no global text and no episode text -> explicit error', async () => {
@@ -137,8 +158,10 @@ describe('worker analyze-novel behavior', () => {
       success: true,
       characters: [{ id: 'char-new-1' }],
       locations: [{ id: 'loc-new-1' }],
+      props: [{ id: 'prop-new-1' }],
       characterCount: 1,
       locationCount: 1,
+      propCount: 1,
     })
 
     expect(prismaMock.novelPromotionCharacter.create).toHaveBeenCalledWith(
@@ -161,12 +184,26 @@ describe('worker analyze-novel behavior', () => {
       }),
     )
 
-    expect(prismaMock.locationImage.create).toHaveBeenCalledWith({
-      data: {
-        locationId: 'loc-new-1',
-        imageIndex: 0,
-        description: '雨夜街道',
-      },
+    expect(prismaMock.locationImage.create).not.toHaveBeenCalled()
+    expect(prismaMock.locationImage.createMany).toHaveBeenNthCalledWith(1, {
+      data: [
+        {
+          locationId: 'loc-new-1',
+          imageIndex: 0,
+          description: '雨夜街道',
+          availableSlots: '[]',
+        },
+      ],
+    })
+    expect(prismaMock.locationImage.createMany).toHaveBeenNthCalledWith(2, {
+      data: [
+        {
+          locationId: 'prop-new-1',
+          imageIndex: 0,
+          description: '一根黑铁长棍，两端包裹金色金属箍，表面磨损发亮，杆身笔直厚重',
+          availableSlots: '[]',
+        },
+      ],
     })
 
     expect(prismaMock.novelPromotionProject.update).toHaveBeenCalledWith({

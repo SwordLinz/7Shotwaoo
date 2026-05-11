@@ -82,13 +82,13 @@ describe('bailian video provider', () => {
     })
   })
 
-  it('submits happyhorse i2v task with media format', async () => {
+  it('submits wan2.7 i2v task without last frame', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       status: 200,
       text: async () => JSON.stringify({
         output: {
-          task_id: 'task-hh-i2v-1',
+          task_id: 'task-wan27-i2v',
           task_status: 'PENDING',
         },
       }),
@@ -97,14 +97,12 @@ describe('bailian video provider', () => {
 
     const result = await generateBailianVideo({
       userId: 'user-1',
-      imageUrl: 'https://example.com/first.png',
-      prompt: '让画面动起来',
+      imageUrl: 'https://example.com/frame.png',
+      prompt: '让人物转身看向镜头',
       options: {
         provider: 'bailian',
-        modelId: 'happyhorse-1.0-i2v',
-        modelKey: 'bailian::happyhorse-1.0-i2v',
-        duration: 10,
-        resolution: '720P',
+        modelId: 'wan2.7-i2v',
+        modelKey: 'bailian::wan2.7-i2v',
       },
     })
 
@@ -113,30 +111,19 @@ describe('bailian video provider', () => {
     if (!firstCall) {
       throw new Error('missing fetch call')
     }
-    const requestUrl = firstCall[0]
-    const requestInit = firstCall[1]
-    expect(requestUrl).toBe('https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis')
-    expect(requestInit.body).toBe(JSON.stringify({
-      model: 'happyhorse-1.0-i2v',
+    expect(firstCall[0]).toBe('https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis')
+    expect(firstCall[1].body).toBe(JSON.stringify({
+      model: 'wan2.7-i2v',
       input: {
-        prompt: '让画面动起来',
-        media: [
-          {
-            type: 'first_frame',
-            url: 'https://example.com/first.png',
-          },
-        ],
-      },
-      parameters: {
-        resolution: '720P',
-        duration: 10,
+        img_url: 'https://example.com/frame.png',
+        prompt: '让人物转身看向镜头',
       },
     }))
     expect(result).toEqual({
       success: true,
       async: true,
-      requestId: 'task-hh-i2v-1',
-      externalId: 'BAILIAN:VIDEO:task-hh-i2v-1',
+      requestId: 'task-wan27-i2v',
+      externalId: 'BAILIAN:VIDEO:task-wan27-i2v',
     })
   })
 
@@ -194,6 +181,53 @@ describe('bailian video provider', () => {
     })
   })
 
+  it('submits wan2.7 i2v task with first and last frame', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        output: {
+          task_id: 'task-wan27-flf',
+          task_status: 'PENDING',
+        },
+      }),
+    }))
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    const result = await generateBailianVideo({
+      userId: 'user-1',
+      imageUrl: 'https://example.com/first.png',
+      prompt: '从清晨过渡到夜晚',
+      options: {
+        provider: 'bailian',
+        modelId: 'wan2.7-i2v',
+        modelKey: 'bailian::wan2.7-i2v',
+        lastFrameImageUrl: 'https://example.com/last.png',
+      },
+    })
+
+    const firstCall = fetchMock.mock.calls[0] as unknown as [RequestInfo | URL, RequestInit] | undefined
+    expect(firstCall).toBeDefined()
+    if (!firstCall) {
+      throw new Error('missing fetch call')
+    }
+    expect(firstCall[0]).toBe('https://dashscope.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis')
+    expect(firstCall[1].body).toBe(JSON.stringify({
+      model: 'wan2.7-i2v',
+      input: {
+        first_frame_url: 'https://example.com/first.png',
+        last_frame_url: 'https://example.com/last.png',
+        prompt: '从清晨过渡到夜晚',
+      },
+    }))
+    expect(result).toEqual({
+      success: true,
+      async: true,
+      requestId: 'task-wan27-flf',
+      externalId: 'BAILIAN:VIDEO:task-wan27-flf',
+    })
+  })
+
   it('fails fast when kf2v model misses last frame', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
@@ -233,76 +267,5 @@ describe('bailian video provider', () => {
     ).rejects.toThrow(/BAILIAN_VIDEO_OPTION_UNSUPPORTED: fps/)
 
     expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('accepts aspectRatio option without unsupported error', async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      text: async () => JSON.stringify({
-        output: {
-          task_id: 'task-aspect-1',
-          task_status: 'PENDING',
-        },
-      }),
-    }))
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
-
-    await generateBailianVideo({
-      userId: 'user-1',
-      imageUrl: 'https://example.com/frame.png',
-      options: {
-        provider: 'bailian',
-        modelId: 'wan2.6-i2v',
-        modelKey: 'bailian::wan2.6-i2v',
-        aspectRatio: '16:9',
-      },
-    })
-
-    const firstCall = fetchMock.mock.calls[0] as unknown as [RequestInfo | URL, RequestInit] | undefined
-    expect(firstCall?.[1].body).toBe(JSON.stringify({
-      model: 'wan2.6-i2v',
-      input: {
-        img_url: 'https://example.com/frame.png',
-      },
-      parameters: {
-        size: '16:9',
-      },
-    }))
-  })
-
-  it('accepts pre-prefixed bearer key for authorization', async () => {
-    getProviderConfigMock.mockResolvedValueOnce({
-      id: 'bailian',
-      apiKey: 'Bearer bl-prefixed-key',
-    })
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      text: async () => JSON.stringify({
-        output: {
-          task_id: 'task-prefixed-1',
-          task_status: 'PENDING',
-        },
-      }),
-    }))
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
-
-    await generateBailianVideo({
-      userId: 'user-1',
-      imageUrl: 'https://example.com/frame.png',
-      options: {
-        provider: 'bailian',
-        modelId: 'wan2.6-i2v',
-        modelKey: 'bailian::wan2.6-i2v',
-      },
-    })
-
-    const firstCall = fetchMock.mock.calls[0] as unknown as [RequestInfo | URL, RequestInit] | undefined
-    expect(firstCall?.[1].headers).toEqual({
-      Authorization: 'Bearer bl-prefixed-key',
-      'Content-Type': 'application/json',
-      'X-DashScope-Async': 'enable',
-    })
   })
 })

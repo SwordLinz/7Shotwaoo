@@ -78,7 +78,6 @@ type BuildCustomPricingResult =
 interface ProviderConnectionPayload {
   apiType: string
   apiKey: string
-  apiAppId?: string
   baseUrl?: string
   llmModel?: string
 }
@@ -170,12 +169,10 @@ function pickConfiguredLlmModel(params: {
 export function buildProviderConnectionPayload(params: {
   providerKey: string
   apiKey: string
-  apiAppId?: string
   baseUrl?: string
   llmModel?: string
 }): ProviderConnectionPayload {
   const apiKey = params.apiKey.trim()
-  const apiAppId = params.apiAppId?.trim()
   const compatibleBaseUrl = params.baseUrl?.trim()
   const llmModel = params.llmModel?.trim()
   const isCompatibleProvider =
@@ -185,7 +182,6 @@ export function buildProviderConnectionPayload(params: {
     return {
       apiType: params.providerKey,
       apiKey,
-      ...(apiAppId ? { apiAppId } : {}),
       baseUrl: compatibleBaseUrl,
       ...(llmModel ? { llmModel } : {}),
     }
@@ -194,7 +190,6 @@ export function buildProviderConnectionPayload(params: {
   return {
     apiType: params.providerKey,
     apiKey,
-    ...(apiAppId ? { apiAppId } : {}),
     ...(llmModel ? { llmModel } : {}),
   }
 }
@@ -303,7 +298,6 @@ export interface UseProviderCardStateResult {
   isEditingUrl: boolean
   showKey: boolean
   tempKey: string
-  tempAppId: string
   tempUrl: string
   showTutorial: boolean
   showAddForm: ProviderCardModelType | null
@@ -312,7 +306,6 @@ export interface UseProviderCardStateResult {
   editingModelId: string | null
   editModel: ModelFormState
   maskedKey: string
-  maskedAppId: string
   isPresetModel: (modelKey: string) => boolean
   isDefaultModel: (model: CustomModel) => boolean
   setShowKey: (value: boolean) => void
@@ -322,7 +315,6 @@ export interface UseProviderCardStateResult {
   setNewModel: (value: ModelFormState) => void
   setEditModel: (value: ModelFormState) => void
   setTempKey: (value: string) => void
-  setTempAppId: (value: string) => void
   setTempUrl: (value: string) => void
   startEditKey: () => void
   startEditUrl: () => void
@@ -375,7 +367,6 @@ export function useProviderCardState({
   const [isEditingUrl, setIsEditingUrl] = useState(false)
   const [showKey, setShowKey] = useState(false)
   const [tempKey, setTempKey] = useState(provider.apiKey || '')
-  const [tempAppId, setTempAppId] = useState(provider.apiAppId || '')
   const [tempUrl, setTempUrl] = useState(provider.baseUrl || '')
   const [showTutorial, setShowTutorial] = useState(false)
   const [showAddForm, setShowAddForm] = useState<ProviderCardModelType | null>(null)
@@ -442,7 +433,6 @@ export function useProviderCardState({
 
   const startEditKey = () => {
     setTempKey(provider.apiKey || '')
-    setTempAppId(provider.apiAppId || '')
     setIsEditing(true)
   }
 
@@ -451,30 +441,16 @@ export function useProviderCardState({
     setIsEditingUrl(true)
   }
 
-  const needsDualCredential = providerKey === 'youchuan' || providerKey === 'kling'
-
   const doSaveKey = useCallback(() => {
-    onUpdateApiKey(
-      provider.id,
-      tempKey,
-      needsDualCredential ? tempAppId : undefined,
-    )
+    onUpdateApiKey(provider.id, tempKey)
     setIsEditing(false)
     setKeyTestStatus('idle')
     setKeyTestSteps([])
-  }, [onUpdateApiKey, provider.id, needsDualCredential, tempAppId, tempKey])
+  }, [onUpdateApiKey, provider.id, tempKey])
 
   const handleSaveKey = useCallback(async () => {
     if (!VERIFIABLE_PROVIDER_KEYS.has(providerKey)) {
       doSaveKey()
-      return
-    }
-
-    if (needsDualCredential && (!tempAppId.trim() || !tempKey.trim())) {
-      setKeyTestStatus('failed')
-      setKeyTestSteps([
-        { name: 'models', status: 'fail', message: t('youchuanCredentialsIncomplete') },
-      ])
       return
     }
 
@@ -489,7 +465,6 @@ export function useProviderCardState({
       const payload = buildProviderConnectionPayload({
         providerKey,
         apiKey: tempKey,
-        apiAppId: needsDualCredential ? tempAppId : undefined,
         baseUrl: provider.baseUrl,
         llmModel: fallbackLlmModel,
       })
@@ -514,7 +489,7 @@ export function useProviderCardState({
       setKeyTestSteps([{ name: 'models', status: 'fail', message: 'Network error' }])
       setKeyTestStatus('failed')
     }
-  }, [defaultModels.analysisModel, doSaveKey, models, needsDualCredential, provider.baseUrl, providerKey, t, tempAppId, tempKey])
+  }, [defaultModels.analysisModel, doSaveKey, models, provider.baseUrl, providerKey, tempKey])
 
   const handleForceSaveKey = useCallback(() => {
     doSaveKey()
@@ -531,8 +506,7 @@ export function useProviderCardState({
       })
       const payload = buildProviderConnectionPayload({
         providerKey,
-        apiKey: isEditing ? tempKey : (provider.apiKey || ''),
-        apiAppId: needsDualCredential ? (isEditing ? tempAppId : (provider.apiAppId || '')) : undefined,
+        apiKey: provider.apiKey || '',
         baseUrl: provider.baseUrl,
         llmModel: fallbackLlmModel,
       })
@@ -548,7 +522,7 @@ export function useProviderCardState({
       setKeyTestSteps([{ name: 'models', status: 'fail', message: 'Network error' }])
       setKeyTestStatus('failed')
     }
-  }, [defaultModels.analysisModel, isEditing, models, needsDualCredential, provider.apiAppId, provider.apiKey, provider.baseUrl, tempAppId, tempKey])
+  }, [defaultModels.analysisModel, models, provider.apiKey, provider.baseUrl, providerKey])
 
   const handleDismissTest = useCallback(() => {
     setKeyTestStatus('idle')
@@ -557,7 +531,6 @@ export function useProviderCardState({
 
   const handleCancelEdit = () => {
     setTempKey(provider.apiKey || '')
-    setTempAppId(provider.apiAppId || '')
     setIsEditing(false)
     setKeyTestStatus('idle')
     setKeyTestSteps([])
@@ -643,10 +616,8 @@ export function useProviderCardState({
             modelId: editModel.modelId,
           })
         } catch (error) {
-          // Probe failures (rate limit / transient provider issues) should not block saving models.
-          // Backend will fall back to a default protocol when llmProtocol is absent.
           alert(resolveProbeFailureMessage(error))
-          protocolUpdates = null
+          return
         }
       }
 
@@ -670,7 +641,7 @@ export function useProviderCardState({
     }
 
     const finalModelId =
-      type === 'video' && batchMode && (provider.id === 'ark' || provider.id === 'niuniu')
+      type === 'video' && batchMode && provider.id === 'ark'
         ? `${newModel.modelId}-batch`
         : newModel.modelId
     const finalModelKey = encodeModelKey(provider.id, finalModelId)
@@ -682,7 +653,7 @@ export function useProviderCardState({
     }
 
     const finalName =
-      type === 'video' && batchMode && (provider.id === 'ark' || provider.id === 'niuniu')
+      type === 'video' && batchMode && provider.id === 'ark'
         ? `${newModel.name} (Batch)`
         : newModel.name
 
@@ -699,9 +670,8 @@ export function useProviderCardState({
             modelId: finalModelId,
           })
         } catch (error) {
-          // Probe failures should not block adding the model; user can still use it and we fallback server-side.
           alert(resolveProbeFailureMessage(error))
-          protocolFields = null
+          return
         }
       }
 
@@ -804,12 +774,6 @@ export function useProviderCardState({
     return `${key.slice(0, 4)}${'•'.repeat(50)}`
   })()
 
-  const maskedAppId = (() => {
-    const key = provider.apiAppId || ''
-    if (key.length <= 8) return '•'.repeat(Math.max(key.length, 4))
-    return `${key.slice(0, 4)}${'•'.repeat(40)}`
-  })()
-
   return {
     providerKey,
     isPresetProvider,
@@ -821,9 +785,7 @@ export function useProviderCardState({
     isEditingUrl,
     showKey,
     tempKey,
-    tempAppId,
     tempUrl,
-    maskedAppId,
     showTutorial,
     showAddForm,
     newModel,
@@ -840,7 +802,6 @@ export function useProviderCardState({
     setNewModel,
     setEditModel,
     setTempKey,
-    setTempAppId,
     setTempUrl,
     startEditKey,
     startEditUrl,

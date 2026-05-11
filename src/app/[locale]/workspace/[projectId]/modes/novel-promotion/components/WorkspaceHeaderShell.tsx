@@ -3,8 +3,9 @@
 import { CapsuleNav, EpisodeSelector } from '@/components/ui/CapsuleNav'
 import { SettingsModal, WorldContextModal } from '@/components/ui/ConfigModals'
 import WorkspaceTopActions from './WorkspaceTopActions'
-import type { NovelPromotionPanel, WorkflowMode } from '@/types/project'
+import type { NovelPromotionPanel } from '@/types/project'
 import type { CapabilitySelections, ModelCapabilities } from '@/lib/model-config-contract'
+import { resolveEpisodeStageArtifacts } from '@/lib/novel-promotion/stage-readiness'
 
 interface EpisodeSummary {
   id: string
@@ -77,7 +78,6 @@ interface WorkspaceHeaderShellProps {
   assetLibraryLabel: string
   settingsLabel: string
   refreshTitle: string
-  workflowMode?: WorkflowMode
 }
 
 export default function WorkspaceHeaderShell({
@@ -118,7 +118,6 @@ export default function WorkspaceHeaderShell({
   assetLibraryLabel,
   settingsLabel,
   refreshTitle,
-  workflowMode,
 }: WorkspaceHeaderShellProps) {
   return (
     <>
@@ -149,7 +148,6 @@ export default function WorkspaceHeaderShell({
         onVideoRatioChange={(value) => { onUpdateConfig('videoRatio', value) }}
         onCapabilityOverridesChange={(value) => { onUpdateConfig('capabilityOverrides', value) }}
         onTTSRateChange={(value) => { onUpdateConfig('ttsRate', value) }}
-        workflowMode={workflowMode}
       />
 
       <WorldContextModal
@@ -167,15 +165,23 @@ export default function WorkspaceHeaderShell({
         return (
           <EpisodeSelector
             projectName={projectName}
-            episodes={sorted.map((ep) => ({
-              id: ep.id,
-              title: ep.name,
-              summary: ep.description ?? undefined,
-              status: {
-                script: ep.clips?.length ? 'ready' as const : 'empty' as const,
-                visual: ep.storyboards?.some((sb) => sb.panels?.some((panel) => panel.videoUrl)) ? 'ready' as const : 'empty' as const,
-              },
-            }))}
+            episodes={sorted.map((ep) => {
+              const stageArtifacts = resolveEpisodeStageArtifacts({
+                novelText: null,
+                clips: ep.clips || [],
+                storyboards: ep.storyboards || [],
+                voiceLines: [],
+              })
+              return {
+                id: ep.id,
+                title: ep.name,
+                summary: ep.description ?? undefined,
+                status: {
+                  script: stageArtifacts.hasScript ? 'ready' as const : 'empty' as const,
+                  visual: stageArtifacts.hasVideo ? 'ready' as const : 'empty' as const,
+                },
+              }
+            })}
             currentId={currentEpisodeId}
             onSelect={(id) => onEpisodeSelect?.(id)}
             onAdd={onEpisodeCreate}

@@ -4,7 +4,6 @@ import { buildMockRequest } from '../../../helpers/request'
 
 type AuthState = {
   authenticated: boolean
-  projectMode: 'novel-promotion' | 'other'
 }
 
 type SubmitResult = {
@@ -28,7 +27,6 @@ type DirectRouteCase = {
 
 const authState = vi.hoisted<AuthState>(() => ({
   authenticated: true,
-  projectMode: 'novel-promotion',
 }))
 
 const submitTaskMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<SubmitResult>>())
@@ -218,14 +216,14 @@ vi.mock('@/lib/api-auth', () => {
       if (!authState.authenticated) return unauthorized()
       return {
         session: { user: { id: 'user-1' } },
-        project: { id: projectId, userId: 'user-1', mode: authState.projectMode },
+        project: { id: projectId, userId: 'user-1' },
       }
     },
     requireProjectAuthLight: async (projectId: string) => {
       if (!authState.authenticated) return unauthorized()
       return {
         session: { user: { id: 'user-1' } },
-        project: { id: projectId, userId: 'user-1', mode: authState.projectMode },
+        project: { id: projectId, userId: 'user-1' },
       }
     },
   }
@@ -288,11 +286,12 @@ vi.mock('@/lib/prisma', () => ({
   prisma: prismaMock,
 }))
 
-function toApiPath(routeFile: string): string {
+function toApiPath(routeFile: string, params?: Record<string, string>): string {
   return routeFile
     .replace(/^src\/app/, '')
     .replace(/\/route\.ts$/, '')
-    .replace('[projectId]', 'project-1')
+    .replace('[projectId]', params?.projectId || 'project-1')
+    .replace('[assetId]', params?.assetId || 'asset-1')
 }
 
 function toModuleImportPath(routeFile: string): string {
@@ -322,6 +321,62 @@ const DIRECT_CASES: ReadonlyArray<DirectRouteCase> = [
     expectedProjectId: 'global-asset-hub',
   },
   {
+    routeFile: 'src/app/api/assets/[assetId]/generate/route.ts',
+    body: {
+      scope: 'global',
+      kind: 'character',
+      appearanceIndex: 0,
+      artStyle: 'realistic',
+    },
+    params: { assetId: 'global-character-1' },
+    expectedTaskType: TASK_TYPE.ASSET_HUB_IMAGE,
+    expectedTargetType: 'GlobalCharacter',
+    expectedProjectId: 'global-asset-hub',
+  },
+  {
+    routeFile: 'src/app/api/assets/[assetId]/generate/route.ts',
+    body: {
+      scope: 'project',
+      kind: 'character',
+      projectId: 'project-1',
+      appearanceId: 'appearance-1',
+    },
+    params: { assetId: 'character-1' },
+    expectedTaskType: TASK_TYPE.IMAGE_CHARACTER,
+    expectedTargetType: 'CharacterAppearance',
+    expectedProjectId: 'project-1',
+  },
+  {
+    routeFile: 'src/app/api/assets/[assetId]/modify-render/route.ts',
+    body: {
+      scope: 'global',
+      kind: 'character',
+      modifyPrompt: 'sharpen details',
+      appearanceIndex: 0,
+      imageIndex: 0,
+      extraImageUrls: ['https://example.com/ref-a.png'],
+    },
+    params: { assetId: 'global-character-1' },
+    expectedTaskType: TASK_TYPE.ASSET_HUB_MODIFY,
+    expectedTargetType: 'GlobalCharacterAppearance',
+    expectedProjectId: 'global-asset-hub',
+  },
+  {
+    routeFile: 'src/app/api/assets/[assetId]/modify-render/route.ts',
+    body: {
+      scope: 'project',
+      kind: 'character',
+      projectId: 'project-1',
+      appearanceId: 'appearance-1',
+      modifyPrompt: 'enhance texture',
+      extraImageUrls: ['https://example.com/ref-b.png'],
+    },
+    params: { assetId: 'character-1' },
+    expectedTaskType: TASK_TYPE.MODIFY_ASSET_IMAGE,
+    expectedTargetType: 'CharacterAppearance',
+    expectedProjectId: 'project-1',
+  },
+  {
     routeFile: 'src/app/api/asset-hub/voice-design/route.ts',
     body: { voicePrompt: 'female calm narrator', previewText: '你好世界' },
     expectedTaskType: TASK_TYPE.ASSET_HUB_VOICE_DESIGN,
@@ -338,11 +393,32 @@ const DIRECT_CASES: ReadonlyArray<DirectRouteCase> = [
   },
   {
     routeFile: 'src/app/api/novel-promotion/[projectId]/generate-video/route.ts',
-    body: { videoModel: 'fal::video-model', storyboardId: 'storyboard-1', panelIndex: 0 },
+    body: {
+      videoModel: 'ark::doubao-seedance-2-0-260128',
+      storyboardId: 'storyboard-1',
+      panelIndex: 0,
+      generationOptions: {
+        resolution: '720p',
+        duration: 5,
+      },
+      firstLastFrame: {
+        flModel: 'ark::doubao-seedance-2-0-260128',
+      },
+    },
     params: { projectId: 'project-1' },
     expectedTaskType: TASK_TYPE.VIDEO_PANEL,
     expectedTargetType: 'NovelPromotionPanel',
     expectedProjectId: 'project-1',
+    expectedPayloadSubset: {
+      videoModel: 'ark::doubao-seedance-2-0-260128',
+      generationOptions: {
+        resolution: '720p',
+        duration: 5,
+      },
+      firstLastFrame: {
+        flModel: 'ark::doubao-seedance-2-0-260128',
+      },
+    },
   },
   {
     routeFile: 'src/app/api/novel-promotion/[projectId]/insert-panel/route.ts',
@@ -466,7 +542,7 @@ async function invokePostRoute(routeCase: DirectRouteCase): Promise<Response> {
   const mod = await import(modulePath)
   const post = mod.POST as (request: Request, context?: RouteContext) => Promise<Response>
   const req = buildMockRequest({
-    path: toApiPath(routeCase.routeFile),
+    path: toApiPath(routeCase.routeFile, routeCase.params),
     method: 'POST',
     body: routeCase.body,
   })
@@ -477,7 +553,6 @@ describe('api contract - direct submit routes (behavior)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authState.authenticated = true
-    authState.projectMode = 'novel-promotion'
     let seq = 0
     submitTaskMock.mockImplementation(async () => ({
       taskId: `task-${++seq}`,
@@ -486,7 +561,7 @@ describe('api contract - direct submit routes (behavior)', () => {
   })
 
   it('keeps expected coverage size', () => {
-    expect(DIRECT_CASES.length).toBe(16)
+    expect(DIRECT_CASES.length).toBe(20)
   })
 
   for (const routeCase of DIRECT_CASES) {

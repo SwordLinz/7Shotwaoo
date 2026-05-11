@@ -17,6 +17,7 @@ const ACTIVE_STEP_STATUSES = [
 const TERMINAL_TASK_STATUSES = [
   TASK_STATUS.COMPLETED,
   TASK_STATUS.FAILED,
+  TASK_STATUS.CANCELED,
   TASK_STATUS.DISMISSED,
 ] as const
 
@@ -60,6 +61,9 @@ function toNullableJson(value: Record<string, unknown> | null) {
 }
 
 function buildFailedReason(task: LinkedTaskRow): string {
+  if (task.status === TASK_STATUS.CANCELED) {
+    return task.errorMessage?.trim() || 'Linked task was canceled'
+  }
   if (task.status === TASK_STATUS.DISMISSED) {
     return task.errorMessage?.trim() || 'Linked task was dismissed'
   }

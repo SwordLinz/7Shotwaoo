@@ -139,18 +139,9 @@ export async function submitTask(params: {
       locale: params.locale,
     },
   }
-  let computedBillingInfo: TaskBillingInfo | null = null
-  if (isBillableTaskType(params.type)) {
-    try {
-      computedBillingInfo = buildDefaultTaskBillingInfo(params.type, normalizedPayload)
-    } catch {
-      logger.warn({
-        action: 'task.submit.billing_compute_fallback',
-        message: `buildDefaultTaskBillingInfo threw for type=${params.type}; proceeding without computed billing`,
-        details: { type: params.type },
-      })
-    }
-  }
+  const computedBillingInfo = isBillableTaskType(params.type)
+    ? buildDefaultTaskBillingInfo(params.type, normalizedPayload)
+    : null
   const resolvedBillingInfo = computedBillingInfo || params.billingInfo || null
   const runCentricTask = isRunCentricTaskType(params.type)
   const workflowType = workflowTypeFromTaskType(params.type)
@@ -168,14 +159,14 @@ export async function submitTask(params: {
     : null
 
   if (runCentricTask && reusableRun && reusableRunTask && isActiveTaskStatus(reusableRunTask.status)) {
-    return {
-      success: true,
-      async: true,
-      taskId: reusableRunTask.id,
-      runId: reusableRun.id,
-      status: reusableRunTask.status,
-      deduped: true as const,
-    }
+      return {
+        success: true,
+        async: true,
+        taskId: reusableRunTask.id,
+        runId: reusableRun.id,
+        status: reusableRunTask.status,
+        deduped: true as const,
+      }
   }
 
   const { task, deduped } = await createTask({
@@ -192,7 +183,7 @@ export async function submitTask(params: {
     billingInfo: resolvedBillingInfo || null,
   })
   const reusableRunId = reusableRun && shouldAttachNewTaskToReusableRun(reusableRunTask?.status)
-    ? reusableRun.id
+    ? (reusableRun?.id || null)
     : null
   let runId = reusableRunId || resolveRunIdFromPayload(task.payload)
   if (!deduped && reusableRunId && runId) {

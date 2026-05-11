@@ -4,7 +4,7 @@ import { buildMockRequest } from '../../../helpers/request'
 const authMock = vi.hoisted(() => ({
   requireProjectAuthLight: vi.fn(async () => ({
     session: { user: { id: 'user-1', name: 'User 1' } },
-    project: { id: 'project-1', userId: 'user-1', mode: 'novel-promotion', name: 'Project 1' },
+    project: { id: 'project-1', userId: 'user-1', name: 'Project 1' },
   })),
   isErrorResponse: vi.fn((value: unknown) => value instanceof Response),
 }))
@@ -60,7 +60,7 @@ describe('api specific - novel promotion project art style validation', () => {
     vi.clearAllMocks()
   })
 
-  it('accepts valid artStyle and syncs to user preference', async () => {
+  it('accepts valid artStyle and keeps user preference unchanged', async () => {
     const mod = await import('@/app/api/novel-promotion/[projectId]/route')
     const req = buildMockRequest({
       path: '/api/novel-promotion/project-1',
@@ -77,11 +77,7 @@ describe('api specific - novel promotion project art style validation', () => {
         data: expect.objectContaining({ artStyle: 'realistic' }),
       }),
     )
-    expect(prismaMock.userPreference.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: expect.objectContaining({ artStyle: 'realistic' }),
-      }),
-    )
+    expect(prismaMock.userPreference.upsert).not.toHaveBeenCalled()
   })
 
   it('rejects invalid artStyle with invalid params', async () => {
@@ -102,7 +98,7 @@ describe('api specific - novel promotion project art style validation', () => {
     expect(prismaMock.userPreference.upsert).not.toHaveBeenCalled()
   })
 
-  it('accepts audioModel and syncs it to user preference', async () => {
+  it('accepts audioModel and keeps user preference unchanged', async () => {
     const mod = await import('@/app/api/novel-promotion/[projectId]/route')
     const req = buildMockRequest({
       path: '/api/novel-promotion/project-1',
@@ -121,12 +117,6 @@ describe('api specific - novel promotion project art style validation', () => {
         }),
       }),
     )
-    expect(prismaMock.userPreference.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: expect.objectContaining({
-          audioModel: 'bailian::qwen3-tts-vd-2026-01-26',
-        }),
-      }),
-    )
+    expect(prismaMock.userPreference.upsert).not.toHaveBeenCalled()
   })
 })

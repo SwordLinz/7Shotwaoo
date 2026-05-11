@@ -65,8 +65,10 @@
     "screenplayConvert": "Screenplay conversion",
     "voiceAnalyze": "Voice line analysis",
     "analyzeGlobal": "Global analysis",
+    "aiStoryExpand": "AI story expansion",
     "aiModifyAppearance": "Character description modify",
     "aiModifyLocation": "Location description modify",
+    "aiModifyProp": "Prop description modify",
     "aiModifyShotPrompt": "Shot prompt modify",
     "analyzeShotVariants": "Shot variant analysis",
     "aiCreateCharacter": "Project character design",
@@ -79,8 +81,8 @@
     "assetHubAiDesignLocation": "Asset hub location design",
     "assetHubAiModifyCharacter": "Asset hub character modify",
     "assetHubAiModifyLocation": "Asset hub location modify",
-    "assetHubReferenceToCharacter": "Asset hub reference to character",
-    "smartRefVideo": "Smart reference video"
+    "assetHubAiModifyProp": "Asset hub prop modify",
+    "assetHubReferenceToCharacter": "Asset hub reference to character"
   },
   "stage": {
     "received": "Task received",
@@ -105,20 +107,15 @@
     "scriptToStoryboardStep": "Execute script-to-storyboard step",
     "scriptToStoryboardPersist": "Persist script-to-storyboard output",
     "scriptToStoryboardPersistDone": "Storyboard and voice output persisted",
+    "aiStoryExpandPrepare": "Prepare AI story expansion",
+    "aiStoryExpandDone": "AI story expansion completed",
     "insertPanelGenerateText": "Generate inserted panel text",
     "insertPanelPersist": "Persist inserted panel",
     "pollingExternal": "Waiting for external service",
     "enqueueFailed": "Task enqueue failed",
     "llmProxySubmit": "Submit LLM task",
     "llmProxyExecute": "Execute LLM task",
-    "llmProxyPersist": "Persist LLM result",
-    "smartRefPanelSplit": "Smart ref: splitting panels",
-    "smartRefPersist": "Smart ref: persisting panels",
-    "smartRefDone": "Smart ref: panel split done",
-    "smartRefVoice": "Smart ref: voice analysis",
-    "smartRefPrepare": "Smart ref: preparing references",
-    "smartRefSubmit": "Smart ref: submitting video",
-    "smartRefPolling": "Smart ref: waiting for video"
+    "llmProxyPersist": "Persist LLM result"
   },
   "runConsole": {
     "storyToScript": "Story to Script",
@@ -133,6 +130,7 @@
   "streamStep": {
     "analyzeCharacters": "Analyze characters",
     "analyzeLocations": "Analyze locations",
+    "analyzeProps": "Analyze props",
     "splitClips": "Split clips",
     "screenplayConversion": "Convert screenplay",
     "storyboardPlan": "Plan storyboard",

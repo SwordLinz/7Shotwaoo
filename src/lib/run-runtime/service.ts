@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { selectRecoverableRun } from './recovery'
+import { selectRecoverableRun } from '@/lib/run-runtime/recovery'
+import { resolveRetryInvalidationStepKeys } from '@/lib/workflow-engine/dependencies'
 import {
   RUN_EVENT_TYPE,
   RUN_STATE_MAX_BYTES,
@@ -126,6 +127,7 @@ type GraphCheckpointModel = {
 type GraphArtifactModel = {
   upsert: (args: unknown) => Promise<GraphArtifactRow>
   findMany: (args: unknown) => Promise<GraphArtifactRow[]>
+  deleteMany: (args: unknown) => Promise<{ count: number }>
 }
 
 type GraphRuntimeTx = {
@@ -486,7 +488,6 @@ async function applyRunProjection(tx: GraphRuntimeTx, input: RunEventInput) {
         finishedAt: now,
         leaseOwner: null,
         leaseExpiresAt: null,
-        heartbeatAt: null,
       },
     })
     await tx.graphStep.updateMany({
@@ -514,7 +515,6 @@ async function applyRunProjection(tx: GraphRuntimeTx, input: RunEventInput) {
         finishedAt: now,
         leaseOwner: null,
         leaseExpiresAt: null,
-        heartbeatAt: null,
       },
     })
     await tx.graphStep.updateMany({
@@ -542,7 +542,6 @@ async function applyRunProjection(tx: GraphRuntimeTx, input: RunEventInput) {
         finishedAt: now,
         leaseOwner: null,
         leaseExpiresAt: null,
-        heartbeatAt: null,
       },
     })
     await tx.graphStep.updateMany({
@@ -1132,8 +1131,21 @@ export async function retryFailedStep(params: {
       throw new Error('RUN_STEP_NOT_FAILED')
     }
 
+    const steps = await tx.graphStep.findMany({
+      where: { runId: params.runId },
+      orderBy: [
+        { stepIndex: 'asc' },
+        { updatedAt: 'asc' },
+      ],
+    })
     const now = new Date()
     const nextAttempt = Math.max(1, step.currentAttempt + 1)
+    const invalidatedStepKeys = resolveRetryInvalidationStepKeys({
+      workflowType: run.workflowType,
+      stepKey,
+      existingStepKeys: steps.map((item) => item.stepKey),
+    })
+
     const updatedRun = await tx.graphRun.update({
       where: { id: params.runId },
       data: {
@@ -1145,6 +1157,20 @@ export async function retryFailedStep(params: {
         startedAt: run.startedAt || now,
       },
     })
+    await tx.graphStep.updateMany({
+      where: {
+        runId: params.runId,
+        stepKey: { in: invalidatedStepKeys },
+      },
+      data: {
+        status: RUN_STEP_STATUS.PENDING,
+        currentAttempt: 0,
+        startedAt: null,
+        finishedAt: null,
+        lastErrorCode: null,
+        lastErrorMessage: null,
+      },
+    })
     const updatedStep = await tx.graphStep.update({
       where: {
         runId_stepKey: {
@@ -1153,12 +1179,13 @@ export async function retryFailedStep(params: {
         },
       },
       data: {
-        status: RUN_STEP_STATUS.PENDING,
         currentAttempt: nextAttempt,
-        startedAt: now,
-        finishedAt: null,
-        lastErrorCode: null,
-        lastErrorMessage: null,
+      },
+    })
+    await tx.graphArtifact.deleteMany({
+      where: {
+        runId: params.runId,
+        stepKey: { in: invalidatedStepKeys },
       },
     })
 
@@ -1166,6 +1193,7 @@ export async function retryFailedStep(params: {
       run: mapRunRow(updatedRun),
       step: mapStepRow(updatedStep),
       retryAttempt: nextAttempt,
+      invalidatedStepKeys,
     }
   })
 }

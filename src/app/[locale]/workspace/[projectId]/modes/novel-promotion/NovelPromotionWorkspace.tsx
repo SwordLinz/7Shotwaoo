@@ -42,13 +42,11 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
 
   const showStoryToScriptMinBadge =
     storyToScriptStream.isVisible &&
-    storyToScriptStream.stages.length > 0 &&
     storyToScriptActive &&
     vm.execution.storyToScriptConsoleMinimized
 
   const showScriptToStoryboardMinBadge =
     scriptToStoryboardStream.isVisible &&
-    scriptToStoryboardStream.stages.length > 0 &&
     scriptToStoryboardActive &&
     vm.execution.scriptToStoryboardConsoleMinimized
 
@@ -116,17 +114,11 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
         assetLibraryLabel={vm.i18n.t('buttons.assetLibrary')}
         settingsLabel={vm.i18n.t('buttons.settings')}
         refreshTitle={vm.i18n.t('buttons.refreshData')}
-        workflowMode={vm.stageNav.workflowMode}
       />
 
       <div className="pt-24">
         <WorkspaceStageRuntimeProvider value={vm.runtime.stageRuntime}>
-          <WorkspaceStageContent
-            currentStage={vm.stageNav.currentStage}
-            workflowMode={vm.stageNav.workflowMode}
-            projectId={projectId}
-            episodeId={episodeId}
-          />
+          <WorkspaceStageContent currentStage={vm.stageNav.currentStage} />
         </WorkspaceStageRuntimeProvider>
 
         <WorkspaceAssetLibraryModal

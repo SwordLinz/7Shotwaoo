@@ -16,6 +16,88 @@
   {
     "modelType": "video",
     "provider": "ark",
+    "modelId": "doubao-seedance-2-0-260128",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal",
+          "firstlastframe"
+        ],
+        "generateAudioOptions": [
+          true,
+          false
+        ],
+        "durationOptions": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "resolutionOptions": [
+          "480p",
+          "720p"
+        ],
+        "firstlastframe": true,
+        "supportGenerateAudio": true,
+        "containsVideoInputOptions": [
+          false,
+          true
+        ]
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "ark",
+    "modelId": "doubao-seedance-2-0-fast-260128",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal",
+          "firstlastframe"
+        ],
+        "generateAudioOptions": [
+          true,
+          false
+        ],
+        "durationOptions": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "resolutionOptions": [
+          "480p",
+          "720p"
+        ],
+        "firstlastframe": true,
+        "supportGenerateAudio": true,
+        "containsVideoInputOptions": [
+          false,
+          true
+        ]
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "ark",
     "modelId": "doubao-seedance-1-0-pro-fast-251015",
     "capabilities": {
       "video": {
@@ -283,45 +365,6 @@
     "modelType": "video",
     "provider": "ark",
     "modelId": "doubao-seedance-2-0",
-    "capabilities": {
-      "video": {
-        "generationModeOptions": [
-          "normal",
-          "firstlastframe"
-        ],
-        "generateAudioOptions": [
-          true,
-          false
-        ],
-        "durationOptions": [
-          4,
-          5,
-          6,
-          7,
-          8,
-          9,
-          10,
-          11,
-          12,
-          13,
-          14,
-          15
-        ],
-        "resolutionOptions": [
-          "480p",
-          "720p",
-          "1080p"
-        ],
-        "firstlastframe": true,
-        "supportGenerateAudio": true,
-        "supportsMultipleReferenceImages": true
-      }
-    }
-  },
-  {
-    "modelType": "video",
-    "provider": "ark",
-    "modelId": "doubao-seedance-2-0-260128",
     "capabilities": {
       "video": {
         "generationModeOptions": [
@@ -754,6 +797,21 @@
           6,
           8
         ],
+        "supportGenerateAudio": false
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "bailian",
+    "modelId": "wan2.7-i2v",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": [
+          "normal",
+          "firstlastframe"
+        ],
+        "firstlastframe": true,
         "supportGenerateAudio": false
       }
     }
@@ -1404,58 +1462,6 @@
           "1",
           "2"
         ]
-      }
-    }
-  },
-  {
-    "modelType": "video",
-    "provider": "ark",
-    "modelId": "doubao-seedance-2-0-fast-260128",
-    "capabilities": {
-      "video": {
-        "generationModeOptions": [
-          "normal",
-          "firstlastframe"
-        ],
-        "generateAudioOptions": [
-          true,
-          false
-        ],
-        "durationOptions": [
-          4,
-          5,
-          6,
-          7,
-          8,
-          9,
-          10,
-          11,
-          12,
-          13,
-          14,
-          15
-        ],
-        "resolutionOptions": [
-          "480p",
-          "720p"
-        ],
-        "firstlastframe": true,
-        "supportGenerateAudio": true
-      }
-    }
-  },
-  {
-    "modelType": "video",
-    "provider": "bailian",
-    "modelId": "wan2.7-i2v",
-    "capabilities": {
-      "video": {
-        "generationModeOptions": [
-          "normal",
-          "firstlastframe"
-        ],
-        "firstlastframe": true,
-        "supportGenerateAudio": false
       }
     }
   },

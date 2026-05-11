@@ -21,6 +21,8 @@ import CharacterCardActions from './character-card/CharacterCardActions'
 import { getImageGenerationCountOptions } from '@/lib/image-generation/count'
 import { useImageGenerationCount } from '@/lib/image-generation/use-image-generation-count'
 import { AppIcon } from '@/components/ui/icons'
+import { AI_EDIT_BUTTON_CLASS, AI_EDIT_ICON_CLASS } from '@/components/ui/ai-edit-style'
+import AISparklesIcon from '@/components/ui/icons/AISparklesIcon'
 
 interface CharacterCardProps {
   character: Character
@@ -138,6 +140,7 @@ export default function CharacterCard({
   const imageUrlsWithIndex = rawImageUrls
     .map((url, idx) => ({ url, originalIndex: idx }))
     .filter((item) => !!item.url) as { url: string; originalIndex: number }[]
+  const generatedImageCount = imageUrlsWithIndex.length
 
   const hasMultipleImages = imageUrlsWithIndex.length > 1
   const selectedIndex = appearance.selectedIndex ?? null
@@ -216,19 +219,24 @@ export default function CharacterCard({
       <>
         <ImageGenerationInlineCountButton
           prefix={isGroupTaskRunning ? (
-            <TaskStatusInline state={displayTaskPresentation} className="[&_span]:sr-only [&_svg]:text-[var(--glass-tone-info-fg)]" />
+            <>
+              <TaskStatusInline state={displayTaskPresentation} className="[&_span]:sr-only [&_svg]:text-[var(--glass-tone-info-fg)]" />
+              <span className="text-[10px] font-medium text-[var(--glass-tone-info-fg)] ml-0.5">{t('image.regenCountPrefix')}</span>
+            </>
           ) : (
-            <AppIcon name="refresh" className="w-4 h-4 text-[var(--glass-tone-info-fg)]" />
+            <>
+              <AppIcon name="refresh" className="w-4 h-4 text-[var(--glass-tone-info-fg)]" />
+              <span className="text-[10px] font-medium text-[var(--glass-tone-info-fg)] ml-0.5">{t('image.regenCountPrefix')}</span>
+            </>
           )}
-          suffix={null}
           value={generationCount}
           options={getImageGenerationCountOptions('character')}
           onValueChange={setGenerationCount}
-          onClick={() => onRegenerate(generationCount)}
+          onClick={() => onRegenerate(generatedImageCount)}
           disabled={isAppearanceTaskRunning || isAnyTaskRunning || uploadImage.isPending}
-          ariaLabel={t('image.selectCount')}
-          className="inline-flex h-6 items-center gap-0.5 rounded px-1 hover:bg-[var(--glass-tone-info-bg)] transition-colors disabled:opacity-50"
-          selectClassName="appearance-none bg-transparent border-0 pl-0 pr-3 text-[10px] font-semibold text-[var(--glass-tone-info-fg)] outline-none cursor-pointer leading-none transition-colors"
+          showCountControl={false}
+          ariaLabel={t('image.regenCountPrefix')}
+          className="inline-flex h-6 items-center justify-center rounded-md px-1.5 hover:bg-[var(--glass-tone-info-bg)] transition-colors disabled:opacity-50"
         />
         {onUndo && (appearance.previousImageUrl || appearance.previousImageUrls.length > 0) && (
           <button
@@ -333,11 +341,10 @@ export default function CharacterCard({
       {!isAppearanceTaskRunning && !isAnyTaskRunning && currentImageUrl && onImageEdit && (
         <button
           onClick={() => onImageEdit(character.id, appearance.id, selectedIndex !== null ? selectedIndex : 0)}
-          className="w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm"
-          style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-95 ${AI_EDIT_BUTTON_CLASS}`}
           title={t('image.edit')}
         >
-          <AppIcon name="edit" className="w-4 h-4 text-white" />
+          <AISparklesIcon className={`w-4 h-4 ${AI_EDIT_ICON_CLASS}`} />
         </button>
       )}
       <button
@@ -447,6 +454,7 @@ export default function CharacterCard({
           mode="single"
           characterName={character.name}
           changeReason={appearance.changeReason}
+          aspectClassName="aspect-[3/2]"
           currentImageUrl={currentImageUrl}
           selectedIndex={selectedIndex}
           hasMultipleImages={hasMultipleImages}

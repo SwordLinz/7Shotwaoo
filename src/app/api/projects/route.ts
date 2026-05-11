@@ -4,6 +4,25 @@ import { requireUserAuth, isErrorResponse } from '@/lib/api-auth'
 import { apiHandler, ApiError } from '@/lib/api-errors'
 import { toMoneyNumber } from '@/lib/billing/money'
 import { isArtStyleValue } from '@/lib/constants'
+import { resolveTaskLocale } from '@/lib/task/resolve-locale'
+import {
+  formatProjectValidationIssue,
+  normalizeProjectDraft,
+  validateProjectDraft,
+  type ProjectDraftInput,
+} from '@/lib/projects/validation'
+
+function readProjectDraftBody(body: unknown): ProjectDraftInput {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { name: '' }
+  }
+
+  const payload = body as Record<string, unknown>
+  return {
+    name: typeof payload.name === 'string' ? payload.name : '',
+    description: typeof payload.description === 'string' ? payload.description : null,
+  }
+}
 
 // GET - 获取用户的项目（支持分页和搜索）
 export const GET = apiHandler(async (request: NextRequest) => {
@@ -22,10 +41,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const where: Record<string, unknown> = { userId: session.user.id }
 
   // 如果有搜索关键词，搜索名称和描述
+  // 注意：SQLite 不支持 mode: 'insensitive'，但 SQLite 的 LIKE 默认即大小写不敏感（ASCII 范围）
   if (search.trim()) {
     where.OR = [
-      { name: { contains: search.trim(), mode: 'insensitive' } },
-      { description: { contains: search.trim(), mode: 'insensitive' } }
+      { name: { contains: search.trim() } },
+      { description: { contains: search.trim() } }
     ]
   }
 
@@ -77,7 +97,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
           select: {
             episodes: true,
             characters: true,
-            locations: true}
+            locations: true
+          }
         },
         episodes: {
           orderBy: { episodeNumber: 'asc' },
@@ -98,7 +119,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
                   },
                   select: {
                     imageUrl: true,
-                    videoUrl: true}
+                    videoUrl: true
+                  }
                 }
               }
             }
@@ -136,7 +158,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
         images: imageCount,
         videos: videoCount,
         panels: panelCount,
-        firstEpisodePreview: preview}]
+        firstEpisodePreview: preview
+      }]
     })
   )
 
@@ -144,7 +167,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const projectsWithStats = projects.map(project => ({
     ...project,
     totalCost: costMap.get(project.id) ?? 0,
-    stats: statsMap.get(project.id) ?? { episodes: 0, images: 0, videos: 0, panels: 0, firstEpisodePreview: null }}))
+    stats: statsMap.get(project.id) ?? { episodes: 0, images: 0, videos: 0, panels: 0, firstEpisodePreview: null }
+  }))
 
   return NextResponse.json({
     projects: projectsWithStats,
@@ -164,22 +188,28 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (isErrorResponse(authResult)) return authResult
   const { session } = authResult
 
-  const { name, description, workflowMode } = await request.json()
-
-  if (!name || name.trim().length === 0) {
-    throw new ApiError('INVALID_PARAMS')
+  const body = await request.json()
+  const draft = readProjectDraftBody(body)
+  const validationIssue = validateProjectDraft(draft)
+  if (validationIssue) {
+    const locale = resolveTaskLocale(request, body) ?? 'zh'
+    throw new ApiError('INVALID_PARAMS', {
+      code: validationIssue.code,
+      field: validationIssue.field,
+      ...(typeof validationIssue.limit === 'number' ? { limit: validationIssue.limit } : {}),
+      message: formatProjectValidationIssue(validationIssue, locale),
+    })
   }
 
-  if (name.length > 100) {
-    throw new ApiError('INVALID_PARAMS')
-  }
-
-  if (description && description.length > 500) {
-    throw new ApiError('INVALID_PARAMS')
-  }
+  const { name, description } = normalizeProjectDraft(draft)
 
   const VALID_WORKFLOW_MODES = ['srt', 'agent', 'smart-reference'] as const
-  const effectiveWorkflowMode = VALID_WORKFLOW_MODES.includes(workflowMode) ? workflowMode : 'srt'
+  const rawWorkflowMode = body && typeof body === 'object' && !Array.isArray(body)
+    ? (body as Record<string, unknown>).workflowMode
+    : null
+  const effectiveWorkflowMode = VALID_WORKFLOW_MODES.includes(rawWorkflowMode as typeof VALID_WORKFLOW_MODES[number])
+    ? rawWorkflowMode as typeof VALID_WORKFLOW_MODES[number]
+    : 'srt'
 
   // 获取用户偏好配置。模型字段不在创建时复制到项目表：
   // null 表示“跟随全局默认”，避免用户修改全局模型后旧项目仍使用过期模型。
@@ -187,12 +217,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
     where: { userId: session.user.id }
   })
 
-  // 创建基础项目（mode 固定为 novel-promotion）
+  // 创建基础项目
   const project = await prisma.project.create({
     data: {
       name: name.trim(),
       description: description?.trim() || null,
-      mode: 'novel-promotion',
       userId: session.user.id
     }
   })

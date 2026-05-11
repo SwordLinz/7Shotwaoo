@@ -177,6 +177,10 @@ async function attachMediaFieldsToProjectLocation<T extends Record<string, unkno
   }
 }
 
+async function attachMediaFieldsToProjectProp<T extends Record<string, unknown>>(prop: T) {
+  return await attachMediaFieldsToProjectLocation(prop)
+}
+
 async function attachMediaFieldsToShot<T extends Record<string, unknown>>(shot: T) {
   const imageMedia = await resolveMediaRef(shot.imageMediaId, shot.imageUrl)
   const videoMedia = await resolveMediaRefFromLegacyValue(shot.videoUrl)
@@ -208,6 +212,9 @@ export async function attachMediaFieldsToProject<T extends Record<string, unknow
   const locations = await Promise.all(
     ((projectLike.locations as Array<Record<string, unknown>>) || []).map(attachMediaFieldsToProjectLocation),
   )
+  const props = await Promise.all(
+    ((projectLike.props as Array<Record<string, unknown>>) || []).map(attachMediaFieldsToProjectProp),
+  )
   const shots = await Promise.all(
     ((projectLike.shots as Array<Record<string, unknown>>) || []).map(attachMediaFieldsToShot),
   )
@@ -232,6 +239,7 @@ export async function attachMediaFieldsToProject<T extends Record<string, unknow
     audioUrl: audioMedia?.url || projectLike.audioUrl || null,
     characters,
     locations,
+    props,
     shots,
     storyboards,
     voiceLines,

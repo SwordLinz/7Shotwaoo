@@ -7,8 +7,15 @@
 
 // 中心资产库
 export {
+    useAssets,
+    useAssetActions,
+    useRefreshAssets,
+} from './useAssets'
+
+export {
     useGlobalCharacters,
     useGlobalLocations,
+    useGlobalProps,
     useGlobalVoices,
     useGlobalFolders,
     useCreateFolder,
@@ -19,6 +26,7 @@ export {
     type GlobalCharacterAppearance,
     type GlobalLocation,
     type GlobalLocationImage,
+    type GlobalProp,
     type GlobalVoice,
     type GlobalFolder,
 } from './useGlobalAssets'
@@ -44,6 +52,7 @@ export {
     useUpdateLocationSummary,
     useAiModifyCharacterDescription,
     useAiModifyLocationDescription,
+    useAiModifyPropDescription,
     useDesignAssetHubVoice,
     useSaveDesignedAssetHubVoice,
     useUploadAssetHubVoice,
@@ -60,6 +69,7 @@ export {
     useProjectAssets,
     useProjectCharacters,
     useProjectLocations,
+    useProjectProps,
     useRefreshProjectAssets,
     type ProjectAssetsData,
 } from './useProjectAssets'
@@ -89,6 +99,7 @@ export {
     useUpdateProjectCharacterIntroduction,
     useAiModifyProjectAppearanceDescription,
     useAiModifyProjectLocationDescription,
+    useAiModifyProjectPropDescription,
     useAiCreateProjectLocation,
     useCreateProjectLocation,
     useAiCreateProjectCharacter,
@@ -152,6 +163,8 @@ export type {
     CharacterAppearance,
     Location,
     LocationImage,
+    Prop,
+    PropImage,
 } from '@/types/project'
 
 // 分镜

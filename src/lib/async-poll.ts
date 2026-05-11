@@ -8,8 +8,7 @@ import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core
  * 例如：
  * - FAL:VIDEO:fal-ai/wan/v2.6:abc123
  * - FAL:IMAGE:fal-ai/nano-banana-pro:def456
- * - ARK:VIDEO:task_789（API Key 存 Wacoo 的 ark）
- * - ARK:VIDEO:niuniu:cgt_xxxx（API Key 存 Wacoo 的 niuniu，与创建任务时一致）
+ * - ARK:VIDEO:task_789
  * - ARK:IMAGE:task_xyz
  * - GEMINI:BATCH:batches/ghi012
  * 
@@ -20,8 +19,6 @@ import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core
 import { queryFalStatus } from './async-submit'
 import { queryGeminiBatchStatus, querySeedanceVideoStatus, queryGoogleVideoStatus } from './async-task-utils'
 import { getProviderConfig, getUserModels } from './api-config'
-import { buildKlingBearerToken, normalizeKlingBaseUrl, KLING_VIDEO_IMAGE2VIDEO_PATH } from './generators/kling'
-import { fetchYouchuanJobStatus } from './generators/youchuan'
 import { buildRenderedTemplateRequest, buildTemplateVariables, normalizeResponseJson, readJsonPath } from './openai-compat-template-runtime'
 import { composeModelKey } from './model-config-contract'
 
@@ -33,6 +30,7 @@ export interface PollResult {
     resultUrl?: string
     imageUrl?: string
     videoUrl?: string
+    actualVideoTokens?: number
     downloadHeaders?: Record<string, string>
     error?: string
 }
@@ -50,12 +48,10 @@ function getErrorMessage(error: unknown): string {
  * 解析 externalId 获取 provider、type 和请求信息
  */
 export function parseExternalId(externalId: string): {
-    provider: 'FAL' | 'ARK' | 'GEMINI' | 'GOOGLE' | 'MINIMAX' | 'VIDU' | 'KLING' | 'RUNNINGHUB' | 'OPENAI' | 'OCOMPAT' | 'BAILIAN' | 'SILICONFLOW' | 'YOUCHUAN' | 'UNKNOWN'
+    provider: 'FAL' | 'ARK' | 'GEMINI' | 'GOOGLE' | 'MINIMAX' | 'VIDU' | 'OPENAI' | 'OCOMPAT' | 'BAILIAN' | 'SILICONFLOW' | 'UNKNOWN'
     type: 'VIDEO' | 'IMAGE' | 'BATCH' | 'UNKNOWN'
     endpoint?: string
     requestId: string
-    /** Wacoo `getProviderConfig` 的 key（如 ark / niuniu）；仅 ARK 异步任务轮询用 */
-    arkProviderKey?: string
     providerToken?: string
     modelKeyToken?: string
 } {
@@ -85,43 +81,14 @@ export function parseExternalId(externalId: string): {
     if (externalId.startsWith('ARK:')) {
         const parts = externalId.split(':')
         const type = parts[1]
-        if ((type !== 'VIDEO' && type !== 'IMAGE') || parts.length < 3) {
-            throw new Error(
-                `无效 ARK externalId: "${externalId}"，应为 ARK:TYPE:taskId 或 ARK:TYPE:<wacooProviderKey>:taskId`
-            )
-        }
-        // 兼容：ARK:VIDEO:cgt-xxx → 与历史任务一致，使用 ark 配置
-        if (parts.length === 3) {
-            const requestId = parts[2]
-            if (!requestId) {
-                throw new Error(`无效 ARK externalId: "${externalId}"，缺少 taskId`)
-            }
-            return {
-                provider: 'ARK',
-                type: type as 'VIDEO' | 'IMAGE',
-                requestId,
-                arkProviderKey: 'ark',
-            }
-        }
-        /** gemini-compatible:uuid / openai-compatible:uuid 等含冒号的 Wacoo provider id */
-        const segment2 = parts[2]
-        const isCompositeInstance =
-            (segment2 === 'gemini-compatible' || segment2 === 'openai-compatible')
-            && parts.length >= 5
-        const arkProviderKey = isCompositeInstance
-            ? `${segment2}:${parts[3]}`
-            : segment2
-        const requestId = isCompositeInstance
-            ? parts.slice(4).join(':')
-            : parts.slice(3).join(':')
-        if (!arkProviderKey?.trim() || !requestId) {
-            throw new Error(`无效 ARK externalId: "${externalId}"，缺少 wacooProviderKey 或 taskId`)
+        const requestId = parts.slice(2).join(':')
+        if ((type !== 'VIDEO' && type !== 'IMAGE') || !requestId) {
+            throw new Error(`无效 ARK externalId: "${externalId}"，应为 ARK:TYPE:requestId`)
         }
         return {
             provider: 'ARK',
             type: type as 'VIDEO' | 'IMAGE',
             requestId,
-            arkProviderKey,
         }
     }
 
@@ -177,21 +144,6 @@ export function parseExternalId(externalId: string): {
         return {
             provider: 'VIDU',
             type: type as 'VIDEO' | 'IMAGE',
-            requestId,
-        }
-    }
-
-    if (externalId.startsWith('KLING:')) {
-        const parts = externalId.split(':')
-        const type = parts[1]
-        const requestId = parts.slice(2).join(':')
-        if ((type !== 'VIDEO' && type !== 'IMAGE' && type !== 'OMNI') || !requestId) {
-            throw new Error(`无效 KLING externalId: "${externalId}"，应为 KLING:TYPE:taskId`)
-        }
-        return {
-            provider: 'KLING',
-            type: (type === 'OMNI' ? 'VIDEO' : type) as 'VIDEO' | 'IMAGE',
-            endpoint: type === 'OMNI' ? 'omni-video' : undefined,
             requestId,
         }
     }
@@ -258,39 +210,9 @@ export function parseExternalId(externalId: string): {
         }
     }
 
-    if (externalId.startsWith('YOUCHUAN:')) {
-        const parts = externalId.split(':')
-        const type = parts[1]
-        const requestId = parts.slice(2).join(':')
-        if (type !== 'IMAGE' || !requestId) {
-            throw new Error(`无效 YOUCHUAN externalId: "${externalId}"，应为 YOUCHUAN:IMAGE:jobId`)
-        }
-        return {
-            provider: 'YOUCHUAN',
-            type: type as 'IMAGE',
-            requestId,
-        }
-    }
-
-    if (externalId.startsWith('RUNNINGHUB:')) {
-        const parts = externalId.split(':')
-        const type = parts[1]
-        const providerToken = parts[2]
-        const requestId = parts.slice(3).join(':')
-        if (type !== 'VIDEO' || !providerToken || !requestId) {
-            throw new Error(`无效 RUNNINGHUB externalId: "${externalId}"，应为 RUNNINGHUB:VIDEO:providerToken:taskId`)
-        }
-        return {
-            provider: 'RUNNINGHUB',
-            type: 'VIDEO',
-            providerToken,
-            requestId,
-        }
-    }
-
     throw new Error(
         `无法识别的 externalId 格式: "${externalId}". ` +
-        `支持的格式: FAL:TYPE:endpoint:requestId, ARK:TYPE:requestId|ARK:TYPE:wacooProviderKey:requestId, GEMINI:BATCH:batchName, GOOGLE:VIDEO:operationName, MINIMAX:TYPE:taskId, VIDU:TYPE:taskId, RUNNINGHUB:VIDEO:providerToken:taskId, OPENAI:VIDEO:providerToken:videoId, OCOMPAT:TYPE:providerToken:modelKeyToken:taskId, BAILIAN:TYPE:requestId, SILICONFLOW:TYPE:requestId, YOUCHUAN:IMAGE:jobId`
+        `支持的格式: FAL:TYPE:endpoint:requestId, ARK:TYPE:requestId, GEMINI:BATCH:batchName, GOOGLE:VIDEO:operationName, MINIMAX:TYPE:taskId, VIDU:TYPE:taskId, OPENAI:VIDEO:providerToken:videoId, OCOMPAT:TYPE:providerToken:modelKeyToken:taskId, BAILIAN:TYPE:requestId, SILICONFLOW:TYPE:requestId`
     )
 }
 
@@ -313,7 +235,7 @@ export async function pollAsyncTask(
         case 'FAL':
             return await pollFalTask(parsed.endpoint!, parsed.requestId, userId)
         case 'ARK':
-            return await pollArkTask(parsed.requestId, userId, parsed.arkProviderKey ?? 'ark')
+            return await pollArkTask(parsed.requestId, userId)
         case 'GEMINI':
             return await pollGeminiTask(parsed.requestId, userId)
         case 'GOOGLE':
@@ -322,8 +244,6 @@ export async function pollAsyncTask(
             return await pollMinimaxTask(parsed.requestId, userId)
         case 'VIDU':
             return await pollViduTask(parsed.requestId, userId)
-        case 'KLING':
-            return await pollKlingTask(parsed.requestId, userId, parsed.endpoint)
         case 'OPENAI':
             return await pollOpenAIVideoTask(parsed.requestId, userId, parsed.providerToken)
         case 'OCOMPAT':
@@ -332,156 +252,9 @@ export async function pollAsyncTask(
             return await pollBailianTask(parsed.requestId, userId)
         case 'SILICONFLOW':
             return await pollSiliconFlowTask(parsed.requestId)
-        case 'YOUCHUAN':
-            return await pollYouchuanTask(parsed.requestId, userId)
-        case 'RUNNINGHUB':
-            return await pollRunningHubTask(parsed.requestId, userId, parsed.providerToken)
         default:
             // 🔥 移除 fallback：未知 provider 直接抛出错误
             throw new Error(`未知的 Provider: ${parsed.provider}`)
-    }
-}
-
-async function pollYouchuanTask(jobId: string, userId: string): Promise<PollResult> {
-    try {
-        const outcome = await fetchYouchuanJobStatus(userId, jobId)
-        if (outcome.kind === 'pending') {
-            return { status: 'pending' }
-        }
-        if (outcome.kind === 'failed') {
-            return { status: 'failed', error: outcome.error }
-        }
-        return {
-            status: 'completed',
-            resultUrl: outcome.url,
-            imageUrl: outcome.url,
-        }
-    } catch (error: unknown) {
-        const message = getErrorMessage(error)
-        _ulogError(`[Youchuan Poll] jobId=${jobId}`, error)
-        return { status: 'failed', error: message }
-    }
-}
-
-function unwrapRunningHubPayload(json: Record<string, unknown>): Record<string, unknown> {
-    const data = json.data
-    if (data && typeof data === 'object' && !Array.isArray(data)) {
-        return data as Record<string, unknown>
-    }
-    return json
-}
-
-function readRunningHubTopLevelError(root: Record<string, unknown>): string | undefined {
-    const code = root.errorCode ?? root.error_code
-    const msg = root.errorMessage ?? root.error_message
-    const hasCode = code !== undefined && code !== null && String(code).trim() !== ''
-    const hasMsg = typeof msg === 'string' && msg.trim() !== ''
-    if (!hasCode && !hasMsg) return undefined
-    return [hasCode ? String(code) : '', hasMsg ? (msg as string).trim() : ''].filter(Boolean).join(': ')
-}
-
-function pickRunningHubVideoUrl(results: unknown): string {
-    if (!Array.isArray(results) || results.length === 0) return ''
-    for (const item of results) {
-        if (!item || typeof item !== 'object' || Array.isArray(item)) continue
-        const r = item as Record<string, unknown>
-        const u = typeof r.url === 'string' ? r.url.trim() : ''
-        if (!u) continue
-        const ot = typeof r.outputType === 'string' ? r.outputType.toLowerCase() : ''
-        if (ot === 'mp4' || ot === 'webm' || ot === 'mov' || ot === 'video' || ot === '') {
-            return u
-        }
-    }
-    const first = results[0] as Record<string, unknown>
-    return typeof first?.url === 'string' ? first.url.trim() : ''
-}
-
-/**
- * RunningHub OpenAPI v2：POST /query，status 为 QUEUED | RUNNING | SUCCESS | FAILED
- */
-async function pollRunningHubTask(
-    taskId: string,
-    userId: string,
-    providerToken?: string,
-): Promise<PollResult> {
-    const logPrefix = '[RunningHub Query]'
-    try {
-        if (!providerToken) {
-            throw new Error('RUNNINGHUB_PROVIDER_TOKEN_MISSING')
-        }
-        const providerId = decodeProviderId(providerToken)
-        const config = await getProviderConfig(userId, providerId)
-        const baseUrl = (config.baseUrl || 'https://www.runninghub.cn/openapi/v2').replace(/\/+$/, '')
-        const url = `${baseUrl}/query`
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${config.apiKey}`,
-            },
-            body: JSON.stringify({ taskId }),
-            signal: AbortSignal.timeout(60_000),
-        })
-        const raw = await response.text().catch(() => '')
-        if (!response.ok) {
-            if (response.status >= 500 || response.status === 429) {
-                _ulogError(`${logPrefix} transient HTTP ${response.status}, will retry`, { taskId })
-                return { status: 'pending' }
-            }
-            return {
-                status: 'failed',
-                error: `${logPrefix} ${response.status} ${raw.slice(0, 200)}`.trim(),
-            }
-        }
-        let data: Record<string, unknown> = {}
-        if (raw.trim()) {
-            try {
-                const parsed = JSON.parse(raw) as unknown
-                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                    data = parsed as Record<string, unknown>
-                }
-            } catch {
-                data = {}
-            }
-        }
-        const root = unwrapRunningHubPayload(data)
-        const errEarly = readRunningHubTopLevelError(root)
-        if (errEarly) {
-            return { status: 'failed', error: `RunningHub: ${errEarly}` }
-        }
-
-        const statusRaw = typeof root.status === 'string' ? root.status.trim().toUpperCase() : ''
-        if (statusRaw === 'SUCCESS') {
-            const videoUrl = pickRunningHubVideoUrl(root.results)
-            if (!videoUrl) {
-                return { status: 'failed', error: `${logPrefix} SUCCESS but no video url in results` }
-            }
-            return {
-                status: 'completed',
-                videoUrl,
-                resultUrl: videoUrl,
-            }
-        }
-        if (statusRaw === 'FAILED') {
-            const err = readRunningHubTopLevelError(root) || 'RunningHub task failed'
-            return { status: 'failed', error: err }
-        }
-        if (statusRaw === 'CANCEL' || statusRaw === 'CANCELLED') {
-            return { status: 'failed', error: `${logPrefix} task cancelled` }
-        }
-        if (
-            statusRaw === 'QUEUED'
-            || statusRaw === 'RUNNING'
-            || statusRaw === 'CREATE'
-            || statusRaw === ''
-        ) {
-            return { status: 'pending' }
-        }
-        return { status: 'pending' }
-    } catch (error: unknown) {
-        const message = getErrorMessage(error)
-        _ulogError(`${logPrefix} taskId=${taskId}`, error)
-        return { status: 'failed', error: message }
     }
 }
 
@@ -732,17 +505,16 @@ async function pollFalTask(
  */
 async function pollArkTask(
     taskId: string,
-    userId: string,
-    wacooProviderKey: string
+    userId: string
 ): Promise<PollResult> {
-    const key = typeof wacooProviderKey === 'string' ? wacooProviderKey.trim() : ''
-    const { apiKey, baseUrl } = await getProviderConfig(userId, key || 'ark')
-    const result = await querySeedanceVideoStatus(taskId, apiKey, { baseUrl })
+    const { apiKey } = await getProviderConfig(userId, 'ark')
+    const result = await querySeedanceVideoStatus(taskId, apiKey)
 
     return {
         status: result.status,
         videoUrl: result.videoUrl,
         resultUrl: result.videoUrl,
+        ...(typeof result.actualVideoTokens === 'number' ? { actualVideoTokens: result.actualVideoTokens } : {}),
         error: result.error
     }
 }
@@ -936,120 +708,6 @@ async function pollViduTask(
         videoUrl: result.videoUrl,
         resultUrl: result.videoUrl,
         error: result.error
-    }
-}
-
-function unwrapKlingTaskPayload(data: Record<string, unknown>): Record<string, unknown> {
-    const inner = data.data
-    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
-        return inner as Record<string, unknown>
-    }
-    return data
-}
-
-function readKlingPollVideoUrl(root: Record<string, unknown>): string {
-    const direct = typeof root.url === 'string' ? root.url.trim() : ''
-    if (direct) return direct
-    const videoUrl = typeof root.video_url === 'string' ? root.video_url.trim() : ''
-    if (videoUrl) return videoUrl
-    const result = root.task_result
-    if (result && typeof result === 'object' && !Array.isArray(result)) {
-        const videos = (result as Record<string, unknown>).videos
-        if (Array.isArray(videos) && videos.length > 0) {
-            const first = videos[0]
-            if (first && typeof first === 'object' && !Array.isArray(first)) {
-                const u = (first as Record<string, unknown>).url
-                if (typeof u === 'string' && u.trim()) return u.trim()
-            }
-        }
-    }
-    return ''
-}
-
-/**
- * KlingAI 任务轮询
- */
-async function pollKlingTask(
-    taskId: string,
-    userId: string,
-    endpointHint?: string,
-): Promise<PollResult> {
-    const logPrefix = '[Kling Query]'
-    try {
-        const config = await getProviderConfig(userId, 'kling')
-        const baseUrl = normalizeKlingBaseUrl(config.baseUrl)
-        const bearerToken = buildKlingBearerToken(config.apiKey, config.apiAppId)
-        const apiPath = endpointHint === 'omni-video'
-            ? '/v1/videos/omni-video'
-            : KLING_VIDEO_IMAGE2VIDEO_PATH
-        const url = `${baseUrl}${apiPath}/${encodeURIComponent(taskId)}`
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                Authorization: `Bearer ${bearerToken}`,
-            },
-        })
-        const raw = await response.text().catch(() => '')
-        if (!response.ok) {
-            return {
-                status: 'failed',
-                error: `Kling: 查询失败 ${response.status} ${raw.slice(0, 120)}`.trim(),
-            }
-        }
-        let data: Record<string, unknown> = {}
-        if (raw.trim()) {
-            try {
-                const parsed = JSON.parse(raw) as unknown
-                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                    data = parsed as Record<string, unknown>
-                }
-            } catch {
-                data = {}
-            }
-        }
-        const root = unwrapKlingTaskPayload(data)
-        const statusRaw = (() => {
-            const a = typeof root.status === 'string' ? root.status.trim().toLowerCase() : ''
-            if (a) return a
-            const b = typeof root.task_status === 'string' ? root.task_status.trim().toLowerCase() : ''
-            return b
-        })()
-        if (!statusRaw) {
-            return { status: 'pending' }
-        }
-        if (statusRaw === 'submitted' || statusRaw === 'processing' || statusRaw === 'queued' || statusRaw === 'pending' || statusRaw === 'running') {
-            return { status: 'pending' }
-        }
-        if (statusRaw === 'failed' || statusRaw === 'error' || statusRaw === 'canceled' || statusRaw === 'cancelled') {
-            const errorObj = (root.error && typeof root.error === 'object' && !Array.isArray(root.error))
-                ? (root.error as Record<string, unknown>)
-                : null
-            const message = (typeof errorObj?.message === 'string' ? errorObj.message.trim() : '')
-                || (typeof root.error === 'string' ? String(root.error).trim() : '')
-                || (typeof root.message === 'string' ? root.message.trim() : '')
-                || `Kling: task failed (${taskId})`
-            return { status: 'failed', error: message }
-        }
-        if (statusRaw === 'completed' || statusRaw === 'succeeded' || statusRaw === 'success' || statusRaw === 'succeed') {
-            const videoUrl = readKlingPollVideoUrl(root)
-            if (!videoUrl) {
-                return { status: 'failed', error: 'Kling: completed but missing video url' }
-            }
-            return {
-                status: 'completed',
-                resultUrl: videoUrl,
-                videoUrl,
-            }
-        }
-        // Unknown status — treat as pending
-        return { status: 'pending' }
-    } catch (error: unknown) {
-        const errorMessage = getErrorMessage(error)
-        _ulogError(`${logPrefix} task_id=${taskId} 异常:`, error)
-        return {
-            status: 'failed',
-            error: `Kling: ${errorMessage}`,
-        }
     }
 }
 
@@ -1292,14 +950,12 @@ async function queryViduTaskStatus(
  * 创建标准格式的 externalId
  */
 export function formatExternalId(
-    provider: 'FAL' | 'ARK' | 'GEMINI' | 'GOOGLE' | 'MINIMAX' | 'VIDU' | 'KLING' | 'RUNNINGHUB' | 'OPENAI' | 'OCOMPAT' | 'BAILIAN' | 'SILICONFLOW' | 'YOUCHUAN',
+    provider: 'FAL' | 'ARK' | 'GEMINI' | 'GOOGLE' | 'MINIMAX' | 'VIDU' | 'OPENAI' | 'OCOMPAT' | 'BAILIAN' | 'SILICONFLOW',
     type: 'VIDEO' | 'IMAGE' | 'BATCH',
     requestId: string,
     endpoint?: string,
     providerToken?: string,
     modelKeyToken?: string,
-    /** 为 ARK 时可选：Wacoo 侧 provider（如 niuniu）；省略或 ark 则生成 3 段 ARK:TYPE:taskId */
-    arkProviderKey?: string,
 ): string {
     if (provider === 'FAL') {
         if (!endpoint) {
@@ -1313,12 +969,6 @@ export function formatExternalId(
         }
         return `OPENAI:${type}:${providerToken}:${requestId}`
     }
-    if (provider === 'RUNNINGHUB') {
-        if (!providerToken) {
-            throw new Error('RUNNINGHUB externalId requires providerToken')
-        }
-        return `RUNNINGHUB:${type}:${providerToken}:${requestId}`
-    }
     if (provider === 'OCOMPAT') {
         if (!providerToken) {
             throw new Error('OCOMPAT externalId requires providerToken')
@@ -1327,13 +977,6 @@ export function formatExternalId(
             throw new Error('OCOMPAT externalId requires modelKeyToken')
         }
         return `OCOMPAT:${type}:${providerToken}:${modelKeyToken}:${requestId}`
-    }
-    if (provider === 'ARK') {
-        const key = typeof arkProviderKey === 'string' ? arkProviderKey.trim() : ''
-        if (key && key !== 'ark') {
-            return `ARK:${type}:${key}:${requestId}`
-        }
-        return `ARK:${type}:${requestId}`
     }
     return `${provider}:${type}:${requestId}`
 }

@@ -6,8 +6,12 @@ import {
   toStringArray,
   type AnalyzeGlobalCharactersData,
   type AnalyzeGlobalLocationsData,
+  type AnalyzeGlobalPropsData,
   type CharacterBrief,
 } from './analyze-global-parse'
+import { seedProjectLocationBackedImageSlots } from '@/lib/assets/services/location-backed-assets'
+import { normalizeLocationAvailableSlots } from '@/lib/location-available-slots'
+import { resolvePropVisualDescription } from '@/lib/assets/prop-description'
 
 export type AnalyzeGlobalStats = {
   totalChunks: number
@@ -15,8 +19,10 @@ export type AnalyzeGlobalStats = {
   newCharacters: number
   updatedCharacters: number
   newLocations: number
+  newProps: number
   skippedCharacters: number
   skippedLocations: number
+  skippedProps: number
 }
 
 export function createAnalyzeGlobalStats(totalChunks: number): AnalyzeGlobalStats {
@@ -26,8 +32,10 @@ export function createAnalyzeGlobalStats(totalChunks: number): AnalyzeGlobalStat
     newCharacters: 0,
     updatedCharacters: 0,
     newLocations: 0,
+    newProps: 0,
     skippedCharacters: 0,
     skippedLocations: 0,
+    skippedProps: 0,
   }
 }
 
@@ -35,10 +43,12 @@ export async function persistAnalyzeGlobalChunk(params: {
   projectInternalId: string
   charactersData: AnalyzeGlobalCharactersData
   locationsData: AnalyzeGlobalLocationsData
+  propsData: AnalyzeGlobalPropsData
   existingCharacters: CharacterBrief[]
   existingCharacterNames: string[]
   existingLocationNames: string[]
   existingLocationInfo: string[]
+  existingPropNames: string[]
   stats: AnalyzeGlobalStats
 }) {
   for (const char of params.charactersData.new_characters || []) {
@@ -158,6 +168,7 @@ export async function persistAnalyzeGlobalChunk(params: {
         : (readText(loc.description) ? [readText(loc.description)] : [])
       const descriptions = descriptionsRaw.map((item) => readText(item)).filter(Boolean)
       const cleanDescriptions = descriptions.map((item) => removeLocationPromptSuffix(item))
+      const availableSlots = normalizeLocationAvailableSlots(loc.available_slots)
 
       const created = await prisma.novelPromotionLocation.create({
         data: {
@@ -170,21 +181,59 @@ export async function persistAnalyzeGlobalChunk(params: {
         },
       })
 
-      for (let j = 0; j < cleanDescriptions.length; j += 1) {
-        await prisma.locationImage.create({
-          data: {
-            locationId: created.id,
-            imageIndex: j,
-            description: cleanDescriptions[j],
-          },
-        })
-      }
+      await seedProjectLocationBackedImageSlots({
+        locationId: created.id,
+        descriptions: cleanDescriptions,
+        fallbackDescription: summary || name,
+        availableSlots,
+      })
 
       params.existingLocationNames.push(name)
       params.existingLocationInfo.push(summary ? `${name}(${summary})` : name)
       params.stats.newLocations += 1
     } catch {
       params.stats.skippedLocations += 1
+    }
+  }
+
+  for (const prop of params.propsData.props || []) {
+    const name = readText(prop.name).trim()
+    const summary = readText(prop.summary).trim()
+    const description = resolvePropVisualDescription({
+      name,
+      summary,
+      description: readText(prop.description).trim(),
+    })
+    if (!name || !summary || !description) {
+      params.stats.skippedProps += 1
+      continue
+    }
+
+    const exists = params.existingPropNames.some((item) => item.toLowerCase() === name.toLowerCase())
+    if (exists) {
+      params.stats.skippedProps += 1
+      continue
+    }
+
+    try {
+      const created = await prisma.novelPromotionLocation.create({
+        data: {
+          novelPromotionProjectId: params.projectInternalId,
+          name,
+          summary,
+          assetKind: 'prop',
+        },
+      })
+      await seedProjectLocationBackedImageSlots({
+        locationId: created.id,
+        descriptions: [description],
+        fallbackDescription: description,
+        availableSlots: [],
+      })
+      params.existingPropNames.push(name)
+      params.stats.newProps += 1
+    } catch {
+      params.stats.skippedProps += 1
     }
   }
 }

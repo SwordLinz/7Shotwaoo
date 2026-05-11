@@ -85,7 +85,7 @@ async function generateVideoForPanel(
   modelId: string,
   projectVideoRatio: string | null | undefined,
   generationOptions: VideoOptionMap,
-): Promise<{ cosKey: string; generationMode: VideoGenerationMode }> {
+): Promise<{ cosKey: string; generationMode: VideoGenerationMode; actualVideoTokens?: number }> {
   if (!panel.imageUrl) {
     throw new Error(`Panel ${panel.id} has no imageUrl`)
   }
@@ -172,7 +172,13 @@ async function generateVideoForPanel(
   }
 
   const cosKey = await uploadVideoSourceToCos(videoSource, 'panel-video', panel.id, downloadHeaders)
-  return { cosKey, generationMode }
+  return {
+    cosKey,
+    generationMode,
+    ...(typeof generatedVideo.actualVideoTokens === 'number'
+      ? { actualVideoTokens: generatedVideo.actualVideoTokens }
+      : {}),
+  }
 }
 
 async function handleVideoPanelTask(job: Job<TaskJobData>) {
@@ -191,7 +197,7 @@ async function handleVideoPanelTask(job: Job<TaskJobData>) {
     panelId: panel.id,
   })
 
-  const { cosKey, generationMode } = await generateVideoForPanel(
+  const { cosKey, generationMode, actualVideoTokens } = await generateVideoForPanel(
     job,
     panel,
     payload,
@@ -212,6 +218,7 @@ async function handleVideoPanelTask(job: Job<TaskJobData>) {
   return {
     panelId: panel.id,
     videoUrl: cosKey,
+    ...(typeof actualVideoTokens === 'number' ? { actualVideoTokens } : {}),
   }
 }
 

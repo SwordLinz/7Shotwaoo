@@ -16,9 +16,11 @@ import { useWorkspaceProjectSnapshot } from './useWorkspaceProjectSnapshot'
 import { useWorkspaceModalEscape } from './useWorkspaceModalEscape'
 import { useWorkspaceStageRuntime } from './useWorkspaceStageRuntime'
 import { useWorkspaceConfigActions } from './useWorkspaceConfigActions'
+import { useWorkspaceAutoRun } from './useWorkspaceAutoRun'
 import { buildWorkspaceControllerViewModel } from './workspace-controller-view-model'
 import type { NovelPromotionWorkspaceProps } from '../types'
 import { useRouter } from '@/i18n/navigation'
+import { resolveEpisodeStageArtifacts } from '@/lib/novel-promotion/stage-readiness'
 
 export function useNovelPromotionWorkspaceController({
   project,
@@ -37,7 +39,7 @@ export function useNovelPromotionWorkspaceController({
   const { onRefresh } = useWorkspaceProvider()
 
   const projectSnapshot = useWorkspaceProjectSnapshot({ project, episode, urlStage })
-  const { currentStage, episodeStoryboards, workflowMode, ...projectSection } = projectSnapshot
+  const { currentStage, ...projectSection } = projectSnapshot
 
   const assetsLoading = false
   const assetsLoadingState = assetsLoading
@@ -96,7 +98,6 @@ export function useNovelPromotionWorkspaceController({
     currentStage,
     analysisModel: projectSnapshot.analysisModel,
     novelText: projectSnapshot.novelText,
-    workflowMode: projectSnapshot.workflowMode,
     t,
     onRefresh,
     onUpdateConfig: configActions.handleUpdateConfig,
@@ -112,6 +113,15 @@ export function useNovelPromotionWorkspaceController({
 
   const isStartingStoryToScript = rebuildState.pendingActionType === 'storyToScript'
   const isStartingScriptToStoryboard = rebuildState.pendingActionType === 'scriptToStoryboard'
+  const isStoryToScriptRunning =
+    execution.storyToScriptStream.isRunning ||
+    execution.storyToScriptStream.isRecoveredRunning ||
+    execution.storyToScriptStream.status === 'running'
+  const isScriptToStoryboardRunning =
+    execution.scriptToStoryboardStream.isRunning ||
+    execution.scriptToStoryboardStream.isRecoveredRunning ||
+    execution.scriptToStoryboardStream.status === 'running'
+  const stageArtifacts = resolveEpisodeStageArtifacts(episode)
 
   const isAnyOperationRunning =
     isStartingStoryToScript ||
@@ -120,15 +130,23 @@ export function useNovelPromotionWorkspaceController({
     execution.isAssetAnalysisRunning ||
     execution.isConfirmingAssets ||
     execution.isTransitioning ||
-    execution.storyToScriptStream.isRunning ||
-    execution.scriptToStoryboardStream.isRunning
+    isStoryToScriptRunning ||
+    isScriptToStoryboardRunning
+
+  useWorkspaceAutoRun({
+    searchParams,
+    router,
+    episodeId,
+    novelText: projectSnapshot.novelText,
+    isTransitioning: execution.isTransitioning,
+    isStoryToScriptRunning,
+    runWithRebuildConfirm: rebuildState.runWithRebuildConfirm,
+    runStoryToScriptFlow: execution.runStoryToScriptFlow,
+  })
 
   const capsuleNavItems = useWorkspaceStageNavigation({
     isAnyOperationRunning,
-    episode,
-    projectCharacterCount: projectSnapshot.projectCharacters.length,
-    episodeStoryboards,
-    workflowMode,
+    stageArtifacts,
     t,
   })
 
@@ -181,7 +199,6 @@ export function useNovelPromotionWorkspaceController({
   const stageNavState = {
     currentStage,
     capsuleNavItems,
-    workflowMode,
     handleStageChange: configActions.handleStageChange,
   }
 

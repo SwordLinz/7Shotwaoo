@@ -22,166 +22,85 @@ export function ProviderBaseFields({ provider, t, state }: ProviderBaseFieldsPro
     }
   })()
 
-  const saveCancelButtons = (
-    <>
-      <button
-        onClick={state.handleSaveKey}
-        disabled={state.keyTestStatus === 'testing'}
-        className="glass-icon-btn-sm disabled:opacity-50"
-        title={state.keyTestStatus === 'failed' ? t('testRetry') : t('save')}
-      >
-        {state.keyTestStatus === 'testing' ? (
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        ) : (
-          <AppIcon name="check" className="h-4 w-4" />
-        )}
-      </button>
-      <button
-        onClick={state.handleCancelEdit}
-        disabled={state.keyTestStatus === 'testing'}
-        className="glass-icon-btn-sm disabled:opacity-50"
-        title={t('cancel')}
-      >
-        <AppIcon name="close" className="h-4 w-4" />
-      </button>
-    </>
-  )
-
   return (
     <>
-      <div className="space-y-2 px-3.5 pt-2.5">
-        {(state.providerKey === 'youchuan' || state.providerKey === 'kling') ? (
-          <>
-            <div className="glass-surface-soft flex items-center gap-2.5 rounded-xl px-3 py-2">
-              <span className="w-[72px] shrink-0 text-[12px] font-semibold leading-tight text-[var(--glass-text-primary)]">
-                {state.providerKey === 'kling' ? t('klingAccessKeyLabel') : t('youchuanAppIdLabel')}
-              </span>
-              {state.isEditing ? (
-                <input
-                  type="text"
-                  value={state.tempAppId}
-                  onChange={(event) => state.setTempAppId(event.target.value)}
-                  placeholder={state.providerKey === 'kling' ? t('klingEnterAccessKey') : t('youchuanEnterAppId')}
-                  className="glass-input-base flex-1 px-3 py-1.5 text-[12px]"
-                  disabled={state.keyTestStatus === 'testing'}
-                  autoFocus
-                />
-              ) : (
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                  {provider.hasApiKey ? (
-                    <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-lg bg-[var(--glass-bg-surface)] px-3 py-1.5 font-mono text-[12px] text-[var(--glass-text-secondary)]">
-                      {state.showKey ? (provider.apiAppId || '') : state.maskedAppId}
-                    </span>
-                  ) : (
-                    <span className="text-[12px] text-[var(--glass-text-tertiary)]">—</span>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="glass-surface-soft flex items-center gap-2.5 rounded-xl px-3 py-2">
-              <span className="w-[72px] shrink-0 text-[12px] font-semibold leading-tight text-[var(--glass-text-primary)]">
-                {state.providerKey === 'kling' ? t('klingSecretKeyLabel') : t('youchuanSecretLabel')}
-              </span>
-              {state.isEditing ? (
-                <div className="flex flex-1 items-center gap-2">
-                  <input
-                    type="text"
-                    value={state.tempKey}
-                    onChange={(event) => state.setTempKey(event.target.value)}
-                    placeholder={state.providerKey === 'kling' ? t('klingEnterSecretKey') : t('youchuanEnterSecret')}
-                    className="glass-input-base flex-1 px-3 py-1.5 text-[12px]"
-                    disabled={state.keyTestStatus === 'testing'}
-                  />
-                  {saveCancelButtons}
-                </div>
-              ) : (
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                  {provider.hasApiKey ? (
-                    <>
-                      <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-lg bg-[var(--glass-bg-surface)] px-3 py-1.5 font-mono text-[12px] text-[var(--glass-text-secondary)]">
-                        {state.showKey ? provider.apiKey : state.maskedKey}
-                      </span>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => state.setShowKey(!state.showKey)}
-                          className="glass-icon-btn-sm"
-                          title={state.showKey ? t('hide') : t('show')}
-                        >
-                          {state.showKey ? (
-                            <AppIcon name="eye" className="h-4 w-4" />
-                          ) : (
-                            <AppIcon name="eyeOff" className="h-4 w-4" />
-                          )}
-                        </button>
-                        <button type="button" onClick={state.startEditKey} className="glass-icon-btn-sm" title={t('configure')}>
-                          <AppIcon name="edit" className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <button type="button" onClick={state.startEditKey} className="glass-btn-base glass-btn-tone-info h-7 px-2.5 text-[12px] font-semibold">
-                      <AppIcon name="plus" className="h-3.5 w-3.5" />
-                      <span>{t('connect')}</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="glass-surface-soft flex items-center gap-2.5 rounded-xl px-3 py-2">
-            <span className="w-[64px] shrink-0 whitespace-nowrap text-[12px] font-semibold text-[var(--glass-text-primary)]">
-              {t('apiKeyLabel')}
-            </span>
-            {state.isEditing ? (
-              <div className="flex flex-1 items-center gap-2">
-                <input
-                  type="text"
-                  value={state.tempKey}
-                  onChange={(event) => state.setTempKey(event.target.value)}
-                  placeholder={t('enterApiKey')}
-                  className="glass-input-base flex-1 px-3 py-1.5 text-[12px]"
-                  disabled={state.keyTestStatus === 'testing'}
-                  autoFocus
-                />
-                {saveCancelButtons}
-              </div>
-            ) : (
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                {provider.hasApiKey ? (
-                  <>
-                    <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-lg bg-[var(--glass-bg-surface)] px-3 py-1.5 font-mono text-[12px] text-[var(--glass-text-secondary)]">
-                      {state.showKey ? provider.apiKey : state.maskedKey}
-                    </span>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => state.setShowKey(!state.showKey)}
-                        className="glass-icon-btn-sm"
-                        title={state.showKey ? t('hide') : t('show')}
-                      >
-                        {state.showKey ? (
-                          <AppIcon name="eye" className="h-4 w-4" />
-                        ) : (
-                          <AppIcon name="eyeOff" className="h-4 w-4" />
-                        )}
-                      </button>
-                      <button type="button" onClick={state.startEditKey} className="glass-icon-btn-sm" title={t('configure')}>
-                        <AppIcon name="edit" className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </>
+      <div className="px-3.5 pt-2.5">
+        <div className="glass-surface-soft flex items-center gap-2.5 rounded-xl px-3 py-2">
+          <span className="w-[64px] shrink-0 whitespace-nowrap text-[12px] font-semibold text-[var(--glass-text-primary)]">
+            {t('apiKeyLabel')}
+          </span>
+          {state.isEditing ? (
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="text"
+                value={state.tempKey}
+                onChange={(event) => state.setTempKey(event.target.value)}
+                placeholder={t('enterApiKey')}
+                className="glass-input-base flex-1 px-3 py-1.5 text-[12px]"
+                disabled={state.keyTestStatus === 'testing'}
+                autoFocus
+              />
+              <button
+                onClick={state.handleSaveKey}
+                disabled={state.keyTestStatus === 'testing'}
+                className="glass-icon-btn-sm disabled:opacity-50"
+                title={state.keyTestStatus === 'failed' ? t('testRetry') : t('save')}
+              >
+                {state.keyTestStatus === 'testing' ? (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 ) : (
-                  <button type="button" onClick={state.startEditKey} className="glass-btn-base glass-btn-tone-info h-7 px-2.5 text-[12px] font-semibold">
-                    <AppIcon name="plus" className="h-3.5 w-3.5" />
-                    <span>{t('connect')}</span>
-                  </button>
+                  <AppIcon name="check" className="h-4 w-4" />
                 )}
-              </div>
-            )}
-          </div>
-        )}
+              </button>
+              <button
+                onClick={state.handleCancelEdit}
+                disabled={state.keyTestStatus === 'testing'}
+                className="glass-icon-btn-sm disabled:opacity-50"
+                title={t('cancel')}
+              >
+                <AppIcon name="close" className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {provider.hasApiKey ? (
+                <>
+                  <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-lg bg-[var(--glass-bg-surface)] px-3 py-1.5 font-mono text-[12px] text-[var(--glass-text-secondary)]">
+                    {state.showKey ? provider.apiKey : state.maskedKey}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={() => state.setShowKey(!state.showKey)}
+                      className="glass-icon-btn-sm"
+                      title={state.showKey ? t('hide') : t('show')}
+                    >
+                      {state.showKey ? (
+                        <AppIcon name="eye" className="h-4 w-4" />
+                      ) : (
+                        <AppIcon name="eyeOff" className="h-4 w-4" />
+                      )}
+                    </button>
+                    <button
+                      onClick={state.startEditKey}
+                      className="glass-icon-btn-sm"
+                      title={t('configure')}
+                    >
+                      <AppIcon name="edit" className="h-4 w-4" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  onClick={state.startEditKey}
+                  className="glass-btn-base glass-btn-tone-info h-7 px-2.5 text-[12px] font-semibold"
+                >
+                  <AppIcon name="plus" className="h-3.5 w-3.5" />
+                  <span>{t('connect')}</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {state.keyTestStatus !== 'idle' && (

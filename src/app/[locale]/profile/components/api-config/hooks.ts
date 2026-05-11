@@ -12,7 +12,6 @@ import {
     encodeModelKey,
     getProviderKey,
     isPresetComingSoonModelKey,
-    isProviderCredentialComplete,
     resolvePresetProviderName,
     type PricingDisplayItem,
     type PricingDisplayMap,
@@ -53,7 +52,7 @@ interface UseProvidersReturn {
     saveStatus: 'idle' | 'saving' | 'saved' | 'error'
     flushConfig: () => Promise<void>
     updateProviderHidden: (providerId: string, hidden: boolean) => void
-    updateProviderApiKey: (providerId: string, apiKey: string, apiAppId?: string) => void
+    updateProviderApiKey: (providerId: string, apiKey: string) => void
     updateProviderBaseUrl: (providerId: string, baseUrl: string) => void
     reorderProviders: (activeProviderId: string, overProviderId: string) => void
     addProvider: (provider: Omit<Provider, 'hasApiKey'>) => void
@@ -86,19 +85,13 @@ export function mergeProvidersForDisplay(
         const matchedPreset = presetProviders.find((presetProvider) => presetProvider.id === providerKey)
         if (matchedPreset) {
             const apiKey = savedProvider.apiKey || ''
-            const apiAppId = savedProvider.apiAppId || ''
             const providerBaseUrl = providerKey === 'minimax'
                 ? matchedPreset.baseUrl
                 : (savedProvider.baseUrl || matchedPreset.baseUrl)
             merged.push({
                 ...matchedPreset,
                 apiKey,
-                apiAppId,
-                hasApiKey: isProviderCredentialComplete({
-                    id: savedProvider.id,
-                    apiKey,
-                    apiAppId,
-                }),
+                hasApiKey: apiKey.length > 0,
                 hidden: savedProvider.hidden === true,
                 baseUrl: providerBaseUrl,
                 apiMode: savedProvider.apiMode,
@@ -110,7 +103,7 @@ export function mergeProvidersForDisplay(
 
         merged.push({
             ...savedProvider,
-            hasApiKey: isProviderCredentialComplete(savedProvider),
+            hasApiKey: !!savedProvider.apiKey,
         })
     }
 
@@ -119,7 +112,6 @@ export function mergeProvidersForDisplay(
         merged.push({
             ...presetProvider,
             apiKey: '',
-            apiAppId: '',
             hasApiKey: false,
             hidden: false,
         })
@@ -251,7 +243,7 @@ export function useProviders(): UseProvidersReturn {
         name: resolvePresetProviderName(provider.id, provider.name, locale),
     }))
     const [providers, setProviders] = useState<Provider[]>(
-        presetProviders.map((provider) => ({ ...provider, apiKey: '', apiAppId: '', hasApiKey: false })),
+        presetProviders.map((provider) => ({ ...provider, apiKey: '', hasApiKey: false })),
     )
     const [models, setModels] = useState<CustomModel[]>(
         PRESET_MODELS.map((model) => {
@@ -545,17 +537,11 @@ export function useProviders(): UseProvidersReturn {
     }, [performSave])
 
     // 提供商操作
-    const updateProviderApiKey = useCallback((providerId: string, apiKey: string, apiAppId?: string) => {
-        setProviders((prev) => {
-            const next = prev.map((p) => {
-                if (p.id !== providerId) return p
-                const merged = {
-                    ...p,
-                    apiKey,
-                    ...(apiAppId !== undefined ? { apiAppId } : {}),
-                }
-                return { ...merged, hasApiKey: isProviderCredentialComplete(merged) }
-            })
+    const updateProviderApiKey = useCallback((providerId: string, apiKey: string) => {
+        setProviders(prev => {
+            const next = prev.map(p =>
+                p.id === providerId ? { ...p, apiKey, hasApiKey: !!apiKey } : p
+            )
             latestProvidersRef.current = next
             void performSave(undefined, true)
             return next
@@ -600,7 +586,7 @@ export function useProviders(): UseProvidersReturn {
                 alert(t('providerIdExists'))
                 return prev
             }
-            const newProvider: Provider = { ...provider, hasApiKey: isProviderCredentialComplete(provider) }
+            const newProvider: Provider = { ...provider, hasApiKey: !!provider.apiKey }
             const next = [...prev, newProvider]
             latestProvidersRef.current = next
 
