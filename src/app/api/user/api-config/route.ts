@@ -89,6 +89,7 @@ interface StoredModel {
   name: string
   type: UnifiedModelType
   provider: string
+  enabled?: boolean
   llmProtocol?: LlmProtocolType
   llmProtocolCheckedAt?: string
   compatMediaTemplate?: OpenAICompatMediaTemplate
@@ -822,6 +823,7 @@ function normalizeStoredModel(raw: unknown, index: number, options?: { strictCus
     name: modelName,
     type: modelType,
     provider,
+    ...(typeof raw.enabled === 'boolean' ? { enabled: raw.enabled } : {}),
     ...(llmProtocol ? { llmProtocol } : {}),
     ...(llmProtocolCheckedAt ? { llmProtocolCheckedAt } : {}),
     ...(compatMediaTemplate ? { compatMediaTemplate } : {}),
