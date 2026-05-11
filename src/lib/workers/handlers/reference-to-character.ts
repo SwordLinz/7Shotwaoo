@@ -141,6 +141,7 @@ export async function handleReferenceToCharacterTask(job: Job<TaskJobData>) {
   const characterId = readString(payload.characterId)
   const extractOnly = readBoolean(payload.extractOnly)
   const customDescription = readString(payload.customDescription)
+  const useReferenceImagesWithCustomDescription = readBoolean(payload.useReferenceImagesWithCustomDescription)
   const characterName = readString(payload.characterName) || '新角色 - 初始形象'
   const artStyle = readString(payload.artStyle)
 
@@ -208,7 +209,7 @@ export async function handleReferenceToCharacterTask(job: Job<TaskJobData>) {
     prompt = `${prompt}，${artStylePrompt}`
   }
 
-  const useReferenceImages = !customDescription
+  const useReferenceImages = useReferenceImagesWithCustomDescription || !customDescription
   const { apiKey: falApiKey } = await getProviderConfig(job.data.userId, 'fal')
   const keyPrefix = isAssetHub ? 'ref-char' : `proj-ref-char-${job.data.projectId}`
   const count = normalizeImageGenerationCount('reference-to-character', payload.count)

@@ -18,6 +18,8 @@ export interface CharacterCreationModalProps {
   onSuccess: () => void
 }
 
+type UploadTarget = 'description-reference' | 'reference-mode'
+
 const XMarkIcon = ({ className }: { className?: string }) => (
   <AppIcon name="close" className={className} />
 )
@@ -36,7 +38,8 @@ export function CharacterCreationModal({
   const [description, setDescription] = useState('')
   const [aiInstruction, setAiInstruction] = useState('')
   const [artStyle, setArtStyle] = useState('american-comic')
-  const [referenceImagesBase64, setReferenceImagesBase64] = useState<string[]>([])
+  const [descriptionReferenceImagesBase64, setDescriptionReferenceImagesBase64] = useState<string[]>([])
+  const [referenceModeImagesBase64, setReferenceModeImagesBase64] = useState<string[]>([])
   const [referenceSubMode, setReferenceSubMode] = useState<'direct' | 'extract'>('direct')
   const [isSubAppearance, setIsSubAppearance] = useState(false)
   const [selectedCharacterId, setSelectedCharacterId] = useState('')
@@ -76,37 +79,57 @@ export function CharacterCreationModal({
     description,
     aiInstruction,
     artStyle,
-    referenceImagesBase64,
+    descriptionReferenceImagesBase64,
+    referenceModeImagesBase64,
     referenceSubMode,
     isSubAppearance,
     selectedCharacterId,
     changeReason,
+    createMode,
     setDescription,
     setAiInstruction,
     onSuccess,
     onClose,
   })
 
-  const handleFileSelect = useCallback(async (files: FileList | File[]) => {
+  const getTargetLimit = useCallback((target: UploadTarget) => {
+    if (target === 'reference-mode' && mode === 'asset-hub') return 3
+    return 5
+  }, [mode])
+
+  const handleFileSelect = useCallback(async (files: FileList | File[], target: UploadTarget) => {
     const fileArray = Array.from(files).filter((f) => f.type.startsWith('image/'))
     if (fileArray.length === 0) return
 
-    const remaining = 5 - referenceImagesBase64.length
+    const currentImages = target === 'description-reference'
+      ? descriptionReferenceImagesBase64
+      : referenceModeImagesBase64
+    const maxCount = getTargetLimit(target)
+    const remaining = maxCount - currentImages.length
+    if (remaining <= 0) return
+
     const toAdd = fileArray.slice(0, remaining)
+    const setImages = target === 'description-reference'
+      ? setDescriptionReferenceImagesBase64
+      : setReferenceModeImagesBase64
 
     for (const file of toAdd) {
       const reader = new FileReader()
       reader.onload = (e) => {
         const base64 = e.target?.result as string
-        setReferenceImagesBase64((prev) => {
-          if (prev.length >= 5) return prev
+        setImages((prev) => {
+          if (prev.length >= maxCount) return prev
           if (prev.includes(base64)) return prev
           return [...prev, base64]
         })
       }
       reader.readAsDataURL(file)
     }
-  }, [referenceImagesBase64.length])
+  }, [
+    descriptionReferenceImagesBase64,
+    getTargetLimit,
+    referenceModeImagesBase64,
+  ])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -120,7 +143,10 @@ export function CharacterCreationModal({
 
   useEffect(() => {
     const handleGlobalPaste = (e: ClipboardEvent) => {
-      if (createMode !== 'reference') return
+      const targetUploadMode: UploadTarget | null = mode === 'asset-hub'
+        ? (createMode === 'description' ? 'description-reference' : createMode === 'reference' ? 'reference-mode' : null)
+        : (createMode === 'reference' ? 'reference-mode' : null)
+      if (!targetUploadMode) return
 
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
@@ -133,30 +159,33 @@ export function CharacterCreationModal({
         const file = items[i].getAsFile()
         if (!file) continue
         e.preventDefault()
-        void handleFileSelect([file])
+        void handleFileSelect([file], targetUploadMode)
         break
       }
     }
 
     document.addEventListener('paste', handleGlobalPaste)
     return () => document.removeEventListener('paste', handleGlobalPaste)
-  }, [createMode, handleFileSelect])
+  }, [createMode, handleFileSelect, mode])
 
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+  const createDropHandler = useCallback((target: UploadTarget) => (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     if (e.dataTransfer.files.length > 0) {
-      void handleFileSelect(e.dataTransfer.files)
+      void handleFileSelect(e.dataTransfer.files, target)
     }
-  }
+  }, [handleFileSelect])
 
-  const handleClearReference = (index?: number) => {
+  const handleClearImages = useCallback((target: UploadTarget, index?: number) => {
+    const setImages = target === 'description-reference'
+      ? setDescriptionReferenceImagesBase64
+      : setReferenceModeImagesBase64
     if (typeof index === 'number') {
-      setReferenceImagesBase64((prev) => prev.filter((_, i) => i !== index))
+      setImages((prev) => prev.filter((_, i) => i !== index))
       return
     }
-    setReferenceImagesBase64([])
-  }
+    setImages([])
+  }, [])
 
   const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget && !isSubmitting && !isAiDesigning) {
@@ -195,7 +224,8 @@ export function CharacterCreationModal({
             setAiInstruction={(value) => setAiInstruction(value)}
             artStyle={artStyle}
             setArtStyle={(value) => setArtStyle(value)}
-            referenceImagesBase64={referenceImagesBase64}
+            descriptionReferenceImagesBase64={descriptionReferenceImagesBase64}
+            referenceModeImagesBase64={referenceModeImagesBase64}
             referenceSubMode={referenceSubMode}
             setReferenceSubMode={(value) => setReferenceSubMode(value)}
             isSubAppearance={isSubAppearance}
@@ -206,9 +236,12 @@ export function CharacterCreationModal({
             setChangeReason={(value) => setChangeReason(value)}
             availableCharacters={availableCharacters}
             fileInputRef={fileInputRef}
-            handleDrop={handleDrop}
-            handleFileSelect={(files) => void handleFileSelect(files)}
-            handleClearReference={handleClearReference}
+            handleDescriptionReferenceDrop={createDropHandler('description-reference')}
+            handleReferenceModeDrop={createDropHandler('reference-mode')}
+            handleDescriptionReferenceFileSelect={(files) => { void handleFileSelect(files, 'description-reference') }}
+            handleReferenceModeFileSelect={(files) => { void handleFileSelect(files, 'reference-mode') }}
+            handleClearDescriptionReference={(index) => handleClearImages('description-reference', index)}
+            handleClearReferenceModeImage={(index) => handleClearImages('reference-mode', index)}
             handleExtractDescription={() => { void handleExtractDescription() }}
             handleAiDesign={() => { void handleAiDesign() }}
             isSubmitting={isSubmitting}
@@ -225,7 +258,15 @@ export function CharacterCreationModal({
           >
             {t('common.cancel')}
           </button>
-          {createMode === 'reference' ? (
+          {createMode === 'reference' && mode === 'asset-hub' ? (
+            <button
+              onClick={() => { void handleSubmit() }}
+              disabled={isSubmitting || !name.trim() || referenceModeImagesBase64.length === 0}
+              className="glass-btn-base glass-btn-primary px-4 py-2 rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? t('common.adding') : t('common.addOnlyToAssetHub')}
+            </button>
+          ) : createMode === 'reference' ? (
             <ImageGenerationInlineCountButton
               prefix={<span>{t('character.useReferenceGeneratePrefix')}</span>}
               suffix={<span>{t('character.generateCountSuffix')}</span>}
@@ -233,7 +274,7 @@ export function CharacterCreationModal({
               options={getImageGenerationCountOptions('reference-to-character')}
               onValueChange={setReferenceCharacterGenerationCount}
               onClick={() => { void handleCreateWithReference() }}
-              actionDisabled={!name.trim() || referenceImagesBase64.length === 0}
+              actionDisabled={!name.trim() || referenceModeImagesBase64.length === 0}
               selectDisabled={isSubmitting}
               ariaLabel={t('character.selectReferenceGenerateCount')}
               className="glass-btn-base glass-btn-primary flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
@@ -263,7 +304,7 @@ export function CharacterCreationModal({
                 options={getImageGenerationCountOptions('character')}
                 onValueChange={setCharacterGenerationCount}
                 onClick={() => { void handleSubmitAndGenerate() }}
-                actionDisabled={!name.trim() || !description.trim()}
+                actionDisabled={!name.trim() || (!description.trim() && descriptionReferenceImagesBase64.length === 0)}
                 selectDisabled={isSubmitting}
                 ariaLabel={t('common.selectGenerateCount')}
                 className="glass-btn-base glass-btn-primary flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"

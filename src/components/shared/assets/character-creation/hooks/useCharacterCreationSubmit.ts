@@ -28,11 +28,13 @@ interface UseCharacterCreationSubmitParams {
   description: string
   aiInstruction: string
   artStyle: string
-  referenceImagesBase64: string[]
+  descriptionReferenceImagesBase64: string[]
+  referenceModeImagesBase64: string[]
   referenceSubMode: 'direct' | 'extract'
   isSubAppearance: boolean
   selectedCharacterId: string
   changeReason: string
+  createMode: 'reference' | 'description'
   setDescription: (value: string) => void
   setAiInstruction: (value: string) => void
   onSuccess: () => void
@@ -52,11 +54,13 @@ export function useCharacterCreationSubmit({
   description,
   aiInstruction,
   artStyle,
-  referenceImagesBase64,
+  descriptionReferenceImagesBase64,
+  referenceModeImagesBase64,
   referenceSubMode,
   isSubAppearance,
   selectedCharacterId,
   changeReason,
+  createMode,
   setDescription,
   setAiInstruction,
   onSuccess,
@@ -97,26 +101,39 @@ export function useCharacterCreationSubmit({
     }
   }
 
-  const uploadReferenceImages = useCallback(async () => {
+  const uploadImages = useCallback(async (imagesBase64: string[]) => {
     const uploadMutation = mode === 'asset-hub' ? uploadAssetHubTemp : uploadProjectTemp
     return Promise.all(
-      referenceImagesBase64.map(async (base64) => {
+      imagesBase64.map(async (base64) => {
         const data = await uploadMutation.mutateAsync({ imageBase64: base64 })
         if (!data.url) throw new Error(t('errors.uploadFailed'))
         return data.url
       }),
     )
-  }, [mode, referenceImagesBase64, t, uploadAssetHubTemp, uploadProjectTemp])
+  }, [mode, t, uploadAssetHubTemp, uploadProjectTemp])
+
+  const uploadDescriptionReferenceImages = useCallback(async () => (
+    await uploadImages(descriptionReferenceImagesBase64)
+  ), [descriptionReferenceImagesBase64, uploadImages])
+
+  const uploadReferenceModeImages = useCallback(async () => (
+    await uploadImages(referenceModeImagesBase64)
+  ), [referenceModeImagesBase64, uploadImages])
 
   const handleExtractDescription = useCallback(async () => {
-    if (referenceImagesBase64.length === 0) return
+    const referenceImageUrls = mode === 'asset-hub'
+      ? descriptionReferenceImagesBase64
+      : referenceModeImagesBase64
+    if (referenceImageUrls.length === 0) return
 
     try {
       setIsExtracting(true)
-      const referenceImageUrls = await uploadReferenceImages()
+      const uploadedReferenceImageUrls = mode === 'asset-hub'
+        ? await uploadDescriptionReferenceImages()
+        : await uploadReferenceModeImages()
       const result = mode === 'asset-hub'
-        ? await extractAssetHubDescription.mutateAsync(referenceImageUrls)
-        : await extractProjectDescription.mutateAsync(referenceImageUrls)
+        ? await extractAssetHubDescription.mutateAsync(uploadedReferenceImageUrls)
+        : await extractProjectDescription.mutateAsync(uploadedReferenceImageUrls)
       if (result?.description) {
         setDescription(result.description)
       }
@@ -128,21 +145,23 @@ export function useCharacterCreationSubmit({
       setIsExtracting(false)
     }
   }, [
+    descriptionReferenceImagesBase64,
     extractAssetHubDescription,
     extractProjectDescription,
     mode,
-    referenceImagesBase64.length,
+    referenceModeImagesBase64,
     setDescription,
     t,
-    uploadReferenceImages,
+    uploadDescriptionReferenceImages,
+    uploadReferenceModeImages,
   ])
 
   const handleCreateWithReference = useCallback(async () => {
-    if (!name.trim() || referenceImagesBase64.length === 0) return
+    if (!name.trim() || referenceModeImagesBase64.length === 0) return
 
     try {
       setIsSubmitting(true)
-      const referenceImageUrls = await uploadReferenceImages()
+      const referenceImageUrls = await uploadReferenceModeImages()
 
       let finalDescription = description.trim()
       if (referenceSubMode === 'extract') {
@@ -195,10 +214,11 @@ export function useCharacterCreationSubmit({
     name,
     onClose,
     onSuccess,
-    referenceImagesBase64.length,
+    referenceCharacterGenerationCount,
+    referenceModeImagesBase64.length,
     referenceSubMode,
     t,
-    uploadReferenceImages,
+    uploadReferenceModeImages,
   ])
 
   const handleAiDesign = useCallback(async () => {
@@ -245,16 +265,30 @@ export function useCharacterCreationSubmit({
       return
     }
 
-    if (!name.trim() || !description.trim()) return
+    const isAssetHubThreeViewSave = mode === 'asset-hub' && createMode === 'reference'
+    if (!name.trim()) return
+    if (!isAssetHubThreeViewSave && !description.trim()) return
+    if (isAssetHubThreeViewSave && referenceModeImagesBase64.length === 0) return
+
     try {
       setIsSubmitting(true)
       if (mode === 'asset-hub') {
-        await createAssetHubCharacter.mutateAsync({
+        const payload: {
+          name: string
+          description: string
+          folderId?: string | null
+          artStyle: string
+          initialImageUrls?: string[]
+        } = {
           name: name.trim(),
-          description: description.trim(),
+          description: description.trim() || t('character.defaultDescription', { name: name.trim() }),
           folderId: folderId ?? null,
           artStyle,
-        })
+        }
+        if (isAssetHubThreeViewSave) {
+          payload.initialImageUrls = await uploadReferenceModeImages()
+        }
+        await createAssetHubCharacter.mutateAsync(payload)
       } else {
         await createProjectCharacter.mutateAsync({
           name: name.trim(),
@@ -274,6 +308,7 @@ export function useCharacterCreationSubmit({
     artStyle,
     changeReason,
     createAssetHubCharacter,
+    createMode,
     createProjectAppearance,
     createProjectCharacter,
     description,
@@ -283,8 +318,10 @@ export function useCharacterCreationSubmit({
     name,
     onClose,
     onSuccess,
+    referenceModeImagesBase64.length,
     selectedCharacterId,
     t,
+    uploadReferenceModeImages,
   ])
 
   const handleSubmitAndGenerate = useCallback(async () => {
@@ -293,10 +330,36 @@ export function useCharacterCreationSubmit({
       return
     }
 
-    if (!name.trim() || !description.trim()) return
+    const hasDescriptionReferences = mode === 'asset-hub' && descriptionReferenceImagesBase64.length > 0
+    if (!name.trim() || (!description.trim() && !hasDescriptionReferences)) return
 
     try {
       setIsSubmitting(true)
+
+      if (mode === 'asset-hub' && hasDescriptionReferences) {
+        const referenceImageUrls = await uploadDescriptionReferenceImages()
+        let finalDescription = description.trim()
+        if (referenceSubMode === 'extract') {
+          const result = await extractAssetHubDescription.mutateAsync(referenceImageUrls)
+          finalDescription = result?.description || finalDescription
+        }
+
+        await createAssetHubCharacter.mutateAsync({
+          name: name.trim(),
+          description: finalDescription || t('character.defaultDescription', { name: name.trim() }),
+          folderId: folderId ?? null,
+          artStyle,
+          generateFromReference: true,
+          referenceImageUrls,
+          customDescription: finalDescription || undefined,
+          useReferenceImagesWithCustomDescription: Boolean(finalDescription),
+          count: characterGenerationCount,
+        })
+
+        onSuccess()
+        onClose()
+        return
+      }
 
       if (mode === 'asset-hub') {
         const result = await createAssetHubCharacter.mutateAsync({
@@ -348,6 +411,8 @@ export function useCharacterCreationSubmit({
     createAssetHubCharacter,
     createProjectCharacter,
     description,
+    descriptionReferenceImagesBase64.length,
+    extractAssetHubDescription,
     folderId,
     generateAssetHubCharacterImage,
     generateProjectCharacterImage,
@@ -357,7 +422,9 @@ export function useCharacterCreationSubmit({
     name,
     onClose,
     onSuccess,
+    referenceSubMode,
     t,
+    uploadDescriptionReferenceImages,
   ])
 
   return {

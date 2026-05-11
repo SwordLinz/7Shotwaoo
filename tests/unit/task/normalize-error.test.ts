@@ -82,4 +82,14 @@ describe('normalizeAnyError provider-specific mapping', () => {
     expect(normalized.code).toBe('VIDEO_API_FORMAT_UNSUPPORTED')
     expect(normalized.retryable).toBe(false)
   })
+
+  it('maps upstream copyright restriction message to SENSITIVE_CONTENT', () => {
+    const normalized = normalizeAnyError(
+      new Error(
+        'The request failed because the output video may be related to copyright restrictions. Request id: 02177847988888600000000000000000000ffffac153354eba24b',
+      ),
+    )
+    expect(normalized.code).toBe('SENSITIVE_CONTENT')
+    expect(normalized.retryable).toBe(false)
+  })
 })

@@ -1,6 +1,7 @@
 import { resolveUnifiedErrorCode } from './codes'
 import { getUserMessageByCode } from './user-messages'
 import { normalizeAnyError } from './normalize'
+import { getUpstreamCopyrightRestrictionUserMessage } from './upstream-copyright'
 
 /** 从原始错误消息中提取面向用户的关键细节 */
 function extractProviderDetail(raw: string | null | undefined): string | null {
@@ -25,6 +26,14 @@ export function resolveErrorDisplay(input?: {
   // code 和 message 都为空时，表示没有错误，直接返回 null
   // 如果不做这个判断，normalizeAnyError 会对空输入兜底返回 INTERNAL_ERROR，导致所有面板误报
   if (!input.code && !input.message) return null
+
+  const copyrightBlockedMessage = getUpstreamCopyrightRestrictionUserMessage(input)
+  if (copyrightBlockedMessage) {
+    return {
+      code: 'SENSITIVE_CONTENT',
+      message: copyrightBlockedMessage,
+    }
+  }
 
   const code = resolveUnifiedErrorCode(input.code)
   if (code && code !== 'INTERNAL_ERROR') {

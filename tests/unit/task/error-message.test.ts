@@ -80,4 +80,12 @@ describe('task error message normalization', () => {
     expect(summary.code).toBe('EMPTY_RESPONSE')
     expect(summary.message).toContain('模型返回空响应')
   })
+  it('replaces upstream copyright restriction details with a friendly message', () => {
+    const summary = resolveTaskErrorSummary({
+      errorCode: 'SENSITIVE_CONTENT',
+      errorMessage: 'The request failed because the output video may be related to copyright restrictions. Request id: 02177847988888600000000000000000000ffffac153354eba24b',
+    })
+    expect(summary.code).toBe('SENSITIVE_CONTENT')
+    expect(summary.message).toBe('上游版权风控拦截')
+  })
 })

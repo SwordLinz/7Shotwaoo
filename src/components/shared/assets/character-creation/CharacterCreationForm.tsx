@@ -27,7 +27,8 @@ interface CharacterCreationFormProps {
   setAiInstruction: (value: string) => void
   artStyle: string
   setArtStyle: (value: string) => void
-  referenceImagesBase64: string[]
+  descriptionReferenceImagesBase64: string[]
+  referenceModeImagesBase64: string[]
   referenceSubMode: 'direct' | 'extract'
   setReferenceSubMode: (mode: 'direct' | 'extract') => void
   isSubAppearance: boolean
@@ -38,9 +39,12 @@ interface CharacterCreationFormProps {
   setChangeReason: (value: string) => void
   availableCharacters: AvailableCharacter[]
   fileInputRef: RefObject<HTMLInputElement | null>
-  handleDrop: (event: DragEvent<HTMLDivElement>) => void
-  handleFileSelect: (files: FileList) => void
-  handleClearReference: (index?: number) => void
+  handleDescriptionReferenceDrop: (event: DragEvent<HTMLDivElement>) => void
+  handleReferenceModeDrop: (event: DragEvent<HTMLDivElement>) => void
+  handleDescriptionReferenceFileSelect: (files: FileList) => void
+  handleReferenceModeFileSelect: (files: FileList) => void
+  handleClearDescriptionReference: (index?: number) => void
+  handleClearReferenceModeImage: (index?: number) => void
   handleExtractDescription: () => void
   handleAiDesign: () => void
   isSubmitting: boolean
@@ -68,7 +72,8 @@ export default function CharacterCreationForm({
   setAiInstruction,
   artStyle,
   setArtStyle,
-  referenceImagesBase64,
+  descriptionReferenceImagesBase64,
+  referenceModeImagesBase64,
   referenceSubMode,
   setReferenceSubMode,
   isSubAppearance,
@@ -79,16 +84,45 @@ export default function CharacterCreationForm({
   setChangeReason,
   availableCharacters,
   fileInputRef,
-  handleDrop,
-  handleFileSelect,
-  handleClearReference,
+  handleDescriptionReferenceDrop,
+  handleReferenceModeDrop,
+  handleDescriptionReferenceFileSelect,
+  handleReferenceModeFileSelect,
+  handleClearDescriptionReference,
+  handleClearReferenceModeImage,
   handleExtractDescription,
   handleAiDesign,
-  isSubmitting,
   isAiDesigning,
   isExtracting,
 }: CharacterCreationFormProps) {
   const t = useTranslations('assetModal')
+
+  const renderReferenceGenerationControls = (imageCount: number) => (
+    <>
+      <div className="glass-surface flex items-center gap-2 p-2 rounded-lg">
+        <span className="text-xs text-[var(--glass-text-secondary)] shrink-0">{t('character.generationMode')}</span>
+        <SegmentedControl
+          className="flex-1"
+          options={[
+            { value: 'direct', label: t('character.directGenerate') },
+            { value: 'extract', label: t('character.extractPrompt') },
+          ]}
+          value={referenceSubMode}
+          onChange={(val) => setReferenceSubMode(val as 'direct' | 'extract')}
+        />
+      </div>
+
+      {referenceSubMode === 'extract' && (
+        <button
+          onClick={handleExtractDescription}
+          disabled={isExtracting || imageCount === 0}
+          className="glass-btn-base glass-btn-tone-info w-full px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        >
+          {isExtracting ? t('aiDesign.generating') : t('character.extractFirst')}
+        </button>
+      )}
+    </>
+  )
 
   return (
     <div className="space-y-5">
@@ -192,7 +226,7 @@ export default function CharacterCreationForm({
         </div>
       )}
 
-      {createMode === 'reference' && (
+      {createMode === 'reference' && mode !== 'asset-hub' && (
         <div className="glass-surface-soft rounded-xl p-4 space-y-3 border border-[var(--glass-stroke-base)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-medium text-[var(--glass-tone-info-fg)]">
@@ -202,37 +236,19 @@ export default function CharacterCreationForm({
             <span className="text-xs text-[var(--glass-text-tertiary)]">{t('character.pasteHint')}</span>
           </div>
 
-          <div className="glass-surface flex items-center gap-2 p-2 rounded-lg">
-            <span className="text-xs text-[var(--glass-text-secondary)] shrink-0">{t('character.generationMode')}：</span>
-            <SegmentedControl
-              className="flex-1"
-              options={[
-                { value: 'direct', label: t('character.directGenerate') },
-                { value: 'extract', label: t('character.extractPrompt') },
-              ]}
-              value={referenceSubMode}
-              onChange={(val) => setReferenceSubMode(val as 'direct' | 'extract')}
-            />
-          </div>
-
-          {referenceSubMode === 'extract' && (
-            <button
-              onClick={handleExtractDescription}
-              disabled={isExtracting || referenceImagesBase64.length === 0}
-              className="glass-btn-base glass-btn-tone-info w-full px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {isExtracting ? t('aiDesign.generating') : t('character.extractFirst')}
-            </button>
-          )}
+          {renderReferenceGenerationControls(referenceModeImagesBase64.length)}
 
           <CharacterCreationPreview
-            referenceImagesBase64={referenceImagesBase64}
+            imagesBase64={referenceModeImagesBase64}
             fileInputRef={fileInputRef}
-            onDrop={handleDrop}
-            onFileSelect={handleFileSelect}
-            onClearReference={handleClearReference}
+            onDrop={handleReferenceModeDrop}
+            onFileSelect={handleReferenceModeFileSelect}
+            onClearImage={handleClearReferenceModeImage}
+            dropOrClickText={t('character.dropOrClick')}
+            maxImagesText={t('character.maxReferenceImages')}
+            selectedCountText={t('character.selectedCount', { count: referenceModeImagesBase64.length })}
+            imageAltPrefix={t('character.uploadReference')}
           />
-
         </div>
       )}
 
@@ -270,6 +286,32 @@ export default function CharacterCreationForm({
             </div>
           )}
 
+          {mode === 'asset-hub' && !isSubAppearance && (
+            <div className="glass-surface-soft rounded-xl p-4 space-y-3 border border-[var(--glass-stroke-base)]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium text-[var(--glass-tone-info-fg)]">
+                  <PhotoIcon className="w-4 h-4" />
+                  <span>{t('character.uploadCharacterImages')}</span>
+                </div>
+                <span className="text-xs text-[var(--glass-text-tertiary)]">{t('character.pasteHint')}</span>
+              </div>
+
+              {renderReferenceGenerationControls(descriptionReferenceImagesBase64.length)}
+
+              <CharacterCreationPreview
+                imagesBase64={descriptionReferenceImagesBase64}
+                fileInputRef={fileInputRef}
+                onDrop={handleDescriptionReferenceDrop}
+                onFileSelect={handleDescriptionReferenceFileSelect}
+                onClearImage={handleClearDescriptionReference}
+                dropOrClickText={t('character.dropOrClick')}
+                maxImagesText={t('character.maxReferenceImages')}
+                selectedCountText={t('character.selectedCount', { count: descriptionReferenceImagesBase64.length })}
+                imageAltPrefix={t('character.uploadCharacterImages')}
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="glass-field-label block">
               {isSubAppearance ? t('character.modifyDescription') : t('character.description')} <span className="text-[var(--glass-tone-danger-fg)]">*</span>
@@ -285,6 +327,30 @@ export default function CharacterCreationForm({
             />
           </div>
         </>
+      )}
+
+      {mode === 'asset-hub' && createMode === 'reference' && !isSubAppearance && (
+        <div className="glass-surface-soft rounded-xl p-4 space-y-3 border border-[var(--glass-stroke-base)]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--glass-tone-info-fg)]">
+              <PhotoIcon className="w-4 h-4" />
+              <span>{t('character.uploadThreeView')}</span>
+            </div>
+            <span className="text-xs text-[var(--glass-text-tertiary)]">{t('character.pasteHint')}</span>
+          </div>
+
+          <CharacterCreationPreview
+            imagesBase64={referenceModeImagesBase64}
+            fileInputRef={fileInputRef}
+            onDrop={handleReferenceModeDrop}
+            onFileSelect={handleReferenceModeFileSelect}
+            onClearImage={handleClearReferenceModeImage}
+            dropOrClickText={t('character.dropOrClick')}
+            maxImagesText={t('character.maxThreeViewImages')}
+            selectedCountText={t('character.selectedThreeViewCount', { count: referenceModeImagesBase64.length })}
+            imageAltPrefix={t('character.uploadThreeView')}
+          />
+        </div>
       )}
     </div>
   )

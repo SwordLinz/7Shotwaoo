@@ -1,6 +1,7 @@
 import { normalizeTaskError } from '@/lib/errors/normalize'
 import { isKnownErrorCode, type UnifiedErrorCode } from '@/lib/errors/codes'
 import { getUserMessageByCode } from '@/lib/errors/user-messages'
+import { getUpstreamCopyrightRestrictionUserMessage } from '@/lib/errors/upstream-copyright'
 
 export type TaskErrorSummary = {
   code: string | null
@@ -59,6 +60,12 @@ export function resolveTaskErrorSummary(payload: unknown, fallbackMessage = 'Tas
   const normalizedDetails = asObject(normalized?.details)
   const stage = asString(source.stage)
   const normalizedMessage = asString(normalized?.message)
+  const copyrightBlockedMessage = normalized?.code === 'SENSITIVE_CONTENT'
+    ? getUpstreamCopyrightRestrictionUserMessage({
+      code,
+      message: message || normalizedMessage,
+    })
+    : null
 
   const cancelled =
     asBoolean(source.cancelled) ||
@@ -80,6 +87,14 @@ export function resolveTaskErrorSummary(payload: unknown, fallbackMessage = 'Tas
       code: normalized?.code || 'CONFLICT',
       message: 'Task cancelled by user',
       cancelled: true,
+    }
+  }
+
+  if (copyrightBlockedMessage) {
+    return {
+      code: normalized?.code || code || 'SENSITIVE_CONTENT',
+      message: copyrightBlockedMessage,
+      cancelled: false,
     }
   }
 

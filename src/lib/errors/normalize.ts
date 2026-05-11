@@ -2,6 +2,11 @@ import { InsufficientBalanceError } from '@/lib/billing/errors'
 import { getPrismaErrorCode, isLikelyPrismaDisconnectError, isPrismaRetryableCode } from '@/lib/prisma-error'
 import { DEFAULT_ERROR_CODE, getErrorSpec, isKnownErrorCode, resolveUnifiedErrorCode, type UnifiedErrorCode } from './codes'
 import type { ErrorContext, NormalizedError, NormalizedErrorDetails } from './types'
+import {
+  getUpstreamCopyrightRestrictionUserMessage,
+  isUpstreamCopyrightRestrictionCode,
+  isUpstreamCopyrightRestrictionMessage,
+} from './upstream-copyright'
 
 type NormalizeOptions = {
   context?: ErrorContext
@@ -201,6 +206,7 @@ function inferCodeFromMessage(message: string): UnifiedErrorCode | null {
   if (isModelNotConfiguredMessage(message)) return 'MODEL_NOT_CONFIGURED'
   if (isEmptyResponseMessage(message)) return 'EMPTY_RESPONSE'
   if (isVideoApiFormatUnsupportedMessage(message)) return 'VIDEO_API_FORMAT_UNSUPPORTED'
+  if (isUpstreamCopyrightRestrictionMessage(message)) return 'SENSITIVE_CONTENT'
   if (containsAny(message, ['task cancelled', 'canceled by user', 'cancelled by user', '任务已取消'])) return 'CONFLICT'
   if (containsAny(message, ['unauthorized', 'not authenticated', 'need login', '401'])) return 'UNAUTHORIZED'
   // AccountOverdueError（ARK 欠费 403）必须在 FORBIDDEN 之前检查
@@ -223,6 +229,19 @@ function inferCodeFromPrismaCode(prismaCode: string): UnifiedErrorCode {
   if (prismaCode === 'P2001' || prismaCode === 'P2025') return 'NOT_FOUND'
   if (isPrismaRetryableCode(prismaCode)) return 'EXTERNAL_ERROR'
   return 'INTERNAL_ERROR'
+}
+
+function applyTaskMessageOverride(
+  normalized: NormalizedError,
+  rawCode: string | null | undefined,
+  rawMessage: string | null | undefined,
+): NormalizedError {
+  if (normalized.code !== 'SENSITIVE_CONTENT') return normalized
+  const override = getUpstreamCopyrightRestrictionUserMessage({
+    code: rawCode,
+    message: rawMessage || normalized.message,
+  })
+  return override ? { ...normalized, message: override } : normalized
 }
 
 export function normalizeAnyError(input: unknown, options: NormalizeOptions = {}): NormalizedError {
@@ -279,6 +298,10 @@ export function normalizeAnyError(input: unknown, options: NormalizeOptions = {}
       ...(typeof errorLike.details === 'object' && errorLike.details ? (errorLike.details as Record<string, unknown>) : {}),
       ...(options.details || {}),
     }, provider)
+  }
+
+  if (isUpstreamCopyrightRestrictionCode(errorLike.code) || isUpstreamCopyrightRestrictionMessage(message)) {
+    return buildNormalizedError('SENSITIVE_CONTENT', message, options.details, provider)
   }
 
   if (isArkEndpointAccessDeniedMessage(lowerMessage)) {
@@ -347,7 +370,11 @@ export function normalizeTaskError(
 
   const resolvedTaskCode = resolveUnifiedErrorCode(code)
   if (resolvedTaskCode) {
-    return buildNormalizedError(resolvedTaskCode, message || undefined, details)
+    return applyTaskMessageOverride(
+      buildNormalizedError(resolvedTaskCode, message || undefined, details),
+      code,
+      message,
+    )
   }
 
   const inferred = normalizeAnyError(
@@ -363,7 +390,7 @@ export function normalizeTaskError(
 
   if (code && !resolveUnifiedErrorCode(code)) {
     return {
-      ...inferred,
+      ...applyTaskMessageOverride(inferred, code, message),
       details: {
         ...(inferred.details || {}),
         originalCode: code,
@@ -371,5 +398,5 @@ export function normalizeTaskError(
     }
   }
 
-  return inferred
+  return applyTaskMessageOverride(inferred, code, message)
 }

@@ -115,6 +115,8 @@ export function useCreateAssetHubCharacter() {
       generateFromReference?: boolean
       referenceImageUrls?: string[]
       customDescription?: string
+      useReferenceImagesWithCustomDescription?: boolean
+      initialImageUrls?: string[]
       count?: number
     }) =>
       await requestJsonWithError('/api/asset-hub/characters', {
