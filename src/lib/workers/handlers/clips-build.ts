@@ -24,6 +24,12 @@ function readText(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
+function boundarySnippet(text: string, edge: 'start' | 'end'): string {
+  const compact = text.trim()
+  if (compact.length <= 80) return compact
+  return edge === 'start' ? compact.slice(0, 80) : compact.slice(-80)
+}
+
 const MAX_SPLIT_BOUNDARY_ATTEMPTS = 2
 const CLIP_BOUNDARY_SUFFIX = `
 
@@ -194,6 +200,20 @@ export async function handleClipsBuildTask(job: Job<TaskJobData>) {
 
       if (!failedAt) {
         resolvedClips.push(...currentResolved)
+        break
+      }
+
+      if (parsed.length === 1 && contentToProcess.trim()) {
+        const clipData = parsed[0]
+        resolvedClips.push({
+          startText: boundarySnippet(contentToProcess, 'start'),
+          endText: boundarySnippet(contentToProcess, 'end'),
+          summary: readText(clipData.summary),
+          location: readText(clipData.location) || null,
+          characters: clipData.characters,
+          props: clipData.props,
+          content: contentToProcess,
+        })
         break
       }
 

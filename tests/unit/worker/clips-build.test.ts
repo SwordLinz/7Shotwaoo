@@ -144,13 +144,51 @@ describe('worker clips-build behavior', () => {
     })
   })
 
-  it('AI boundaries cannot be matched -> explicit boundary error', async () => {
+  it('single clip boundary mismatch -> falls back to full episode text', async () => {
     llmMock.getCompletionContent.mockReturnValue(
       JSON.stringify([
         {
           start: 'NOT_FOUND_START',
           end: 'NOT_FOUND_END',
           summary: 'bad clip',
+        },
+      ]),
+    )
+
+    const job = buildJob({ episodeId: 'episode-1' })
+    const result = await handleClipsBuildTask(job)
+
+    expect(result).toEqual({
+      episodeId: 'episode-1',
+      count: 1,
+    })
+    expect(prismaMock.novelPromotionClip.create).toHaveBeenCalledWith({
+      data: {
+        episodeId: 'episode-1',
+        startText: 'A START one END B START two END C',
+        endText: 'A START one END B START two END C',
+        summary: 'bad clip',
+        location: null,
+        characters: null,
+        props: null,
+        content: 'A START one END B START two END C',
+      },
+      select: { id: true },
+    })
+  })
+
+  it('multiple clip boundaries cannot be matched -> explicit boundary error', async () => {
+    llmMock.getCompletionContent.mockReturnValue(
+      JSON.stringify([
+        {
+          start: 'NOT_FOUND_START',
+          end: 'NOT_FOUND_END',
+          summary: 'bad clip',
+        },
+        {
+          start: 'ALSO_NOT_FOUND_START',
+          end: 'ALSO_NOT_FOUND_END',
+          summary: 'second bad clip',
         },
       ]),
     )

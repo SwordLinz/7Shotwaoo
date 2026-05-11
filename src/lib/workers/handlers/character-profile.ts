@@ -28,7 +28,7 @@ async function handleConfirmProfile(
 ) {
   const suppressProgress = options.suppressProgress === true
   const characterId = readRequiredString(payload.characterId, 'characterId')
-  const project = await resolveProjectModel(job.data.projectId)
+  const project = await resolveProjectModel(job.data.projectId, job.data.userId)
 
   const character = await prisma.novelPromotionCharacter.findFirst({
     where: {
@@ -195,7 +195,7 @@ async function handleConfirmProfile(
 }
 
 async function handleBatchConfirmProfile(job: Job<TaskJobData>) {
-  const project = await resolveProjectModel(job.data.projectId)
+  const project = await resolveProjectModel(job.data.projectId, job.data.userId)
 
   const unconfirmedCharacters = await prisma.novelPromotionCharacter.findMany({
     where: {

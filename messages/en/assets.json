@@ -362,5 +362,18 @@
         "referenceImages": "Reference Images",
         "referenceImagesHint": "(optional, paste supported)",
         "startEditing": "Start Editing"
+    },
+    "referenceAsset": {
+        "title": "Reference Assets",
+        "count": "{count}",
+        "add": "Add Reference",
+        "noAssets": "No reference assets yet",
+        "noAssetsHint": "Upload images to use as references for later generation",
+        "deleteConfirm": "Delete this reference image?",
+        "sourceType": {
+            "pose-screenshot": "Pose Screenshot",
+            "comfyui-output": "ComfyUI Output",
+            "manual-upload": "Manual Upload"
+        }
     }
 }

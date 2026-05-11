@@ -362,5 +362,18 @@
         "referenceImages": "参考图片",
         "referenceImagesHint": "(可选，支持粘贴)",
         "startEditing": "开始编辑"
+    },
+    "referenceAsset": {
+        "title": "参考资产",
+        "count": "{count} 个",
+        "add": "添加参考图",
+        "noAssets": "暂无参考资产",
+        "noAssetsHint": "可上传图片作为后续生成的参考",
+        "deleteConfirm": "确定要删除这张参考图吗？",
+        "sourceType": {
+            "pose-screenshot": "姿势截图",
+            "comfyui-output": "ComfyUI 输出",
+            "manual-upload": "手动上传"
+        }
     }
 }

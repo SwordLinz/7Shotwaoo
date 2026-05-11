@@ -123,6 +123,12 @@ function asString(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
+function boundarySnippet(text: string, edge: 'start' | 'end'): string {
+  const compact = text.trim()
+  if (compact.length <= 80) return compact
+  return edge === 'start' ? compact.slice(0, 80) : compact.slice(-80)
+}
+
 function toStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value
@@ -487,6 +493,28 @@ export async function runStoryToScriptOrchestrator(
         attempt,
         clipCount: nextClipList.length,
         levelCount,
+      })
+      break
+    }
+
+    if (rawClipList.length === 1 && content.trim()) {
+      const item = rawClipList[0]
+      splitStep = output
+      clipList = [{
+        id: 'clip_1',
+        startText: boundarySnippet(content, 'start'),
+        endText: boundarySnippet(content, 'end'),
+        summary: asString(item.summary),
+        location: asString(item.location) || null,
+        characters: toStringArray(item.characters),
+        props: toStringArray(item.props),
+        content,
+        matchLevel: 'L3',
+        matchConfidence: 0.5,
+      }]
+      onLog?.('单片段边界匹配失败，回退为整段原文', {
+        attempt,
+        failedClip: failedAt.clipId,
       })
       break
     }
