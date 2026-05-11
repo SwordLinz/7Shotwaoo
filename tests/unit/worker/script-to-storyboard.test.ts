@@ -147,6 +147,13 @@ vi.mock('@/lib/novel-promotion/script-to-storyboard/orchestrator', () => ({
 vi.mock('@/lib/run-runtime/graph-executor', () => ({
   executePipelineGraph: graphExecutorMock.executePipelineGraph,
 }))
+vi.mock('@/lib/run-runtime/workflow-lease', () => ({
+  assertWorkflowRunActive: vi.fn(async () => undefined),
+  withWorkflowRunLease: vi.fn(async (params: { run: () => Promise<unknown> }) => ({
+    claimed: true,
+    result: await params.run(),
+  })),
+}))
 
 vi.mock('@/lib/workers/handlers/llm-stream', () => ({
   createWorkerLLMStreamContext: vi.fn(() => ({ streamRunId: 'run-1', nextSeqByStepLane: {} })),

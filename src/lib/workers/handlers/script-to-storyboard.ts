@@ -32,6 +32,7 @@ import {
 import { buildPrompt, getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createArtifact } from '@/lib/run-runtime/service'
+import { assertWorkflowRunActive, withWorkflowRunLease } from '@/lib/run-runtime/workflow-lease'
 import {
   parseStoryboardRetryTarget,
   runScriptToStoryboardAtomicRetry,
@@ -40,6 +41,10 @@ import { convertScreenplayToPanels } from '@/lib/novel-promotion/smart-reference
 
 type AnyObj = Record<string, unknown>
 const MAX_VOICE_ANALYZE_ATTEMPTS = 5
+
+function buildWorkflowWorkerId(job: Job<TaskJobData>, label: string) {
+  return `${label}:${job.queueName}:${job.data.taskId}`
+}
 
 function isReasoningEffort(value: unknown): value is 'minimal' | 'low' | 'medium' | 'high' {
   return value === 'minimal' || value === 'low' || value === 'medium' || value === 'high'
@@ -117,31 +122,61 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     throw new Error(`Retry clip not found: ${retryClipId}`)
   }
   const skipVoiceAnalyze = !!retryStepKey && retryStepKey !== 'voice_analyze'
+  const payloadMeta = typeof payload.meta === 'object' && payload.meta !== null
+    ? (payload.meta as AnyObj)
+    : {}
+  const runId = typeof payload.runId === 'string' && payload.runId.trim()
+    ? payload.runId.trim()
+    : (typeof payloadMeta.runId === 'string' ? payloadMeta.runId.trim() : '')
+  if (!runId) {
+    throw new Error('runId is required for script_to_storyboard pipeline')
+  }
+  const workerId = buildWorkflowWorkerId(job, 'script_to_storyboard')
+  const assertRunActive = async (stage: string) => {
+    await assertWorkflowRunActive({
+      runId,
+      workerId,
+      stage,
+    })
+  }
 
   const workflowMode = (novelData.workflowMode as string) || 'srt'
   if (workflowMode === 'smart-reference') {
-    return await handleSmartReferenceStoryboard({
-      job,
-      project,
-      novelData: {
-        id: novelData.id,
-        artStyle: (novelData as Record<string, unknown>).artStyle as string | undefined,
-        analysisModel: novelData.analysisModel,
-        characters: (novelData.characters || []).map((c) => ({
-          name: c.name,
-          description: c.profileData || null,
-          introduction: c.introduction || null,
-        })),
-        locations: (novelData.locations || []).map((l) => ({
-          name: l.name,
-          description: l.summary || null,
-        })),
-      },
-      episode,
-      episodeId,
-      clips: selectedClips,
-      payload,
+    const smartLeaseResult = await withWorkflowRunLease({
+      runId,
+      userId: job.data.userId,
+      workerId,
+      run: async () => await handleSmartReferenceStoryboard({
+        job,
+        project,
+        novelData: {
+          id: novelData.id,
+          artStyle: (novelData as Record<string, unknown>).artStyle as string | undefined,
+          analysisModel: novelData.analysisModel,
+          characters: (novelData.characters || []).map((c) => ({
+            name: c.name,
+            description: c.profileData || null,
+            introduction: c.introduction || null,
+          })),
+          locations: (novelData.locations || []).map((l) => ({
+            name: l.name,
+            description: l.summary || null,
+          })),
+        },
+        episode,
+        episodeId,
+        clips: selectedClips,
+        payload,
+      }),
     })
+    if (!smartLeaseResult.claimed || !smartLeaseResult.result) {
+      return {
+        runId,
+        skipped: true,
+        episodeId,
+      }
+    }
+    return smartLeaseResult.result
   }
 
   const model = await resolveAnalysisModel({
@@ -186,6 +221,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     const stepAttempt = meta.stepAttempt
       || (retryStepKey && meta.stepId === retryStepKey ? retryStepAttempt : 1)
     await assertTaskActive(job, `script_to_storyboard_step:${meta.stepId}`)
+    await assertRunActive(`script_to_storyboard_step:${meta.stepId}`)
     const progress = 15 + Math.min(70, Math.floor((meta.stepIndex / Math.max(1, meta.stepTotal)) * 70))
     await reportTaskProgress(job, progress, {
       stage: 'script_to_storyboard_step',
@@ -247,16 +283,11 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     }
   }
 
-  const payloadMeta = typeof payload.meta === 'object' && payload.meta !== null
-    ? (payload.meta as AnyObj)
-    : {}
-  const runId = typeof payload.runId === 'string' && payload.runId.trim()
-    ? payload.runId.trim()
-    : (typeof payloadMeta.runId === 'string' ? payloadMeta.runId.trim() : '')
-  if (!runId) {
-    throw new Error('runId is required for script_to_storyboard pipeline')
-  }
-
+  const leaseResult = await withWorkflowRunLease({
+    runId,
+    userId: job.data.userId,
+    workerId,
+    run: async () => {
   const orchestratorResult = await (async () => {
     try {
       return await withInternalLLMStreamCallbacks(
@@ -640,6 +671,16 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     panelCount: orchestratorResult.summary.totalPanelCount,
     voiceLineCount: createdVoiceLines.length,
   }
+    },
+  })
+  if (!leaseResult.claimed || !leaseResult.result) {
+    return {
+      runId,
+      skipped: true,
+      episodeId,
+    }
+  }
+  return leaseResult.result
 }
 
 // ---------------------------------------------------------------------------

@@ -31,6 +31,7 @@ import {
 import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createArtifact, listArtifacts } from '@/lib/run-runtime/service'
+import { assertWorkflowRunActive, withWorkflowRunLease } from '@/lib/run-runtime/workflow-lease'
 import { parseScreenplayPayload } from './screenplay-convert-helpers'
 
 function isReasoningEffort(value: unknown): value is 'minimal' | 'low' | 'medium' | 'high' {
@@ -41,6 +42,10 @@ function resolveRetryClipId(retryStepKey: string): string | null {
   if (!retryStepKey.startsWith('screenplay_')) return null
   const clipId = retryStepKey.slice('screenplay_'.length).trim()
   return clipId || null
+}
+
+function buildWorkflowWorkerId(job: Job<TaskJobData>, label: string) {
+  return `${label}:${job.queueName}:${job.data.taskId}`
 }
 
 export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
@@ -145,6 +150,7 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
 
   const streamContext = createWorkerLLMStreamContext(job, 'story_to_script')
   const callbacks = createWorkerLLMStreamCallbacks(job, streamContext)
+  let assertRunActive: (stage: string) => Promise<void> = async () => undefined
 
   const runStep = async (
     meta: StoryToScriptStepMeta,
@@ -156,6 +162,7 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
     const stepAttempt = meta.stepAttempt
       || (retryStepKey && meta.stepId === retryStepKey ? retryStepAttempt : 1)
     await assertTaskActive(job, `story_to_script_step:${meta.stepId}`)
+    await assertRunActive(`story_to_script_step:${meta.stepId}`)
     const progress = 15 + Math.min(55, Math.floor((meta.stepIndex / Math.max(1, meta.stepTotal)) * 55))
     await reportTaskProgress(job, progress, {
       stage: 'story_to_script_step',
@@ -231,7 +238,20 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
   if (retryStepKey && !retryClipId) {
     throw new Error(`unsupported retry step for story_to_script: ${retryStepKey}`)
   }
+  const workerId = buildWorkflowWorkerId(job, 'story_to_script')
+  assertRunActive = async (stage: string) => {
+    await assertWorkflowRunActive({
+      runId,
+      workerId,
+      stage,
+    })
+  }
 
+  const leaseResult = await withWorkflowRunLease({
+    runId,
+    userId: job.data.userId,
+    workerId,
+    run: async () => {
   if (retryClipId) {
     const splitArtifacts = await listArtifacts({
       runId,
@@ -532,4 +552,14 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
     persistedLocations: createdLocations.length,
     persistedClips: createdClipRows.length,
   }
+    },
+  })
+  if (!leaseResult.claimed || !leaseResult.result) {
+    return {
+      runId,
+      skipped: true,
+      episodeId,
+    }
+  }
+  return leaseResult.result
 }
