@@ -50,7 +50,7 @@ export default async function LocaleLayout({
     const messages = await getMessages();
 
     return (
-        <html lang={locale}>
+        <html lang={locale} suppressHydrationWarning>
             <head>
                 {process.env.NODE_ENV === "development" && (
                     <Script
@@ -62,6 +62,7 @@ export default async function LocaleLayout({
             </head>
             <body
                 className="antialiased"
+                suppressHydrationWarning
             >
                 <NextIntlClientProvider messages={messages}>
                     <Providers>

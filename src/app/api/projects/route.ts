@@ -181,7 +181,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const VALID_WORKFLOW_MODES = ['srt', 'agent', 'smart-reference'] as const
   const effectiveWorkflowMode = VALID_WORKFLOW_MODES.includes(workflowMode) ? workflowMode : 'srt'
 
-  // 获取用户偏好配置
+  // 获取用户偏好配置。模型字段不在创建时复制到项目表：
+  // null 表示“跟随全局默认”，避免用户修改全局模型后旧项目仍使用过期模型。
   const userPreference = await prisma.userPreference.findUnique({
     where: { userId: session.user.id }
   })
@@ -196,19 +197,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
     }
   })
 
-  // 创建 novel-promotion 数据表，使用用户偏好作为默认值
+  // 创建 novel-promotion 数据表。只继承非模型类偏好，模型默认跟随全局配置。
   await prisma.novelPromotionProject.create({
     data: {
       projectId: project.id,
       workflowMode: effectiveWorkflowMode,
       ...(userPreference && {
-        analysisModel: userPreference.analysisModel,
-        characterModel: userPreference.characterModel,
-        locationModel: userPreference.locationModel,
-        storyboardModel: userPreference.storyboardModel,
-        editModel: userPreference.editModel,
-        videoModel: userPreference.videoModel,
-        audioModel: userPreference.audioModel,
         videoRatio: userPreference.videoRatio,
         artStyle: isArtStyleValue(userPreference.artStyle) ? userPreference.artStyle : 'american-comic',
         ttsRate: userPreference.ttsRate
