@@ -324,7 +324,17 @@ const SEEDANCE_2_DEFAULT_ASPECT_RATIO: Seedance2AspectRatio = '16:9'
 const SEEDANCE_2_FPS = 24
 
 function isSeedance2TokenPricedModel(model: string): boolean {
-  return SEEDANCE_2_TOKEN_PRICED_MODEL_IDS.has(parseModelId(model))
+  const parsed = parseModelKeyStrict(model)
+  if (parsed) {
+    // Token pricing tiers (containsVideoInput=true/false) for these Seedance 2.0
+    // modelIds only exist under the `ark` provider in standards/pricing. Third-party
+    // proxies (e.g. openai-compatible:<uuid>) of the same modelId must fall through to
+    // the generic pricing path; missing catalog entries are tolerated by higher-level
+    // catches (BILLING_UNKNOWN_MODEL).
+    if (parsed.provider !== 'ark') return false
+    return SEEDANCE_2_TOKEN_PRICED_MODEL_IDS.has(parsed.modelId)
+  }
+  return SEEDANCE_2_TOKEN_PRICED_MODEL_IDS.has(model)
 }
 
 function readMetadataNumber(metadata: Record<string, unknown> | undefined, field: string): number | null {
