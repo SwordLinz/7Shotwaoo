@@ -102,15 +102,15 @@ async function validateVideoCapabilityCombination(input: {
   payload: unknown
   projectId: string
   userId: string
-}) {
+}): Promise<Record<string, CapabilityValue> | null> {
   const payload = input.payload
-  if (!isRecord(payload)) return
+  if (!isRecord(payload)) return null
   const modelKey = resolveVideoModelKeyFromPayload(payload)
-  if (!modelKey) return
+  if (!modelKey) return null
 
   // Skip validation for models not in the built-in capability catalog
   const builtinCaps = resolveBuiltinCapabilitiesByModelKey('video', modelKey)
-  if (!builtinCaps) return
+  if (!builtinCaps) return null
 
   const runtimeSelections = toVideoRuntimeSelections(payload.generationOptions)
   runtimeSelections.generationMode = resolveVideoGenerationMode(payload)
@@ -156,6 +156,25 @@ async function validateVideoCapabilityCombination(input: {
         selections: resolvedOptions,
       },
     })
+  }
+
+  return resolvedOptions
+}
+
+function buildVideoSubmissionPayload(
+  payload: unknown,
+  resolvedGenerationOptions: Record<string, CapabilityValue> | null,
+) {
+  if (!isRecord(payload) || !resolvedGenerationOptions) return payload
+  const existingGenerationOptions = isRecord(payload.generationOptions)
+    ? payload.generationOptions
+    : {}
+  return {
+    ...payload,
+    generationOptions: {
+      ...existingGenerationOptions,
+      ...resolvedGenerationOptions,
+    },
   }
 }
 
@@ -204,11 +223,12 @@ export const POST = apiHandler(async (
   const isBatch = body?.all === true
 
   validateFirstLastFrameModel(body?.firstLastFrame)
-  await validateVideoCapabilityCombination({
+  const resolvedGenerationOptions = await validateVideoCapabilityCombination({
     payload: body,
     projectId,
     userId: session.user.id,
   })
+  const submissionPayload = buildVideoSubmissionPayload(body, resolvedGenerationOptions)
 
   if (isBatch) {
     const episodeId = body?.episodeId
@@ -247,11 +267,11 @@ export const POST = apiHandler(async (
           type: TASK_TYPE.VIDEO_PANEL,
           targetType: 'NovelPromotionPanel',
           targetId: panel.id,
-          payload: withTaskUiPayload(body, {
+          payload: withTaskUiPayload(submissionPayload, {
             hasOutputAtStart: await hasPanelVideoOutput(panel.id),
           }),
           dedupeKey: `video_panel:${panel.id}`,
-          billingInfo: buildVideoPanelBillingInfoOrThrow(body),
+          billingInfo: buildVideoPanelBillingInfoOrThrow(submissionPayload),
         }),
       ),
     )
@@ -289,11 +309,11 @@ export const POST = apiHandler(async (
     type: TASK_TYPE.VIDEO_PANEL,
     targetType: 'NovelPromotionPanel',
     targetId: panel.id,
-    payload: withTaskUiPayload(body, {
+    payload: withTaskUiPayload(submissionPayload, {
       hasOutputAtStart: await hasPanelVideoOutput(panel.id),
     }),
     dedupeKey: `video_panel:${panel.id}`,
-    billingInfo: buildVideoPanelBillingInfoOrThrow(body),
+    billingInfo: buildVideoPanelBillingInfoOrThrow(submissionPayload),
   })
 
   return NextResponse.json(result)
