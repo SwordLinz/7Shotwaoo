@@ -63,6 +63,7 @@ function requireVideoModelKeyFromPayload(payload: unknown): string {
     throw new ApiError('INVALID_PARAMS', {
       code: 'VIDEO_MODEL_REQUIRED',
       field: 'videoModel',
+      message: '未配置可用的视频模型。请先在设置页启用视频模型，或在项目设置里选择视频生成模型。',
     })
   }
   return payload.videoModel
@@ -74,6 +75,7 @@ function validateFirstLastFrameModel(input: unknown) {
     throw new ApiError('INVALID_PARAMS', {
       code: 'FIRSTLASTFRAME_PAYLOAD_INVALID',
       field: 'firstLastFrame',
+      message: '首尾帧参数格式不正确，请重新选择首尾帧视频模型。',
     })
   }
 
@@ -82,6 +84,7 @@ function validateFirstLastFrameModel(input: unknown) {
     throw new ApiError('INVALID_PARAMS', {
       code: 'FIRSTLASTFRAME_MODEL_INVALID',
       field: 'firstLastFrame.flModel',
+      message: '首尾帧视频模型不可用，请重新选择支持首尾帧的模型。',
     })
   }
 
@@ -90,6 +93,7 @@ function validateFirstLastFrameModel(input: unknown) {
     throw new ApiError('INVALID_PARAMS', {
       code: 'FIRSTLASTFRAME_MODEL_UNSUPPORTED',
       field: 'firstLastFrame.flModel',
+      message: '当前视频模型不支持首尾帧模式，请切换模型或关闭首尾帧。',
     })
   }
 }
@@ -125,6 +129,7 @@ async function validateVideoCapabilityCombination(input: {
     throw new ApiError('INVALID_PARAMS', {
       code: 'VIDEO_CAPABILITY_COMBINATION_UNSUPPORTED',
       field: 'generationOptions',
+      message: `当前视频模型参数组合不可用：${message}`,
       details: {
         model: modelKey,
         selections: runtimeSelections,
@@ -145,6 +150,7 @@ async function validateVideoCapabilityCombination(input: {
     throw new ApiError('INVALID_PARAMS', {
       code: 'VIDEO_CAPABILITY_COMBINATION_UNSUPPORTED',
       field: 'generationOptions',
+      message: '当前视频模型参数组合没有可用价格/能力配置，请调整分辨率、时长或生成模式。',
       details: {
         model: modelKey,
         selections: resolvedOptions,
@@ -167,6 +173,7 @@ function buildVideoPanelBillingInfoOrThrow(payload: unknown) {
       throw new ApiError('INVALID_PARAMS', {
         code: 'VIDEO_CAPABILITY_COMBINATION_UNSUPPORTED',
         field: 'generationOptions',
+        message: '当前视频模型参数组合没有可用计费配置，请调整分辨率、时长或生成模式。',
       })
     }
     // Model not in built-in pricing catalog — allow task to proceed;
@@ -206,7 +213,11 @@ export const POST = apiHandler(async (
   if (isBatch) {
     const episodeId = body?.episodeId
     if (!episodeId) {
-      throw new ApiError('INVALID_PARAMS')
+      throw new ApiError('INVALID_PARAMS', {
+        code: 'EPISODE_ID_REQUIRED',
+        field: 'episodeId',
+        message: '缺少剧集 ID，无法批量生成视频。',
+      })
     }
 
     const panels = await prisma.novelPromotionPanel.findMany({
@@ -250,12 +261,19 @@ export const POST = apiHandler(async (
 
   const storyboardId = body?.storyboardId
   const panelIndex = body?.panelIndex
-  if (!storyboardId || panelIndex === undefined) {
-    throw new ApiError('INVALID_PARAMS')
+  const panelId = typeof body?.panelId === 'string' ? body.panelId.trim() : ''
+  if (!panelId && (!storyboardId || panelIndex === undefined)) {
+    throw new ApiError('INVALID_PARAMS', {
+      code: 'VIDEO_PANEL_TARGET_REQUIRED',
+      field: 'panelId',
+      message: '缺少分镜面板信息，无法提交视频生成任务。请刷新页面后重试。',
+    })
   }
 
   const panel = await prisma.novelPromotionPanel.findFirst({
-    where: { storyboardId, panelIndex: Number(panelIndex) },
+    where: panelId
+      ? { id: panelId, storyboard: { episode: { novelPromotionProject: { projectId } } } }
+      : { storyboardId, panelIndex: Number(panelIndex) },
     select: { id: true },
   })
 

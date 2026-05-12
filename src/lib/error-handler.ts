@@ -41,10 +41,13 @@ function parseApiErrorPayload(payload: ApiErrorPayload | null): ParsedApiErrorPa
 
   const objectError = typeof payload.error === 'object' && payload.error ? payload.error : null
   const stringError = typeof payload.error === 'string' ? payload.error : null
+  const detailMessage = typeof objectError?.details?.message === 'string'
+    ? objectError.details.message
+    : undefined
 
   return {
     code: objectError?.code || payload.code || undefined,
-    message: objectError?.message || payload.message || stringError || undefined,
+    message: detailMessage || objectError?.message || payload.message || stringError || undefined,
     details: objectError?.details || undefined,
   }
 }
@@ -81,7 +84,7 @@ export async function handleApiError(
     },
   )
 
-  throw new Error(normalized.code)
+  throw new Error(normalized.message || normalized.code)
 }
 
 export async function checkApiResponse(
