@@ -172,6 +172,7 @@ export function useGenerateVideo(projectId: string | null, episodeId: string | n
             const requestBody: {
                 storyboardId: string
                 panelIndex: number
+                panelId?: string
                 firstLastFrame?: {
                     lastFrameStoryboardId: string
                     lastFramePanelIndex: number
@@ -183,6 +184,7 @@ export function useGenerateVideo(projectId: string | null, episodeId: string | n
             } = {
                 storyboardId: params.storyboardId,
                 panelIndex: params.panelIndex,
+                panelId: params.panelId,
                 videoModel: params.videoModel,
             }
 
