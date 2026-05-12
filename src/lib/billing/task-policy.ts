@@ -10,6 +10,10 @@ import { BillingOperationError } from './errors'
 import { BUILTIN_PRICING_VERSION } from '@/lib/model-pricing/version'
 import { TASK_TYPE, type TaskType } from '@/lib/task/types'
 import type { TaskBillingInfo } from './types'
+import {
+  resolveCanonicalVideoGenerationOptions,
+  resolveVideoGenerationModeFromPayload,
+} from '@/lib/video-generation/canonical-options'
 
 type AnyPayload = Record<string, unknown> | null | undefined
 
@@ -151,7 +155,7 @@ function buildImageTaskInfo(taskType: TaskType, payload: AnyPayload): TaskBillin
 
 function buildVideoTaskInfo(taskType: TaskType, payload: AnyPayload): TaskBillingInfo | null {
   const firstLastFramePayload = toRecord(payload?.firstLastFrame)
-  const generationMode = Object.keys(firstLastFramePayload).length > 0 ? 'firstlastframe' : 'normal'
+  const generationMode = resolveVideoGenerationModeFromPayload(payload)
   const model = pickFirstString([
     payload?.videoModel,
     payload?.modelId,
@@ -159,15 +163,21 @@ function buildVideoTaskInfo(taskType: TaskType, payload: AnyPayload): TaskBillin
     firstLastFramePayload.flModel,
   ])
   if (!model) return null
-  const generationOptions = toRecord(payload?.generationOptions)
+  const rawGenerationOptions = toRecord(payload?.generationOptions)
+  const generationOptions = resolveCanonicalVideoGenerationOptions({
+    modelKey: model,
+    payload,
+  })
   const resolution = readString(generationOptions.resolution) || readString(payload?.resolution)
   const duration = readNumber(generationOptions.duration) ?? readNumber(payload?.duration)
-  const aspectRatio = readString(generationOptions.aspectRatio) || readString(payload?.aspectRatio)
+  const aspectRatio =
+    readString(generationOptions.aspectRatio) || readString(rawGenerationOptions.aspectRatio) || readString(payload?.aspectRatio)
   const generateAudio = typeof generationOptions.generateAudio === 'boolean'
     ? generationOptions.generateAudio
     : undefined
   const quantity = Math.max(1, Math.floor(toNumber(payload?.count, 1)))
   const metadata = {
+    ...generationOptions,
     ...(resolution ? { resolution } : {}),
     ...(typeof duration === 'number' ? { duration } : {}),
     ...(aspectRatio ? { aspectRatio } : {}),

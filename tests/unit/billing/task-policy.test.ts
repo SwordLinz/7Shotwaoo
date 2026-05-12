@@ -71,6 +71,41 @@ describe('billing/task-policy', () => {
     expect(info.quantity).toBe(1)
   })
 
+  it('canonicalizes builtin video defaults before billing', () => {
+    const info = expectBillableInfo(buildDefaultTaskBillingInfo(TASK_TYPE.VIDEO_PANEL, {
+      videoModel: 'ark::doubao-seedance-2-0-260128',
+    }))
+
+    expect(info.apiType).toBe('video')
+    expect(info.model).toBe('ark::doubao-seedance-2-0-260128')
+    expect(info.maxFrozenCost).toBeGreaterThan(0)
+    expect(info.metadata).toMatchObject({
+      generationMode: 'normal',
+      generateAudio: true,
+      duration: 4,
+      resolution: '480p',
+      containsVideoInput: false,
+    })
+  })
+
+  it('replaces unsupported video selections with billable canonical values', () => {
+    const info = expectBillableInfo(buildDefaultTaskBillingInfo(TASK_TYPE.VIDEO_PANEL, {
+      videoModel: 'ark::doubao-seedance-2-0-260128',
+      generationOptions: {
+        duration: 20,
+        resolution: '1080p',
+        generationMode: 'normal',
+      },
+    }))
+
+    expect(info.maxFrozenCost).toBeGreaterThan(0)
+    expect(info.metadata).toMatchObject({
+      duration: 4,
+      resolution: '480p',
+      generationMode: 'normal',
+    })
+  })
+
   it('uses explicit lip sync model from payload', () => {
     const info = expectBillableInfo(buildDefaultTaskBillingInfo(TASK_TYPE.LIP_SYNC, {
       lipSyncModel: 'vidu::vidu-lipsync',
