@@ -80,6 +80,7 @@ interface ProviderConnectionPayload {
   apiKey: string
   baseUrl?: string
   llmModel?: string
+  imageModel?: string
 }
 
 type LlmProtocolType = 'responses' | 'chat-completions'
@@ -166,15 +167,33 @@ function pickConfiguredLlmModel(params: {
   return (preferredModel ?? enabledLlmModels[0])?.modelId
 }
 
+function pickConfiguredImageModel(params: {
+  models: CustomModel[]
+  defaultModels: UseProviderCardStateParams['defaultModels']
+}): string | undefined {
+  const enabledImageModels = params.models.filter((model) => model.type === 'image' && model.enabled)
+  if (enabledImageModels.length === 0) return undefined
+  const preferredKeys = [
+    params.defaultModels.storyboardModel,
+    params.defaultModels.characterModel,
+    params.defaultModels.locationModel,
+    params.defaultModels.editModel,
+  ].filter((key): key is string => typeof key === 'string' && key.trim().length > 0)
+  const preferredModel = enabledImageModels.find((model) => preferredKeys.includes(model.modelKey))
+  return (preferredModel ?? enabledImageModels[0])?.modelId
+}
+
 export function buildProviderConnectionPayload(params: {
   providerKey: string
   apiKey: string
   baseUrl?: string
   llmModel?: string
+  imageModel?: string
 }): ProviderConnectionPayload {
   const apiKey = params.apiKey.trim()
   const compatibleBaseUrl = params.baseUrl?.trim()
   const llmModel = params.llmModel?.trim()
+  const imageModel = params.imageModel?.trim()
   const isCompatibleProvider =
     params.providerKey === 'openai-compatible' || params.providerKey === 'gemini-compatible'
 
@@ -184,6 +203,7 @@ export function buildProviderConnectionPayload(params: {
       apiKey,
       baseUrl: compatibleBaseUrl,
       ...(llmModel ? { llmModel } : {}),
+      ...(imageModel ? { imageModel } : {}),
     }
   }
 
@@ -191,6 +211,7 @@ export function buildProviderConnectionPayload(params: {
     apiType: params.providerKey,
     apiKey,
     ...(llmModel ? { llmModel } : {}),
+    ...(imageModel ? { imageModel } : {}),
   }
 }
 
@@ -462,11 +483,16 @@ export function useProviderCardState({
         models,
         defaultAnalysisModel: defaultModels.analysisModel,
       })
+      const fallbackImageModel = pickConfiguredImageModel({
+        models,
+        defaultModels,
+      })
       const payload = buildProviderConnectionPayload({
         providerKey,
         apiKey: tempKey,
         baseUrl: provider.baseUrl,
         llmModel: fallbackLlmModel,
+        imageModel: fallbackImageModel,
       })
       const res = await apiFetch('/api/user/api-config/test-provider', {
         method: 'POST',
@@ -489,7 +515,7 @@ export function useProviderCardState({
       setKeyTestSteps([{ name: 'models', status: 'fail', message: 'Network error' }])
       setKeyTestStatus('failed')
     }
-  }, [defaultModels.analysisModel, doSaveKey, models, provider.baseUrl, providerKey, tempKey])
+  }, [defaultModels, doSaveKey, models, provider.baseUrl, providerKey, tempKey])
 
   const handleForceSaveKey = useCallback(() => {
     doSaveKey()
@@ -504,11 +530,16 @@ export function useProviderCardState({
         models,
         defaultAnalysisModel: defaultModels.analysisModel,
       })
+      const fallbackImageModel = pickConfiguredImageModel({
+        models,
+        defaultModels,
+      })
       const payload = buildProviderConnectionPayload({
         providerKey,
         apiKey: provider.apiKey || '',
         baseUrl: provider.baseUrl,
         llmModel: fallbackLlmModel,
+        imageModel: fallbackImageModel,
       })
       const res = await apiFetch('/api/user/api-config/test-provider', {
         method: 'POST',
@@ -522,7 +553,7 @@ export function useProviderCardState({
       setKeyTestSteps([{ name: 'models', status: 'fail', message: 'Network error' }])
       setKeyTestStatus('failed')
     }
-  }, [defaultModels.analysisModel, models, provider.apiKey, provider.baseUrl, providerKey])
+  }, [defaultModels, models, provider.apiKey, provider.baseUrl, providerKey])
 
   const handleDismissTest = useCallback(() => {
     setKeyTestStatus('idle')

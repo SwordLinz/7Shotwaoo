@@ -30,13 +30,18 @@ export const POST = apiHandler(async (
   const candidateCount = Math.max(1, Math.min(4, Number(count ?? DEFAULT_CANDIDATE_COUNT)))
 
   if (!panelId) {
-    throw new ApiError('INVALID_PARAMS')
+    throw new ApiError('INVALID_PARAMS', {
+      code: 'PANEL_ID_REQUIRED',
+      message: '缺少分镜面板 ID，无法提交图片生成任务。',
+    })
   }
 
   const projectModelConfig = await getProjectModelConfig(projectId, session.user.id)
   if (!projectModelConfig.storyboardModel) {
     throw new ApiError('INVALID_PARAMS', {
-      code: 'STORYBOARD_MODEL_NOT_CONFIGURED'})
+      code: 'STORYBOARD_MODEL_NOT_CONFIGURED',
+      message: '未配置分镜图片模型。请先在设置页启用一个图片模型，或在项目设置里选择分镜图片模型。',
+    })
   }
   try {
     await resolveModelSelection(session.user.id, projectModelConfig.storyboardModel, 'image')
@@ -44,7 +49,8 @@ export const POST = apiHandler(async (
     const message = error instanceof Error ? error.message : 'Storyboard image model is invalid'
     throw new ApiError('INVALID_PARAMS', {
       code: 'STORYBOARD_MODEL_INVALID',
-      message})
+      message: `当前分镜图片模型不可用：${message}`,
+    })
   }
 
   const capabilityOptions = await resolveProjectModelCapabilityGenerationOptions({

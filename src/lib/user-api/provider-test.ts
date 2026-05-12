@@ -1,3 +1,4 @@
+import { GoogleGenAI, HarmBlockThreshold, HarmCategory } from '@google/genai'
 import OpenAI from 'openai'
 import { setProxy } from '../../../lib/prompts/proxy'
 import { probeYouchuanCredentials } from '@/lib/generators/youchuan'
@@ -31,6 +32,7 @@ type TestProviderPayload = {
   apiKey: string
   apiAppId?: string
   llmModel?: string
+  imageModel?: string
 }
 
 function classifyProbeFailure(status: number): { status: TestStepStatus; message: string } {
@@ -184,6 +186,14 @@ async function runCompatibleGetProbe(params: {
           } catch {
             parsedBody = null
           }
+        }
+        if (!parsedBody) {
+          attempts[attempts.length - 1] = {
+            url,
+            status: response.status,
+            note: 'non-json response',
+          }
+          continue
         }
         return {
           outcome: 'pass',
@@ -343,6 +353,60 @@ async function testCompatibleProvider(baseUrl: string, apiKey: string, llmModel?
   return {
     success: llmStep.status === 'pass',
     steps,
+  }
+}
+
+async function testGeminiCompatibleProvider(
+  baseUrl: string,
+  apiKey: string,
+  imageModel?: string,
+): Promise<TestProviderResult> {
+  await setProxy()
+  const model = imageModel?.trim() || 'gemini-3.1-flash-image-preview'
+  const steps: TestStep[] = []
+
+  try {
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { baseUrl: sanitizeBaseUrl(baseUrl) },
+    })
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ parts: [{ text: 'Generate a simple red circle icon on white background.' }] }],
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        ],
+        imageConfig: {
+          imageSize: '1K',
+        },
+      },
+    })
+    const parts = response.candidates?.[0]?.content?.parts || []
+    const hasImage = parts.some((part) => !!part.inlineData?.data)
+    if (!hasImage) {
+      const finishReason = response.candidates?.[0]?.finishReason
+      throw new Error(finishReason ? `Gemini-compatible image probe returned no image: ${finishReason}` : 'Gemini-compatible image probe returned no image')
+    }
+    steps.push({
+      name: 'imageGen',
+      status: 'pass',
+      model,
+      message: 'Gemini-compatible image runtime OK',
+    })
+    return { success: true, steps }
+  } catch (error) {
+    steps.push({
+      name: 'imageGen',
+      status: 'fail',
+      model,
+      message: toErrorMessage(error),
+    })
+    return { success: false, steps }
   }
 }
 
@@ -954,7 +1018,7 @@ async function testYouchuanProvider(apiKey: string, apiAppId?: string): Promise<
 // ---------------------------------------------------------------------------
 
 export async function testProviderConnection(payload: TestProviderPayload): Promise<TestProviderResult> {
-  const { apiType, baseUrl, apiKey, apiAppId, llmModel } = payload
+  const { apiType, baseUrl, apiKey, apiAppId, llmModel, imageModel } = payload
 
   if (!apiKey) {
     return {
@@ -975,7 +1039,7 @@ export async function testProviderConnection(payload: TestProviderPayload): Prom
     case 'openai-compatible':
       return testCompatibleProvider(baseUrl!, apiKey, llmModel)
     case 'gemini-compatible':
-      return testCompatibleProvider(baseUrl!, apiKey, llmModel)
+      return testGeminiCompatibleProvider(baseUrl!, apiKey, imageModel)
     case 'ark':
       return testArkProvider(apiKey)
     case 'google':

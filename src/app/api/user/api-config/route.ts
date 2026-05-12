@@ -178,6 +178,17 @@ const DEFAULT_FIELD_TO_PRICING_API_TYPE: Readonly<Record<DefaultModelField, 'tex
   lipSyncModel: 'lip-sync',
   voiceDesignModel: 'voice',
 }
+const DEFAULT_FIELD_TO_MODEL_TYPE: Readonly<Record<DefaultModelField, UnifiedModelType>> = {
+  analysisModel: 'llm',
+  characterModel: 'image',
+  locationModel: 'image',
+  storyboardModel: 'image',
+  editModel: 'image',
+  videoModel: 'video',
+  audioModel: 'audio',
+  lipSyncModel: 'lipsync',
+  voiceDesignModel: 'audio',
+}
 const DEFAULT_LIPSYNC_MODEL_KEY = composeModelKey('fal', 'fal-ai/kling-video/lipsync/audio-to-video')
 
 /**
@@ -1395,6 +1406,50 @@ function sanitizeDefaultModelsForBilling(defaultModels: DefaultModelsPayload): D
   return sanitized
 }
 
+function isStoredModelUsable(model: StoredModel): boolean {
+  return model.enabled !== false
+}
+
+function findFallbackDefaultModelKey(
+  models: StoredModel[],
+  field: DefaultModelField,
+  staleModelKey?: string,
+): string {
+  const expectedType = DEFAULT_FIELD_TO_MODEL_TYPE[field]
+  const candidates = models.filter((model) => model.type === expectedType && isStoredModelUsable(model))
+  if (candidates.length === 0) return ''
+
+  const parsedStale = parseModelKeyStrict(staleModelKey || '')
+  if (parsedStale) {
+    const sameModelId = candidates.find((model) => model.modelId === parsedStale.modelId)
+    if (sameModelId) return sameModelId.modelKey
+  }
+
+  return candidates[0]?.modelKey || ''
+}
+
+function reconcileDefaultModelsWithModels(
+  defaultModels: DefaultModelsPayload,
+  models: StoredModel[],
+): DefaultModelsPayload {
+  const byKey = buildStoredModelMap(models.filter(isStoredModelUsable))
+  const reconciled: DefaultModelsPayload = {}
+
+  for (const field of DEFAULT_MODEL_FIELDS) {
+    const rawModelKey = readTrimmedString(defaultModels[field])
+    const expectedType = DEFAULT_FIELD_TO_MODEL_TYPE[field]
+    const currentModel = rawModelKey ? byKey.get(rawModelKey) : null
+    if (currentModel?.type === expectedType) {
+      reconciled[field] = currentModel.modelKey
+      continue
+    }
+
+    reconciled[field] = findFallbackDefaultModelKey(models, field, rawModelKey)
+  }
+
+  return reconciled
+}
+
 function parseStoredProviders(rawProviders: string | null | undefined): StoredProvider[] {
   if (!rawProviders) return []
   let parsedUnknown: unknown
@@ -1826,6 +1881,15 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     select: {
       customProviders: true,
       customModels: true,
+      analysisModel: true,
+      characterModel: true,
+      locationModel: true,
+      storyboardModel: true,
+      editModel: true,
+      videoModel: true,
+      audioModel: true,
+      lipSyncModel: true,
+      voiceDesignModel: true,
     },
   })
   const existingProviders = parseStoredProviders(existingPref?.customProviders)
@@ -1885,37 +1949,37 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     updateData.customProviders = JSON.stringify(providersToSave)
   }
 
-  if (normalizedDefaults !== undefined) {
+  const modelSourceForDefaults = normalizedModels ?? existingModels
+  const existingDefaults: DefaultModelsPayload = {
+    analysisModel: existingPref?.analysisModel || '',
+    characterModel: existingPref?.characterModel || '',
+    locationModel: existingPref?.locationModel || '',
+    storyboardModel: existingPref?.storyboardModel || '',
+    editModel: existingPref?.editModel || '',
+    videoModel: existingPref?.videoModel || '',
+    audioModel: existingPref?.audioModel || '',
+    lipSyncModel: existingPref?.lipSyncModel || DEFAULT_LIPSYNC_MODEL_KEY,
+    voiceDesignModel: existingPref?.voiceDesignModel || '',
+  }
+  const defaultsToReconcile: DefaultModelsPayload = {
+    ...existingDefaults,
+    ...(normalizedDefaults || {}),
+  }
+  const reconciledDefaults = reconcileDefaultModelsWithModels(defaultsToReconcile, modelSourceForDefaults)
+
+  if (normalizedDefaults !== undefined || normalizedModels !== undefined) {
     if (billingMode !== 'OFF') {
-      validateDefaultModelPricing(normalizedDefaults)
+      validateDefaultModelPricing(reconciledDefaults)
     }
-    if (normalizedDefaults.analysisModel !== undefined) {
-      updateData.analysisModel = normalizedDefaults.analysisModel || null
-    }
-    if (normalizedDefaults.characterModel !== undefined) {
-      updateData.characterModel = normalizedDefaults.characterModel || null
-    }
-    if (normalizedDefaults.locationModel !== undefined) {
-      updateData.locationModel = normalizedDefaults.locationModel || null
-    }
-    if (normalizedDefaults.storyboardModel !== undefined) {
-      updateData.storyboardModel = normalizedDefaults.storyboardModel || null
-    }
-    if (normalizedDefaults.editModel !== undefined) {
-      updateData.editModel = normalizedDefaults.editModel || null
-    }
-    if (normalizedDefaults.videoModel !== undefined) {
-      updateData.videoModel = normalizedDefaults.videoModel || null
-    }
-    if (normalizedDefaults.audioModel !== undefined) {
-      updateData.audioModel = normalizedDefaults.audioModel || null
-    }
-    if (normalizedDefaults.lipSyncModel !== undefined) {
-      updateData.lipSyncModel = normalizedDefaults.lipSyncModel || null
-    }
-    if (normalizedDefaults.voiceDesignModel !== undefined) {
-      updateData.voiceDesignModel = normalizedDefaults.voiceDesignModel || null
-    }
+    updateData.analysisModel = reconciledDefaults.analysisModel || null
+    updateData.characterModel = reconciledDefaults.characterModel || null
+    updateData.locationModel = reconciledDefaults.locationModel || null
+    updateData.storyboardModel = reconciledDefaults.storyboardModel || null
+    updateData.editModel = reconciledDefaults.editModel || null
+    updateData.videoModel = reconciledDefaults.videoModel || null
+    updateData.audioModel = reconciledDefaults.audioModel || null
+    updateData.lipSyncModel = reconciledDefaults.lipSyncModel || null
+    updateData.voiceDesignModel = reconciledDefaults.voiceDesignModel || null
   }
 
   if (normalizedWorkflowConcurrency !== undefined) {
