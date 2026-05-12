@@ -24,11 +24,18 @@ import {
 
 const ACTIVE_STATUSES = [TASK_STATUS.QUEUED, TASK_STATUS.PROCESSING]
 
+function readPositiveIntEnv(name: string, fallback: number) {
+    const raw = process.env[name]
+    if (!raw) return fallback
+    const parsed = Number.parseInt(raw, 10)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
 /** watchdog 巡检间隔 */
-const WATCHDOG_INTERVAL_MS = 60_000
+const WATCHDOG_INTERVAL_MS = readPositiveIntEnv('WATCHDOG_INTERVAL_MS', 60_000)
 
 /** processing 心跳超时阈值 */
-const PROCESSING_TIMEOUT_MS = 5 * 60_000
+const PROCESSING_TIMEOUT_MS = readPositiveIntEnv('TASK_HEARTBEAT_TIMEOUT_MS', 5 * 60_000)
 
 /** 每次对账扫描上限 */
 const RECONCILE_BATCH_SIZE = 200

@@ -68,6 +68,8 @@ export function usePanelImageRegeneration({
         // Mutation errors (e.g. network failure, API 500) are transient.
         // The task was never created in the database, so we log and let user retry.
         _ulogWarn(`[regeneratePanelImage] mutation failed for panel ${panelId}:`, error)
+        const message = error instanceof Error ? error.message : '分镜图片生成提交失败'
+        window.alert(message)
       } finally {
         if (handoffToTaskState) return
         setSubmittingPanelImageIds((previous) => {

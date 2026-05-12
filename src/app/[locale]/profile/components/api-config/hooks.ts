@@ -157,6 +157,47 @@ const DEFAULT_WORKFLOW_CONCURRENCY: WorkflowConcurrency = {
     video: DEFAULT_VIDEO_WORKFLOW_CONCURRENCY,
 }
 
+const DEFAULT_MODEL_FIELD_TO_TYPE: Readonly<Record<keyof DefaultModels, CustomModel['type']>> = {
+    analysisModel: 'llm',
+    characterModel: 'image',
+    locationModel: 'image',
+    storyboardModel: 'image',
+    editModel: 'image',
+    videoModel: 'video',
+    audioModel: 'audio',
+    lipSyncModel: 'lipsync',
+    voiceDesignModel: 'audio',
+}
+
+const DEFAULT_MODEL_FIELDS = Object.keys(DEFAULT_MODEL_FIELD_TO_TYPE) as Array<keyof DefaultModels>
+
+function reconcileDefaultModels(
+    defaults: DefaultModels,
+    enabledModels: CustomModel[],
+): DefaultModels {
+    const byKey = new Map(enabledModels.map((model) => [model.modelKey, model]))
+    const next: DefaultModels = {}
+
+    for (const field of DEFAULT_MODEL_FIELDS) {
+        const expectedType = DEFAULT_MODEL_FIELD_TO_TYPE[field]
+        const currentKey = defaults[field]
+        const current = currentKey ? byKey.get(currentKey) : null
+        if (current?.type === expectedType) {
+            next[field] = current.modelKey
+            continue
+        }
+
+        const currentModelId = currentKey?.split('::').pop()
+        const sameModelId = currentModelId
+            ? enabledModels.find((model) => model.type === expectedType && model.modelId === currentModelId)
+            : null
+        const fallback = sameModelId || enabledModels.find((model) => model.type === expectedType)
+        next[field] = fallback?.modelKey || ''
+    }
+
+    return next
+}
+
 function parseWorkflowConcurrency(raw: unknown): WorkflowConcurrency {
     if (!isRecord(raw)) return DEFAULT_WORKFLOW_CONCURRENCY
     return {
@@ -388,10 +429,14 @@ export function useProviders(): UseProvidersReturn {
         try {
             const currentModels = latestModelsRef.current
             const currentProviders = latestProvidersRef.current
-            const currentDefaultModels = overrides?.defaultModels ?? latestDefaultModelsRef.current
             const currentWorkflowConcurrency = overrides?.workflowConcurrency ?? latestWorkflowConcurrencyRef.current
             const currentCapabilityDefaults = overrides?.capabilityDefaults ?? latestCapabilityDefaultsRef.current
             const enabledModels = currentModels.filter(m => m.enabled)
+            const currentDefaultModels = reconcileDefaultModels(
+                overrides?.defaultModels ?? latestDefaultModelsRef.current,
+                enabledModels,
+            )
+            latestDefaultModelsRef.current = currentDefaultModels
             const res = await apiFetch('/api/user/api-config', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
