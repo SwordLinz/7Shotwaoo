@@ -15,6 +15,10 @@ import {
 } from '@/lib/model-capabilities/lookup'
 import { resolveBuiltinPricing } from '@/lib/model-pricing/lookup'
 import { resolveProjectModelCapabilityGenerationOptions } from '@/lib/config-service'
+import {
+  resolveVideoGenerationModeFromPayload,
+  resolveVideoModelKeyFromPayload,
+} from '@/lib/video-generation/canonical-options'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -32,11 +36,6 @@ function toVideoRuntimeSelections(value: unknown): Record<string, CapabilityValu
   return selections
 }
 
-function resolveVideoGenerationMode(payload: unknown): 'normal' | 'firstlastframe' {
-  if (!isRecord(payload)) return 'normal'
-  return isRecord(payload.firstLastFrame) ? 'firstlastframe' : 'normal'
-}
-
 function isSeedance2Model(modelKey: string): boolean {
   const parsed = parseModelKeyStrict(modelKey)
   if (!parsed) return false
@@ -45,17 +44,6 @@ function isSeedance2Model(modelKey: string): boolean {
       parsed.modelId === 'doubao-seedance-2-0-260128'
       || parsed.modelId === 'doubao-seedance-2-0-fast-260128'
     )
-}
-
-function resolveVideoModelKeyFromPayload(payload: Record<string, unknown>): string | null {
-  const firstLast = isRecord(payload.firstLastFrame) ? payload.firstLastFrame : null
-  if (firstLast && typeof firstLast.flModel === 'string' && parseModelKeyStrict(firstLast.flModel)) {
-    return firstLast.flModel
-  }
-  if (typeof payload.videoModel === 'string' && parseModelKeyStrict(payload.videoModel)) {
-    return payload.videoModel
-  }
-  return null
 }
 
 function requireVideoModelKeyFromPayload(payload: unknown): string {
@@ -113,7 +101,7 @@ async function validateVideoCapabilityCombination(input: {
   if (!builtinCaps) return null
 
   const runtimeSelections = toVideoRuntimeSelections(payload.generationOptions)
-  runtimeSelections.generationMode = resolveVideoGenerationMode(payload)
+  runtimeSelections.generationMode = resolveVideoGenerationModeFromPayload(payload)
 
   let resolvedOptions: Record<string, CapabilityValue>
   try {
