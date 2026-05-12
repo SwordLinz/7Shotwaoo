@@ -106,6 +106,44 @@ describe('billing/task-policy', () => {
     })
   })
 
+  it('does not crash on third-party proxy of Seedance 2.0 (uncatalogued provider)', () => {
+    // Production bug: user's videoModel is an artsmcp-proxied seedance, with provider
+    // `openai-compatible:<uuid>`. Capability / pricing catalogs only know the ark and
+    // niuniu providers, so the proxied modelKey must NOT be treated as a Seedance 2.0
+    // token-priced model. Otherwise capabilities-based defaulting fails to fill
+    // `resolution`, and `estimateSeedance2VideoTokens` throws
+    // BILLING_UNKNOWN_VIDEO_RESOLUTION, which the API surfaces as
+    // "当前视频模型参数组合没有可用计费配置".
+    //
+    // Front-end does not send `resolution` because the model is not in the built-in
+    // capability catalog, so UI cannot show option pickers.
+    const modelKey = 'openai-compatible:acde2a59-baca-4112-8bf6-a4624fad1d0d::doubao-seedance-2-0-260128'
+
+    const info = expectBillableInfo(buildDefaultTaskBillingInfo(TASK_TYPE.VIDEO_PANEL, {
+      videoModel: modelKey,
+      storyboardId: 'sb-1',
+      panelIndex: 0,
+      panelId: 'panel-1',
+    }))
+
+    expect(info.model).toBe(modelKey)
+    expect(info.apiType).toBe('video')
+    // Uncatalogued model: maxFrozenCost falls back to 0 and actual cost is resolved
+    // later (currently bypassed because BILLING_MODE=OFF).
+    expect(info.maxFrozenCost).toBe(0)
+  })
+
+  it('still applies Seedance 2.0 token pricing for the built-in ark provider', () => {
+    // Regression guard: tightening isSeedance2TokenPricedModel must not break the
+    // canonical ark provider that the token pricing tiers are designed for.
+    const info = expectBillableInfo(buildDefaultTaskBillingInfo(TASK_TYPE.VIDEO_PANEL, {
+      videoModel: 'ark::doubao-seedance-2-0-260128',
+    }))
+
+    expect(info.maxFrozenCost).toBeGreaterThan(0)
+    expect(info.metadata).toMatchObject({ containsVideoInput: false })
+  })
+
   it('uses explicit lip sync model from payload', () => {
     const info = expectBillableInfo(buildDefaultTaskBillingInfo(TASK_TYPE.LIP_SYNC, {
       lipSyncModel: 'vidu::vidu-lipsync',
