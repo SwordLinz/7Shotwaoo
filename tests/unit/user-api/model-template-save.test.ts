@@ -85,4 +85,74 @@ describe('user-api model template save', () => {
     expect(target?.compatMediaTemplateSource).toBe('ai')
     expect(typeof target?.compatMediaTemplateCheckedAt).toBe('string')
   })
+
+  it('uses the Ark content template for xinhankr Seedance 2 video models', async () => {
+    prismaMock.userPreference.findUnique.mockResolvedValueOnce({
+      customProviders: JSON.stringify([
+        {
+          id: 'openai-compatible:xinhankr-1',
+          name: '可美视频',
+          baseUrl: 'https://token.xinhankr.com',
+        },
+      ]),
+      customModels: JSON.stringify([]),
+    })
+
+    await saveModelTemplateConfiguration({
+      userId: 'user-1',
+      providerId: 'openai-compatible:xinhankr-1',
+      modelId: 'doubao-seedance-2-0-260128',
+      name: 'doubao-seedance-2-0-260128',
+      type: 'video',
+      template: {
+        version: 1,
+        mediaType: 'video',
+        mode: 'async',
+        create: {
+          method: 'POST',
+          path: '/v1/video/generations',
+          contentType: 'application/json',
+          bodyTemplate: {
+            model: '{{model}}',
+            prompt: '{{prompt}}',
+            image: '{{image}}',
+            resolution: '{{resolution}}',
+          },
+        },
+        status: { method: 'GET', path: '/v1/video/generations/{{task_id}}' },
+        response: {
+          taskIdPath: '$.id',
+          statusPath: '$.status',
+        },
+        polling: {
+          intervalMs: 3000,
+          timeoutMs: 600000,
+          doneStates: ['completed'],
+          failStates: ['failed'],
+        },
+      },
+      source: 'manual',
+    })
+
+    const savedModels = readSavedModelsFromUpsert()
+    const target = savedModels.find((item) => (
+      item.modelKey === 'openai-compatible:xinhankr-1::doubao-seedance-2-0-260128'
+    ))
+    const template = target?.compatMediaTemplate as {
+      create?: { bodyTemplate?: Record<string, unknown> }
+    } | undefined
+    const bodyTemplate = template?.create?.bodyTemplate
+
+    expect(bodyTemplate).toMatchObject({
+      model: '{{model}}',
+      duration: '{{duration}}',
+      ratio: '{{aspect_ratio}}',
+    })
+    expect(bodyTemplate).not.toHaveProperty('resolution')
+    expect(bodyTemplate).not.toHaveProperty('image')
+    expect(bodyTemplate?.content).toEqual([
+      { type: 'text', text: '{{prompt}}' },
+      { type: 'image_url', image_url: { url: '{{image}}' } },
+    ])
+  })
 })
