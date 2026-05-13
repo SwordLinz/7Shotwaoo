@@ -137,6 +137,68 @@ describe('script-to-storyboard orchestrator retry', () => {
     expect(callCount).toBe(1)
   })
 
+  it('merges phase rules when panel numbers are numeric strings', async () => {
+    const runStep = vi.fn(async (_meta, _prompt, action: string) => {
+      if (action === 'storyboard_phase1_plan') {
+        return {
+          text: JSON.stringify([{ panel_number: 1, description: '初稿', location: '场景A', source_text: '原文', characters: [] }]),
+          reasoning: '',
+        }
+      }
+      if (action === 'storyboard_phase2_cinematography') {
+        return {
+          text: JSON.stringify([{ panel_number: 1, composition: '居中', lighting: '侧光' }]),
+          reasoning: '',
+        }
+      }
+      if (action === 'storyboard_phase2_acting') {
+        return {
+          text: JSON.stringify([{ panel_number: 1, characters: [{ name: '角色A', acting: '惊讶' }] }]),
+          reasoning: '',
+        }
+      }
+      if (action === 'storyboard_phase3_detail') {
+        return {
+          text: JSON.stringify([{ panel_number: '1', description: '精修', location: '场景A', source_text: '原文', characters: [] }]),
+          reasoning: '',
+        }
+      }
+      throw new Error(`unexpected action: ${action}`)
+    })
+
+    const result = await runScriptToStoryboardOrchestrator({
+      clips: [
+        {
+          id: 'clip-1',
+          content: '文本',
+          characters: JSON.stringify([{ name: '角色A' }]),
+          location: '场景A',
+          screenplay: null,
+        },
+      ],
+      novelPromotionData: {
+        characters: [{ name: '角色A', appearances: [] }],
+        locations: [{ name: '场景A', images: [] }],
+      },
+      promptTemplates: {
+        phase1PlanTemplate: '{clip_content} {clip_json} {characters_lib_name} {locations_lib_name} {characters_introduction} {characters_appearance_list} {characters_full_description}',
+        phase2CinematographyTemplate: '{panels_json} {panel_count} {locations_description} {characters_info}',
+        phase2ActingTemplate: '{panels_json} {panel_count} {characters_info}',
+        phase3DetailTemplate: '{panels_json} {characters_age_gender} {locations_description}',
+      },
+      runStep,
+    })
+
+    expect(result.clipPanels[0]?.finalPanels[0]).toEqual(expect.objectContaining({
+      panel_number: '1',
+      photographyPlan: expect.objectContaining({
+        composition: '居中',
+        lighting: '侧光',
+      }),
+      actingNotes: [{ name: '角色A', acting: '惊讶' }],
+    }))
+  })
+
   it('enforces topology: phase3 runs after both phase2 steps complete', async () => {
     const actionOrder: string[] = []
     const runStep = vi.fn(async (_meta, _prompt, action: string) => {
