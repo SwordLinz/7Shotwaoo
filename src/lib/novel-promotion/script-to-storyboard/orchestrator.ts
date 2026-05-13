@@ -24,6 +24,7 @@ import {
   DEFAULT_ANALYSIS_WORKFLOW_CONCURRENCY,
   normalizeWorkflowConcurrencyValue,
 } from '@/lib/workflow-concurrency'
+import { mergePanelsWithRules } from './merge-panel-rules'
 
 type JsonRecord = Record<string, unknown>
 const orchestratorLogger = createScopedLogger({ module: 'worker.orchestrator.script_to_storyboard' })
@@ -167,36 +168,6 @@ function withStepMeta(
     stepTotal,
     ...extra,
   }
-}
-
-function mergePanelsWithRules(params: {
-  finalPanels: StoryboardPanel[]
-  photographyRules: PhotographyRule[]
-  actingDirections: ActingDirection[]
-}) {
-  const { finalPanels, photographyRules, actingDirections } = params
-  return finalPanels.map((panel, index) => {
-    const rules = photographyRules.find((rule) => rule.panel_number === panel.panel_number)
-    if (!rules) {
-      throw new Error(`Missing photography rule for panel_number=${String(panel.panel_number)} at index=${index}`)
-    }
-    const acting = actingDirections.find((item) => item.panel_number === panel.panel_number)
-    if (!acting) {
-      throw new Error(`Missing acting direction for panel_number=${String(panel.panel_number)} at index=${index}`)
-    }
-
-    return {
-      ...panel,
-      photographyPlan: {
-        composition: rules.composition,
-        lighting: rules.lighting,
-        colorPalette: rules.color_palette,
-        atmosphere: rules.atmosphere,
-        technicalNotes: rules.technical_notes,
-      },
-      actingNotes: acting.characters,
-    }
-  })
 }
 
 const MAX_STEP_ATTEMPTS = 3

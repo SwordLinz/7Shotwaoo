@@ -25,6 +25,7 @@ import {
   buildPromptAssetContext,
   compileAssetPromptFragments,
 } from '@/lib/assets/services/asset-prompt-context'
+import { mergePanelsWithRules } from '@/lib/novel-promotion/script-to-storyboard/merge-panel-rules'
 
 type StoryboardClipInput = {
   id: string
@@ -277,35 +278,6 @@ async function runStepWithRetry<T>(params: {
     }
   }
   throw lastError || new Error('step execution failed')
-}
-
-function mergePanelsWithRules(params: {
-  finalPanels: StoryboardPanel[]
-  photographyRules: PhotographyRule[]
-  actingDirections: ActingDirection[]
-}) {
-  const { finalPanels, photographyRules, actingDirections } = params
-  return finalPanels.map((panel, index) => {
-    const rule = photographyRules.find((item) => item.panel_number === panel.panel_number)
-    if (!rule) {
-      throw new Error(`Missing photography rule for panel_number=${String(panel.panel_number)} at index=${index}`)
-    }
-    const acting = actingDirections.find((item) => item.panel_number === panel.panel_number)
-    if (!acting) {
-      throw new Error(`Missing acting direction for panel_number=${String(panel.panel_number)} at index=${index}`)
-    }
-    return {
-      ...panel,
-      photographyPlan: {
-        composition: rule.composition,
-        lighting: rule.lighting,
-        colorPalette: rule.color_palette,
-        atmosphere: rule.atmosphere,
-        technicalNotes: rule.technical_notes,
-      },
-      actingNotes: acting.characters,
-    }
-  })
 }
 
 function requireRows<T extends JsonRecord>(rows: T[], label: string) {
