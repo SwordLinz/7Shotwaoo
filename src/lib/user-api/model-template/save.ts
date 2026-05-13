@@ -2,6 +2,10 @@ import { prisma } from '@/lib/prisma'
 import { composeModelKey } from '@/lib/model-config-contract'
 import { getProviderKey } from '@/lib/api-config'
 import type { OpenAICompatMediaTemplate } from '@/lib/openai-compat-media-template'
+import {
+  buildXinhankrSeedance2VideoTemplate,
+  isXinhankrSeedance2VideoModel,
+} from './xinhankr-seedance'
 
 type StoredModelType = 'llm' | 'image' | 'video' | 'audio' | 'lipsync'
 
@@ -11,6 +15,11 @@ type StoredModelRecord = Record<string, unknown> & {
   name: string
   type: StoredModelType
   provider: string
+}
+
+type StoredProviderRecord = Record<string, unknown> & {
+  id: string
+  baseUrl?: string
 }
 
 export interface SaveModelTemplateInput {
@@ -72,16 +81,26 @@ function parseStoredModels(raw: string | null | undefined): StoredModelRecord[] 
   return result
 }
 
-function hasProvider(rawProviders: string | null | undefined, providerId: string): boolean {
-  if (!rawProviders) return false
+function findProvider(rawProviders: string | null | undefined, providerId: string): StoredProviderRecord | null {
+  if (!rawProviders) return null
   let parsed: unknown
   try {
     parsed = JSON.parse(rawProviders) as unknown
   } catch {
-    return false
+    return null
   }
-  if (!Array.isArray(parsed)) return false
-  return parsed.some((item) => isRecord(item) && readTrimmedString(item.id) === providerId)
+  if (!Array.isArray(parsed)) return null
+  for (const item of parsed) {
+    if (!isRecord(item)) continue
+    const id = readTrimmedString(item.id)
+    if (id !== providerId) continue
+    return {
+      ...item,
+      id,
+      baseUrl: readTrimmedString(item.baseUrl) || undefined,
+    }
+  }
+  return null
 }
 
 export async function saveModelTemplateConfiguration(input: SaveModelTemplateInput): Promise<{
@@ -108,7 +127,8 @@ export async function saveModelTemplateConfiguration(input: SaveModelTemplateInp
     },
   })
 
-  if (!hasProvider(pref?.customProviders, input.providerId)) {
+  const provider = findProvider(pref?.customProviders, input.providerId)
+  if (!provider) {
     throw new Error('MODEL_TEMPLATE_SAVE_PROVIDER_NOT_FOUND')
   }
 
@@ -140,7 +160,11 @@ export async function saveModelTemplateConfiguration(input: SaveModelTemplateInp
     name: modelName,
     type: input.type,
     provider: input.providerId,
-    compatMediaTemplate: input.template,
+    compatMediaTemplate: isXinhankrSeedance2VideoModel({
+      modelId,
+      type: input.type,
+      providerBaseUrl: provider.baseUrl,
+    }) ? buildXinhankrSeedance2VideoTemplate() : input.template,
     compatMediaTemplateCheckedAt: checkedAt,
     compatMediaTemplateSource: input.source,
     enabled: baseRecord.enabled === false ? false : true,
